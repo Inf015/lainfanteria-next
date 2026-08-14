@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -11,31 +13,38 @@ import type { AutoConFotos, Moneda } from '@/lib/types';
 import s from './home.module.css';
 
 /**
- * Especializaciones del taller. `imagen` queda en null hasta que existan las
- * fotos: el Blazor apuntaba a car-mustang.jpg / car-camaro.jpg /
- * car-corvette.jpg, que nunca se subieron y daban 404 en cada carga.
+ * Devuelve la ruta pública de la foto si el archivo existe, o null.
+ *
+ * Así basta con dejar el .jpg en public/images para que la tarjeta lo muestre,
+ * sin tocar código. El Blazor apuntaba a estos mismos nombres sin verificar y
+ * pedía tres archivos inexistentes en cada carga.
  */
-const especializaciones: { imagen: string | null; nombre: string; descripcion: string }[] =
-  [
-    {
-      imagen: null,
-      nombre: 'Mustang',
-      descripcion:
-        'Dominamos cada generación, desde clásicos hasta el último GT500. Performance, tuning y modificaciones.',
-    },
-    {
-      imagen: null,
-      nombre: 'Camaro',
-      descripcion:
-        'Potencia y estilo americano en su máxima expresión. Desde el SS hasta el ZL1, lo manejamos todo.',
-    },
-    {
-      imagen: null,
-      nombre: 'Corvette',
-      descripcion:
-        'El ícono americano por excelencia. Diagnóstico, tuning y upgrades para el C5 hasta el C8.',
-    },
-  ];
+function fotoSiExiste(archivo: string): string | null {
+  return existsSync(join(process.cwd(), 'public', 'images', archivo))
+    ? `/images/${archivo}`
+    : null;
+}
+
+const especializaciones = [
+  {
+    archivo: 'car-mustang.jpg',
+    nombre: 'Mustang',
+    descripcion:
+      'Dominamos cada generación, desde clásicos hasta el último GT500. Performance, tuning y modificaciones.',
+  },
+  {
+    archivo: 'car-camaro.jpg',
+    nombre: 'Camaro',
+    descripcion:
+      'Potencia y estilo americano en su máxima expresión. Desde el SS hasta el ZL1, lo manejamos todo.',
+  },
+  {
+    archivo: 'car-corvette.jpg',
+    nombre: 'Corvette',
+    descripcion:
+      'El ícono americano por excelencia. Diagnóstico, tuning y upgrades desde el C4 hasta el C8.',
+  },
+];
 
 const servicios = [
   {
@@ -214,12 +223,14 @@ export default async function Home() {
           </div>
 
           <div className={s.carsGrid}>
-            {especializaciones.map((e) => (
+            {especializaciones.map((e) => {
+              const foto = fotoSiExiste(e.archivo);
+              return (
               <div className={s.carCard} key={e.nombre}>
                 <div className={s.carImageWrap}>
-                  {e.imagen ? (
+                  {foto ? (
                     <Image
-                      src={e.imagen}
+                      src={foto}
                       alt={e.nombre}
                       fill
                       sizes="(max-width: 768px) 82vw, 33vw"
@@ -238,7 +249,8 @@ export default async function Home() {
                   <p className={s.carDesc}>{e.descripcion}</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
