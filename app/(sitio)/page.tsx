@@ -9,6 +9,8 @@ import {
   getProductos,
   seccionActiva,
 } from '@/lib/datos';
+import { getVideos } from '@/lib/youtube';
+import VideosGrid from './videos/VideosGrid';
 import s from './home.module.css';
 import { formatPrecio, soloDigitos } from '@/lib/formato';
 
@@ -93,17 +95,19 @@ const stats = [
 
 
 export default async function Home() {
-  const [ajustes, autosOn, merchOn, noticiasOn] = await Promise.all([
+  const [ajustes, autosOn, merchOn, videosOn, noticiasOn] = await Promise.all([
     getAjustes(),
     seccionActiva('autos'),
     seccionActiva('merch'),
+    seccionActiva('videos'),
     seccionActiva('noticias'),
   ]);
 
   // Solo se consulta lo que se va a mostrar
-  const [autos, productos, noticias] = await Promise.all([
+  const [autos, productos, videos, noticias] = await Promise.all([
     autosOn ? getAutos() : Promise.resolve([]),
     merchOn ? getProductos(4) : Promise.resolve([]),
+    videosOn ? getVideos(ajustes.youtube_channel_id ?? '', 3) : Promise.resolve([]),
     noticiasOn ? getNoticias(3) : Promise.resolve([]),
   ]);
 
@@ -419,6 +423,34 @@ export default async function Home() {
               </div>
             ) : (
               <p className={s.emptyHint}>Próximamente — nuevas unidades disponibles.</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── VIDEOS (solo si la sección está activa) ─── */}
+      {videosOn && (
+        <section className={s.news}>
+          <div className={s.sectionContainer}>
+            <div className={s.blockHeader}>
+              <div>
+                <span className={s.sectionLabel}>NUESTRO CANAL</span>
+                <h2 className={s.sectionTitle}>
+                  Últimos <span className={s.accent}>videos</span>
+                </h2>
+                <p className={s.sectionSubtitle}>
+                  Carreras, podcast y todo lo que pasa dentro y fuera de la pista.
+                </p>
+              </div>
+              <Link href="/videos" className={s.linkWhatsapp}>
+                VER TODOS →
+              </Link>
+            </div>
+
+            {videos.length > 0 ? (
+              <VideosGrid videos={videos} />
+            ) : (
+              <p className={s.emptyHint}>Próximamente — videos del equipo.</p>
             )}
           </div>
         </section>
