@@ -3,12 +3,23 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+// En producción, arrancar sin credenciales significa publicar un sitio que
+// parece sano pero está desconectado de la base: los links de WhatsApp salen
+// vacíos y todo el contenido cae al respaldo. Preferimos que el build falle.
+if (process.env.NODE_ENV === 'production' && !(url && anonKey)) {
+  throw new Error(
+    'Faltan NEXT_PUBLIC_SUPABASE_URL y/o NEXT_PUBLIC_SUPABASE_ANON_KEY. ' +
+      'Cargalas en las variables de entorno de Vercel y volvé a desplegar: ' +
+      'sin ellas el sitio se publica sin conexión a la base.',
+  );
+}
+
 /**
  * Cliente de solo lectura para el sitio público.
  *
- * Devuelve null si faltan las variables de entorno, en vez de tirar al
- * importar: así el build no se cae y las páginas pueden mostrar su estado
- * vacío. Quien lo use debe contemplar el null — ver `consultar()`.
+ * En desarrollo puede ser null (para poder trabajar sin credenciales); en
+ * producción el chequeo de arriba garantiza que no lo sea. Quien lo use debe
+ * contemplar el null igual — ver `consultar()`.
  */
 export const supabase: SupabaseClient | null =
   url && anonKey ? createClient(url, anonKey) : null;
