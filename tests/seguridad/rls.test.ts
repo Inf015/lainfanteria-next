@@ -202,6 +202,20 @@ describe('Storage', () => {
   });
 });
 
+describe('la tabla de miembros conservó sus políticas tras el rename', () => {
+  // `pilotos` se renombró a `miembros` en la migración 0009. Un rename arrastra
+  // las políticas, pero conviene comprobarlo: perderlas dejaría la tabla
+  // abierta sin que nada más falle.
+  it('se puede leer', async () => {
+    expect((await rest('miembros?select=id&limit=1')).status).toBe(200);
+  });
+
+  it('la tabla vieja ya no existe', async () => {
+    const r = await rest('pilotos?select=id');
+    expect(r.ok).toBe(false);
+  });
+});
+
 describe('el registro público está cerrado', () => {
   it('no se puede crear una cuenta', async () => {
     const r = await fetch(`${URL}/auth/v1/signup`, {

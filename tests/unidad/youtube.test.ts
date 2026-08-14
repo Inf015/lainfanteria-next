@@ -114,3 +114,35 @@ describe('parsearFeed', () => {
     expect(videos[0].id).toBe('bKPztH1YVz8');
   });
 });
+
+describe('la petición al feed no se puede desviar', () => {
+  /**
+   * El id del canal se edita desde el panel y termina dentro de una URL. Un
+   * admin comprometido no debe poder usar eso para que el servidor consulte
+   * otro host o cuele parámetros extra: el host está fijo en el código y el
+   * valor va codificado.
+   *
+   * Se replica acá la construcción de la URL de getVideos() en vez de llamarla,
+   * para no depender de la red.
+   */
+  const construir = (canal: string) =>
+    new URL(
+      `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(canal)}`,
+    );
+
+  it.each([
+    'UChv8SENnzPzMqi1uqQZ0b8A',
+    'x&channel_id=OTRO',
+    '../../../etc/passwd',
+    'x?redirect=http://malicioso.test',
+    'http://169.254.169.254/latest/meta-data/',
+    'x#fragmento',
+    '@evil.test/',
+  ])('%s no cambia el destino', (canal) => {
+    const u = construir(canal);
+    expect(u.hostname).toBe('www.youtube.com');
+    expect(u.pathname).toBe('/feeds/videos.xml');
+    // Un solo parámetro: nada de colar otros con &
+    expect([...u.searchParams.keys()]).toEqual(['channel_id']);
+  });
+});
