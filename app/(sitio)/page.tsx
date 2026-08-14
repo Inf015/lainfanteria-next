@@ -527,7 +527,8 @@ export default async function Home() {
             {telefono && (
               <div className={s.ctaPhone}>
                 <p>O llámanos directamente:</p>
-                <a href={`tel:${telefono}`}>{telefono}</a>
+                {/* El número se guarda con formato legible; tel: necesita solo dígitos */}
+                <a href={`tel:${telefono.replace(/\D/g, '')}`}>{telefono}</a>
               </div>
             )}
           </div>

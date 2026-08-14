@@ -107,6 +107,9 @@
     color: #ccc;
     font-size: 0.85rem;
     margin: 0.2rem 0 0 0;
+    /* El horario son varias franjas guardadas con saltos de línea */
+    white-space: pre-line;
+    line-height: 1.5;
 }
 
 .contactItem a {

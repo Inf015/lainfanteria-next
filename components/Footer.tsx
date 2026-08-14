@@ -13,7 +13,13 @@ export default async function Footer() {
   const whatsapp = a.whatsapp_numero ?? '';
   const contactos = [
     { icono: '📍', label: 'UBICACIÓN', valor: a.direccion, href: null },
-    { icono: '📞', label: 'TELÉFONO', valor: a.telefono, href: `tel:${a.telefono}` },
+    {
+      icono: '📞',
+      label: 'TELÉFONO',
+      valor: a.telefono,
+      // El número se guarda con formato legible; tel: necesita solo dígitos.
+      href: `tel:${(a.telefono ?? '').replace(/\D/g, '')}`,
+    },
     {
       icono: '✉️',
       label: 'EMAIL',
