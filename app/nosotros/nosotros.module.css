@@ -1,0 +1,436 @@
+/* Portado del bloque <style> de Components/Pages/Nosotros.razor.
+   Se agregaron las utilidades compartidas (sectionContainer, sectionLabel,
+   sectionTitle, accent, pageBanner) que la página usaba pero no definía:
+   en Blazor las heredaba de los <style> globales de otras páginas. */
+
+/* ─── Utilidades que la página necesita ─── */
+
+.sectionContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.sectionLabel {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 1.25rem;
+    line-height: 1.15;
+}
+
+.sectionHeader {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.accent { color: var(--color-primary); }
+
+.pageBanner {
+    position: relative;
+    background-color: var(--color-bg-medium);
+    border-bottom: 2px solid var(--color-primary);
+    padding: 5rem 0 4rem;
+    overflow: hidden;
+}
+
+.pageBannerTitle {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0.5rem 0;
+    line-height: 1.1;
+}
+
+.pageBannerSub {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin: 0.75rem 0 0;
+    max-width: 560px;
+}
+
+/* ─── Banner ─── */
+.nosotrosBanner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 80px,
+            rgba(211,47,47,0.025) 80px,
+            rgba(211,47,47,0.025) 81px
+        );
+    pointer-events: none;
+}
+
+/* ─── Historia ─── */
+.nosotrosHistoria {
+    background: var(--color-bg-dark);
+    padding: 5rem 0;
+}
+
+.historiaGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.historiaTexto .sectionLabel { display: block; margin-bottom: 0.75rem; }
+
+.historiaTexto p {
+    color: #888;
+    font-size: 0.95rem;
+    line-height: 1.75;
+    margin: 0 0 1rem;
+}
+
+.historiaTexto p em { color: #bbb; font-style: normal; font-weight: 600; }
+
+.historiaCardStack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.hcard {
+    background: var(--color-bg-card);
+    border: 1px solid #222;
+    border-left: 3px solid var(--color-primary);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    border-radius: 0 8px 8px 0;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.hcard:hover {
+    background: #1a1a1a;
+    border-left-color: #ff6659;
+}
+
+.hcardNum {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    opacity: 0.5;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.hcardTxt {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #ccc;
+    line-height: 1.4;
+}
+
+/* ─── Números ─── */
+.nosotrosNumeros {
+    background: var(--color-bg-medium);
+    padding: 3.5rem 0;
+    border-top: 1px solid #1e1e1e;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+.numerosGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.numeroItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: center;
+    padding: 1.5rem 1rem;
+}
+
+.numeroVal {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.numeroPlus {
+    font-size: 1.8rem;
+    vertical-align: super;
+}
+
+.numeroLbl {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #555;
+}
+
+/* ─── Valores ─── */
+.nosotrosValores {
+    background: var(--color-bg-dark);
+    padding: 5rem 0;
+}
+
+.valoresGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+.valorCard {
+    background: var(--color-bg-card);
+    border: 1px solid #1e1e1e;
+    border-radius: 10px;
+    padding: 2rem 1.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.valorCard:hover {
+    border-color: #2a2a2a;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.valorIcon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.valorCard h3 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #e0e0e0;
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.valorCard p {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.65;
+    margin: 0;
+}
+
+/* ─── Taller ─── */
+.nosotrosTaller {
+    background: var(--color-bg-medium);
+    padding: 5rem 0;
+    border-top: 1px solid #1e1e1e;
+}
+
+.tallerGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.tallerInfo .sectionLabel { display: block; margin-bottom: 0.75rem; }
+
+.tallerInfo > p {
+    color: #888;
+    font-size: 0.95rem;
+    line-height: 1.75;
+    margin: 0 0 1.5rem;
+}
+
+.tallerLista {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.tallerLista li {
+    font-size: 0.88rem;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.listaCheck {
+    color: var(--color-primary);
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.btnVerServicios {
+    display: inline-block;
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    transition: opacity 0.15s;
+}
+
+.btnVerServicios:hover { opacity: 0.75; }
+
+.tallerDeco {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tallerDecoInner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 3rem 2rem;
+    border: 1px solid #222;
+    border-radius: 12px;
+    background: var(--color-bg-card);
+    width: 100%;
+}
+
+.decoStripe {
+    width: 60px;
+    height: 3px;
+    background: var(--color-primary);
+    border-radius: 2px;
+}
+
+.decoText {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    text-align: center;
+}
+
+.decoBig {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #e0e0e0;
+    line-height: 1;
+}
+
+.decoBig.accent { color: var(--color-primary); }
+
+.decoSub {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #444;
+    margin-top: 0.5rem;
+}
+
+/* ─── CTA ─── */
+.nosotrosCta {
+    background: var(--color-bg-dark);
+    padding: 4rem 0 5rem;
+}
+
+.ctaBox {
+    background: var(--color-bg-card);
+    border: 1px solid #222;
+    border-top: 3px solid var(--color-primary);
+    border-radius: 0 0 12px 12px;
+    padding: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.ctaContent h2 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #f0f0f0;
+    margin: 0 0 0.6rem;
+}
+
+.ctaContent p {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0;
+    max-width: 480px;
+    line-height: 1.65;
+}
+
+.ctaActions {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.btnCtaWa {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #1b5e20;
+    border: 1px solid #2e7d32;
+    color: #a5d6a7;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.btnCtaWa:hover { background: #2e7d32; color: #fff; }
+
+.btnCtaServicios {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: 1px solid #333;
+    color: #aaa;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.btnCtaServicios:hover { border-color: #666; color: #fff; }
+
+/* ─── Responsive ─── */
+@media (max-width: 960px) {
+    .historiaGrid,
+    .tallerGrid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .historiaVisual { order: -1; }
+    .numerosGrid { grid-template-columns: repeat(2, 1fr); }
+    .valoresGrid { grid-template-columns: repeat(2, 1fr); }
+    .ctaBox { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 560px) {
+    .pageBannerTitle { font-size: 2rem; }
+    .sectionContainer { padding: 0 1.25rem; }
+    .numerosGrid { grid-template-columns: repeat(2, 1fr); }
+    .valoresGrid { grid-template-columns: 1fr; }
+    .ctaActions { flex-direction: column; width: 100%; }
+    .btnCtaWa, .btnCtaServicios { justify-content: center; }
+    .tallerDeco { display: none; }
+}
