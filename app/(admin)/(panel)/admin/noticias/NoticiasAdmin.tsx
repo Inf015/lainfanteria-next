@@ -6,7 +6,7 @@ import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Noticia } from '@/lib/types';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import s from '../../../admin.module.css';
-import { aSlug } from '@/lib/formato';
+import { aSlug, fechaCorta } from '@/lib/formato';
 
 const CATEGORIAS = ['Carrera', 'Taller', 'Equipo', 'General'];
 
@@ -233,9 +233,7 @@ export default function NoticiasAdmin({ inicial }: { inicial: Noticia[] }) {
                   </td>
                   <td>{n.categoria ?? '—'}</td>
                   <td>
-                    {n.fecha_publicacion
-                      ? new Date(n.fecha_publicacion).toLocaleDateString('es-DO')
-                      : '—'}
+                    {n.fecha_publicacion ? fechaCorta(n.fecha_publicacion) : '—'}
                   </td>
                   <td>
                     <span

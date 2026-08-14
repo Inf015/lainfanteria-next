@@ -3,6 +3,8 @@ import {
   aLista,
   aParrafos,
   aSlug,
+  fechaCorta,
+  fechaLarga,
   formatPrecio,
   nombreAuto,
   ordenarFotos,
@@ -154,5 +156,33 @@ describe('aParrafos', () => {
   it('devuelve lista vacía si no hay contenido', () => {
     expect(aParrafos('')).toEqual([]);
     expect(aParrafos('\n\n  \n')).toEqual([]);
+  });
+});
+
+describe('fechas', () => {
+  it('formatea en hora dominicana, no en la del servidor', () => {
+    // Bug real de hidratación: 00:13 UTC es del día anterior en RD, así que
+    // servidor (UTC) y navegador calculaban días distintos
+    expect(fechaLarga('2026-01-27T00:13:36+00:00')).toBe('26 de enero de 2026');
+    expect(fechaLarga('2025-04-29T00:12:55+00:00')).toBe('28 de abril de 2025');
+  });
+
+  it('da el mismo resultado sin importar la zona del proceso', () => {
+    const previa = process.env.TZ;
+    const fecha = '2026-01-27T00:13:36+00:00';
+    const resultados = new Set<string>();
+    for (const tz of ['UTC', 'America/Santo_Domingo', 'Asia/Tokyo']) {
+      process.env.TZ = tz;
+      resultados.add(fechaLarga(fecha));
+    }
+    process.env.TZ = previa;
+    expect(resultados.size).toBe(1);
+  });
+
+  it('no rompe con nulo ni con basura', () => {
+    expect(fechaLarga(null)).toBe('');
+    expect(fechaLarga('')).toBe('');
+    expect(fechaLarga('no es una fecha')).toBe('');
+    expect(fechaCorta(null)).toBe('');
   });
 });

@@ -83,3 +83,35 @@ export function aParrafos(texto: string): string[] {
     .map((p) => p.trim())
     .filter(Boolean);
 }
+
+/**
+ * Zona horaria del sitio.
+ *
+ * Las fechas se formatean siempre en hora dominicana, no en la del servidor ni
+ * en la de quien mira. Sin fijarla, el servidor —que corre en UTC— y el
+ * navegador podían calcular días distintos para el mismo contenido, y React
+ * fallaba la hidratación: un video publicado 00:13 UTC es del día anterior en
+ * Santo Domingo.
+ */
+const ZONA = 'America/Santo_Domingo';
+
+/** "14 de agosto de 2026" */
+export function fechaLarga(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-DO', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    timeZone: ZONA,
+  });
+}
+
+/** "14/8/2026" */
+export function fechaCorta(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-DO', { timeZone: ZONA });
+}

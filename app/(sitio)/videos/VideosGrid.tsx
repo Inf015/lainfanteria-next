@@ -4,15 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import type { Video } from '@/lib/youtube';
 import s from './videos.module.css';
-
-function fechaTexto(iso: string) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('es-DO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-}
+import { fechaLarga } from '@/lib/formato';
 
 /**
  * Grilla de videos con reproductor bajo demanda.
@@ -60,7 +52,7 @@ export default function VideosGrid({ videos }: { videos: Video[] }) {
             </div>
             <div className={s.cuerpo}>
               <h2 className={s.titulo}>{v.titulo}</h2>
-              <span className={s.fecha}>{fechaTexto(v.publicado)}</span>
+              <span className={s.fecha}>{fechaLarga(v.publicado)}</span>
             </div>
           </button>
         ))}
@@ -88,7 +80,7 @@ export default function VideosGrid({ videos }: { videos: Video[] }) {
                 // solo mira el video
                 src={`https://www.youtube-nocookie.com/embed/${activo.id}?autoplay=1&rel=0`}
                 title={activo.titulo}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
               />
             </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import s from './novedades.module.css';
+import { fechaLarga } from '@/lib/formato';
 
 /**
  * Una novedad es una noticia o un video. Se mezclan en una sola grilla
@@ -28,15 +29,6 @@ export type Novedad =
       fecha: string;
       url: string;
     };
-
-function fechaTexto(iso: string) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('es-DO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default function NovedadesGrid({ novedades }: { novedades: Novedad[] }) {
   const [video, setVideo] = useState<Extract<Novedad, { tipo: 'video' }> | null>(null);
@@ -81,7 +73,7 @@ export default function NovedadesGrid({ novedades }: { novedades: Novedad[] }) {
               </div>
               <div className={s.cuerpo}>
                 <h3 className={s.titulo}>{n.titulo}</h3>
-                <span className={s.fecha}>{fechaTexto(n.fecha)}</span>
+                <span className={s.fecha}>{fechaLarga(n.fecha)}</span>
               </div>
             </button>
           ) : (
@@ -103,7 +95,7 @@ export default function NovedadesGrid({ novedades }: { novedades: Novedad[] }) {
               <div className={s.cuerpo}>
                 <h3 className={s.titulo}>{n.titulo}</h3>
                 {n.resumen && <p className={s.resumen}>{n.resumen}</p>}
-                <span className={s.fecha}>{fechaTexto(n.fecha)}</span>
+                <span className={s.fecha}>{fechaLarga(n.fecha)}</span>
               </div>
             </Link>
           ),
@@ -126,7 +118,7 @@ export default function NovedadesGrid({ novedades }: { novedades: Novedad[] }) {
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${video.id}?autoplay=1&rel=0`}
                 title={video.titulo}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
               />
             </div>

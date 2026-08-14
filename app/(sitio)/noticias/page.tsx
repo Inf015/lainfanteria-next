@@ -4,21 +4,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getNoticias, seccionActiva } from '@/lib/datos';
 import s from './noticias.module.css';
+import { fechaLarga } from '@/lib/formato';
 
 export const metadata: Metadata = {
   title: 'Noticias — La Infantería Motorsport',
   description:
     'Resultados, novedades del taller y todo lo que pasa en La Infantería Motorsport.',
 };
-
-function fechaTexto(iso: string | null) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('es-DO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default async function NoticiasPage() {
   if (!(await seccionActiva('noticias'))) notFound();
@@ -73,7 +65,7 @@ export default async function NoticiasPage() {
                     </span>
                     <h2 className={s.tarjetaTitulo}>{n.titulo}</h2>
                     {n.resumen && <p className={s.resumen}>{n.resumen}</p>}
-                    <span className={s.fecha}>{fechaTexto(n.fecha_publicacion)}</span>
+                    <span className={s.fecha}>{fechaLarga(n.fecha_publicacion)}</span>
                   </div>
                 </Link>
               ))}

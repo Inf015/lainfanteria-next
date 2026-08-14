@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getNoticiaPorSlug, seccionActiva } from '@/lib/datos';
-import { aParrafos } from '@/lib/formato';
+import { aParrafos, fechaLarga } from '@/lib/formato';
 import s from '../noticias.module.css';
 
 export async function generateMetadata({
@@ -25,15 +25,6 @@ export async function generateMetadata({
       publishedTime: noticia.fecha_publicacion ?? undefined,
     },
   };
-}
-
-function fechaTexto(iso: string | null) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('es-DO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
 }
 
 export default async function NoticiaPage({ params }: PageProps<'/noticias/[slug]'>) {
@@ -58,7 +49,7 @@ export default async function NoticiaPage({ params }: PageProps<'/noticias/[slug
             {noticia.categoria?.toUpperCase() ?? 'NOTICIAS'}
           </span>
           <span className={s.fecha} style={{ border: 'none', padding: 0, margin: 0 }}>
-            {fechaTexto(noticia.fecha_publicacion)}
+            {fechaLarga(noticia.fecha_publicacion)}
           </span>
         </div>
 
