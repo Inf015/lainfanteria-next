@@ -457,8 +457,8 @@ export default async function Home() {
                   Autos <span className={s.accent}>disponibles</span>
                 </h2>
                 <p className={s.sectionSubtitle}>
-                  Muscle cars certificados y listos para rodar. Inspección completa y
-                  garantía incluida.
+                  Autos preparados y listos para rodar. Consultá por cualquiera y
+                  coordinamos que lo veas.
                 </p>
               </div>
               <Link href="/autos" className={s.linkWhatsapp}>
