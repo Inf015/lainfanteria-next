@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# La Infantería Motorsport
 
-## Getting Started
+Sitio de La Infantería Motorsport — taller de alto rendimiento y equipo de
+competición en República Dominicana.
 
-First, run the development server:
+Next.js 16 (App Router) + TypeScript + Supabase. Migrado desde un proyecto
+Blazor Server que sigue disponible como referencia.
+
+## Desarrollo
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # y completar con los valores reales
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Estructura
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+app/            Páginas (App Router). Cada una con su CSS Module.
+components/     Navbar y Footer, usados desde el layout.
+lib/            Cliente de Supabase, queries y tipos.
+supabase/       Migraciones de base de datos.
+public/images/  Imágenes estáticas del sitio.
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Base de datos
 
-## Learn More
+Las migraciones se aplican con el CLI de Supabase, nunca a mano desde el panel:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx supabase db push
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Ocho tablas: `secciones`, `ajustes`, `pilotos`, `autos`, `auto_fotos`,
+`productos`, `producto_fotos`, `noticias`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+RLS está activo en todas. La anon key **solo lee** lo publicado; no puede
+escribir nada.
 
-## Deploy on Vercel
+### Secciones
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+La tabla `secciones` es el interruptor del sitio: cada fila tiene un booleano
+`activa`. El navbar solo muestra las activas, las páginas devuelven 404 si la
+suya está apagada, y los bloques de la home desaparecen. Se cambia desde el
+panel de Supabase sin tocar código ni desplegar.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Ajustes
+
+`ajustes` guarda el número de WhatsApp y los datos de contacto del footer. Los
+campos vacíos simplemente no se muestran.
+
+## Publicar contenido
+
+Todo se carga desde el panel de Supabase, sin código. Los cambios aparecen en
+el sitio en menos de un minuto (`revalidate = 60` en `app/layout.tsx`).
+
+Para un auto con fotos:
+
+1. **Storage** → bucket `fotos` → subir las imágenes y copiar sus URLs
+2. **Table Editor** → `autos` → nueva fila, anotar el `id`
+3. **Table Editor** → `auto_fotos` → una fila por foto, con `auto_id` y `url`.
+   Marcar `es_principal` en **una sola** — es la que sale en la tarjeta
+
+## Deploy
+
+Vercel, conectado al repositorio: cada push a `main` despliega solo.
+
+Variables de entorno a cargar en *Project Settings → Environment Variables*:
+
+| Variable | Dónde sale |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+
+## Pendiente
+
+- Backoffice: login, CRUDs y subida de fotos desde el sitio
+- Páginas públicas de Merch y Noticias (sus secciones están apagadas)
+- Datos de contacto reales en `ajustes`
+- Portal de pilotos y sistema de resultados, pospuestos del diseño original
