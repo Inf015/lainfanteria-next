@@ -162,3 +162,59 @@ describe('imágenes', () => {
     expect(optimizada.headers.get('content-type')).toMatch(/image\//);
   });
 });
+
+describe('Content-Security-Policy', () => {
+  it('el sitio público la envía', async () => {
+    const { headers } = await html('/');
+    const csp = headers.get('content-security-policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("form-action 'self'");
+  });
+
+  it('limita a dónde puede hablar la página', async () => {
+    const csp = (await html('/')).headers.get('content-security-policy') ?? '';
+    const connect = csp.match(/connect-src ([^;]+)/)?.[1] ?? '';
+    // Solo el propio origen y Supabase: si aparece un tercero, revisar por qué
+    expect(connect).toContain("'self'");
+    expect(connect).toContain('supabase.co');
+    expect(connect).not.toContain('*');
+  });
+
+  it('permite el reproductor del canal y nada más en iframes', async () => {
+    const csp = (await html('/videos')).headers.get('content-security-policy') ?? '';
+    const frame = csp.match(/frame-src ([^;]+)/)?.[1] ?? '';
+    expect(frame).toContain('youtube-nocookie.com');
+    expect(frame).not.toContain("'self'");
+  });
+
+  it('el panel usa nonce y no unsafe-inline en scripts', async () => {
+    const csp = (await html('/admin/login')).headers.get('content-security-policy') ?? '';
+    const script = csp.match(/script-src ([^;]+)/)?.[1] ?? '';
+    expect(script).toMatch(/'nonce-[^']+'/);
+    expect(script).not.toContain("'unsafe-inline'");
+  });
+
+  it('el nonce del panel coincide con el de sus scripts', async () => {
+    // Si no coincidieran, el navegador bloquearía todos los scripts y el
+    // panel se vería pero no funcionaría
+    const r = await fetch(`${SITIO}/admin/login`);
+    const cuerpo = await r.text();
+    const enCabecera = r.headers
+      .get('content-security-policy')
+      ?.match(/'nonce-([^']+)'/)?.[1];
+    const enScripts = new Set([...cuerpo.matchAll(/nonce="([^"]+)"/g)].map((m) => m[1]));
+
+    expect(enCabecera).toBeTruthy();
+    expect(enScripts.size).toBe(1);
+    expect([...enScripts][0]).toBe(enCabecera);
+  });
+
+  it('el nonce cambia en cada petición', async () => {
+    const uno = (await html('/admin/login')).headers.get('content-security-policy');
+    const dos = (await html('/admin/login')).headers.get('content-security-policy');
+    expect(uno).not.toBe(dos);
+  });
+});

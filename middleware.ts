@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { construirCSP } from '@/lib/csp';
 
 /**
  * Refresca la sesión de Supabase en cada request y protege /admin.
@@ -10,7 +11,28 @@ import { NextResponse, type NextRequest } from 'next/server';
  * a saltarse esta.
  */
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const esPanel = request.nextUrl.pathname.startsWith('/admin');
+
+  // Nonce solo en el panel: obliga a renderizar por request, y el panel ya es
+  // dinámico. En el sitio público eso costaría el prerenderizado.
+  const nonce = esPanel
+    ? Buffer.from(crypto.randomUUID()).toString('base64')
+    : undefined;
+  const csp = construirCSP(nonce);
+
+  // Next lee el nonce desde la CSP que llega en la petición y lo pone en sus
+  // propios scripts. Sin esta cabecera de request, el nonce del header de
+  // respuesta no coincidiría con nada y la página quedaría sin scripts.
+  const cabecerasPeticion = new Headers(request.headers);
+  cabecerasPeticion.set('content-security-policy', csp);
+  if (nonce) cabecerasPeticion.set('x-nonce', nonce);
+
+  const conCSP = (r: NextResponse) => {
+    r.headers.set('content-security-policy', csp);
+    return r;
+  };
+
+  let response = NextResponse.next({ request: { headers: cabecerasPeticion } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +44,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookies) {
           cookies.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: cabecerasPeticion } });
           cookies.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -44,7 +66,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/admin/login';
     url.searchParams.set('redirigir', ruta);
-    return NextResponse.redirect(url);
+    return conCSP(NextResponse.redirect(url));
   }
 
   // Ya logueado entrando al login: al panel
@@ -52,10 +74,10 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/admin';
     url.search = '';
-    return NextResponse.redirect(url);
+    return conCSP(NextResponse.redirect(url));
   }
 
-  return response;
+  return conCSP(response);
 }
 
 export const config = {
