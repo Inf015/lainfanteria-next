@@ -1,5 +1,12 @@
 import { consultar } from './supabase';
-import type { AutoConFotos, ClaveSeccion, Piloto, Seccion } from './types';
+import type {
+  AutoConFotos,
+  ClaveSeccion,
+  Noticia,
+  Piloto,
+  ProductoConFotos,
+  Seccion,
+} from './types';
 
 /**
  * Secciones por defecto, usadas solo si Supabase no responde o todavía no
@@ -71,6 +78,47 @@ export async function getAutos(): Promise<AutoConFotos[]> {
       (x, y) => Number(y.es_principal) - Number(x.es_principal) || x.orden - y.orden,
     ),
   }));
+}
+
+/** Productos activos con sus fotos. `limite` acota para el bloque de la home. */
+export async function getProductos(limite?: number): Promise<ProductoConFotos[]> {
+  const productos = await consultar<ProductoConFotos[]>(
+    'productos activos',
+    (db) => {
+      const q = db
+        .from('productos')
+        .select('*, producto_fotos(*)')
+        .eq('activo', true)
+        .order('orden')
+        .order('id');
+      return limite ? q.limit(limite) : q;
+    },
+    [],
+  );
+
+  return productos.map((p) => ({
+    ...p,
+    precio: Number(p.precio),
+    producto_fotos: [...(p.producto_fotos ?? [])].sort(
+      (x, y) => Number(y.es_principal) - Number(x.es_principal) || x.orden - y.orden,
+    ),
+  }));
+}
+
+/** Noticias publicadas, de la más reciente a la más vieja. */
+export async function getNoticias(limite?: number): Promise<Noticia[]> {
+  return consultar<Noticia[]>(
+    'noticias publicadas',
+    (db) => {
+      const q = db
+        .from('noticias')
+        .select('*')
+        .eq('publicada', true)
+        .order('fecha_publicacion', { ascending: false, nullsFirst: false });
+      return limite ? q.limit(limite) : q;
+    },
+    [],
+  );
 }
 
 /** Ajustes globales (whatsapp_numero, email_contacto, ...) como diccionario. */

@@ -1,0 +1,160 @@
+/* Portado del <footer> de Home.razor. En Blazor vivía dentro de la home, así
+   que el resto de las páginas se quedaba sin footer; ahora está en el layout. */
+
+.footer {
+    background-color: var(--color-navbar);
+    border-top: 2px solid var(--color-primary);
+}
+
+.footerMain {
+    padding: 4rem 2rem;
+}
+
+.sectionContainer {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.footerGrid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 4rem;
+    align-items: start;
+}
+
+.footerBrand {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.footerBrand img {
+    height: 80px;
+    width: auto;
+    max-width: 240px;
+    object-fit: contain;
+}
+
+.footerBrand p {
+    color: #888;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.footerSocial {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.footerSocial a {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #333;
+    color: #aaa;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.footerSocial a:hover {
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.footerContact h4 {
+    color: white;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    margin: 0 0 1.5rem 0;
+}
+
+.footerContactGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.contactItem {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.contactIcon {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-primary);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.contactItem small {
+    color: #666;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    display: block;
+}
+
+.contactItem p {
+    color: #ccc;
+    font-size: 0.85rem;
+    margin: 0.2rem 0 0 0;
+}
+
+.contactItem a {
+    color: #ccc;
+    font-size: 0.85rem;
+    text-decoration: none;
+    display: block;
+    margin-top: 0.2rem;
+    transition: color 0.2s;
+}
+
+.contactItem a:hover { color: var(--color-primary); }
+
+.footerBottom {
+    border-top: 1px solid var(--color-bg-card);
+    padding: 1.25rem 2rem;
+}
+
+.footerBottom .sectionContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.footerBottom p {
+    color: #555;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .footerMain {
+        padding: 3rem 1.5rem;
+    }
+
+    .footerGrid {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+    }
+
+    .footerContactGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .footerBottom .sectionContainer {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+}

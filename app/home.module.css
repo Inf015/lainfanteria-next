@@ -1,0 +1,849 @@
+/* Portado del bloque <style> de Components/Pages/Home.razor.
+   El footer se movió a components/Footer.module.css. */
+
+/* ─── HERO ─── */
+.hero {
+    width: 100%;
+    min-height: 100vh;
+    background-image: url('/images/hero-bg.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-color: var(--color-bg-light);
+    position: relative;
+}
+
+.heroOverlay {
+    min-height: 100vh;
+    background: linear-gradient(to right, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.3) 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 6rem;
+}
+
+.heroContent {
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.heroTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid #555;
+    padding: 0.4rem 0.9rem;
+    color: #ccc;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    width: fit-content;
+}
+
+.tagDot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-primary);
+    display: inline-block;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: 3.8rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.accent {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--color-primary);
+}
+
+.heroFeatures {
+    display: flex;
+    gap: 1.5rem;
+    color: #ccc;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.heroButtons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.btnHeroPrimary {
+    background-color: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    padding: 0.9rem 2rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: background 0.2s;
+}
+
+.btnHeroPrimary:hover {
+    background-color: var(--color-primary-hover);
+    color: white;
+}
+
+.btnHeroSecondary {
+    background-color: transparent;
+    color: white;
+    text-decoration: none;
+    padding: 0.9rem 2rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid white;
+    transition: background 0.2s;
+}
+
+.btnHeroSecondary:hover {
+    background-color: rgba(255,255,255,0.1);
+    color: white;
+}
+
+/* ─── Compartidos ─── */
+.sectionContainer {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.sectionHeader {
+    text-align: center;
+    margin-bottom: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: white;
+    margin: 0;
+}
+
+.sectionSubtitle {
+    color: #aaa;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.sectionLabel {
+    color: #aaa;
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    border-left: 3px solid var(--color-primary);
+    padding-left: 0.75rem;
+}
+
+.linkWhatsapp {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+.linkWhatsapp:hover { opacity: 0.8; }
+
+.cardBadge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 0.3rem 0.6rem;
+    z-index: 1;
+}
+
+.emptyHint {
+    color: #555;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 3rem 0;
+    margin: 0;
+}
+
+/* ─── QUIÉNES SOMOS ─── */
+.about {
+    background-color: var(--color-bg-medium);
+    padding: 6rem 2rem;
+}
+
+.aboutContainer {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+    align-items: center;
+}
+
+.aboutImage {
+    position: relative;
+    width: 100%;
+    height: 480px;
+    border: 2px solid var(--color-primary);
+    overflow: hidden;
+}
+
+.aboutContent {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.aboutTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.aboutContent p {
+    color: #aaa;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.aboutStats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-left: 2px solid var(--color-primary);
+    padding-left: 1rem;
+}
+
+.statValue {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: white;
+}
+
+.statLabel {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+/* ─── ESPECIALIZACIÓN ─── */
+.specialization {
+    background-color: var(--color-bg-dark);
+    padding: 6rem 2rem;
+}
+
+.carsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.carCard {
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.carImageWrap {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+    background-color: var(--color-bg-card);
+}
+
+.carImageWrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.75);
+    transition: transform 0.4s;
+}
+
+.carCard:hover .carImageWrap img {
+    transform: scale(1.05);
+}
+
+/* Placeholder para las tarjetas sin foto cargada */
+.carPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            #161616,
+            #161616 14px,
+            #1a1a1a 14px,
+            #1a1a1a 28px
+        );
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #2e2e2e;
+    letter-spacing: 0.08em;
+}
+
+.carInfo {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.carCategory {
+    font-size: 0.7rem;
+    color: #888;
+    letter-spacing: 2px;
+}
+
+.carName {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: white;
+    margin: 0;
+}
+
+.carDesc {
+    font-size: 0.85rem;
+    color: #aaa;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ─── SERVICIOS ─── */
+.services {
+    background-color: var(--color-bg-medium);
+    padding: 6rem 2rem;
+}
+
+.servicesGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.serviceCard {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: border-color 0.3s;
+}
+
+.serviceCard:hover {
+    border-color: var(--color-primary);
+}
+
+.serviceIcon {
+    background-color: var(--color-primary-dim);
+    border: 1px solid var(--color-primary);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.serviceCard h3 {
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.serviceCard p {
+    color: #aaa;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.servicesFooter {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.servicesFooter p {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* ─── AUTOS DISPONIBLES ─── */
+.inventory {
+    background-color: var(--color-bg-medium);
+    padding: 6rem 2rem;
+}
+
+.blockHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 3rem;
+    gap: 1.5rem;
+}
+
+.blockHeader .sectionTitle {
+    text-align: left;
+}
+
+.inventoryCard {
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    transition: border-color 0.3s;
+    display: block;
+    text-decoration: none;
+}
+
+.inventoryCard:hover {
+    border-color: var(--color-primary);
+}
+
+.inventoryImageWrap {
+    position: relative;
+    height: 240px;
+    overflow: hidden;
+    background-color: var(--color-bg-card);
+}
+
+.inventoryImageWrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+}
+
+.inventoryCard:hover .inventoryImageWrap img {
+    transform: scale(1.05);
+}
+
+.imgPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    opacity: 0.25;
+    background-color: var(--color-bg-card);
+}
+
+.inventoryInfo {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.inventoryName {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.inventoryYear {
+    color: var(--color-primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.inventorySpecs {
+    display: flex;
+    gap: 1.5rem;
+    color: #888;
+    font-size: 0.8rem;
+    margin: 0.25rem 0;
+    flex-wrap: wrap;
+}
+
+.inventoryPrice {
+    color: white;
+    font-size: 1.4rem;
+    font-weight: 900;
+    margin: 0.25rem 0;
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.75rem;
+}
+
+.btnConsultar {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    width: 100%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+}
+
+.btnConsultar:hover {
+    background-color: var(--color-primary-hover);
+}
+
+/* ─── MERCH ─── */
+.merch {
+    background-color: var(--color-bg-dark);
+    padding: 6rem 2rem;
+}
+
+.merchGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.merchCard {
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    transition: border-color 0.3s;
+}
+
+.merchCard:hover {
+    border-color: var(--color-primary);
+}
+
+.merchImageWrap {
+    position: relative;
+    height: 260px;
+    overflow: hidden;
+    background-color: var(--color-bg-card);
+}
+
+.merchImageWrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+}
+
+.merchCard:hover .merchImageWrap img {
+    transform: scale(1.05);
+}
+
+.merchInfo {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.merchCategory {
+    font-size: 0.7rem;
+    color: var(--color-primary);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.merchName {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.merchPrice {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 900;
+    margin: 0.25rem 0;
+}
+
+/* ─── NOTICIAS ─── */
+.news {
+    background-color: var(--color-bg-dark);
+    padding: 6rem 2rem;
+}
+
+.newsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.newsCard {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s;
+}
+
+.newsCard:hover {
+    border-color: var(--color-primary);
+}
+
+.newsImageWrap {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.newsImageWrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+}
+
+.newsCard:hover .newsImageWrap img {
+    transform: scale(1.05);
+}
+
+.newsBody {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.newsCategory {
+    font-size: 0.7rem;
+    color: var(--color-primary);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.newsTitle {
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.newsExcerpt {
+    color: #aaa;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.newsDate {
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+/* ─── CTA ─── */
+.cta {
+    background-color: #0f0f0f;
+    padding: 6rem 2rem;
+    text-align: center;
+}
+
+.ctaContent {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.ctaTitle {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.ctaSubtitle {
+    color: #aaa;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.ctaPhone {
+    margin-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1.5rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.ctaPhone p {
+    color: #aaa;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.ctaPhone a {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.ctaPhone a:hover { color: var(--color-primary); }
+
+/* ═══ RESPONSIVE — TABLET ═══ */
+@media (max-width: 1024px) {
+    .heroOverlay { padding: 0 3rem; }
+    .heroTitle { font-size: 3rem; }
+    .aboutContainer { gap: 3rem; }
+    .carsGrid { grid-template-columns: repeat(2, 1fr); }
+    .servicesGrid { grid-template-columns: repeat(2, 1fr); }
+    .merchGrid { grid-template-columns: repeat(2, 1fr); }
+    .newsGrid { grid-template-columns: repeat(2, 1fr); }
+    .ctaTitle { font-size: 2.2rem; }
+}
+
+/* ═══ RESPONSIVE — MOBILE ═══ */
+@media (max-width: 768px) {
+    .heroOverlay {
+        padding: 6rem 1.5rem 3rem;
+        align-items: flex-start;
+    }
+
+    .heroTitle { font-size: 2.2rem; }
+
+    .heroFeatures {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .heroButtons { flex-direction: column; }
+
+    .btnHeroPrimary,
+    .btnHeroSecondary { text-align: center; }
+
+    .about { padding: 4rem 1.5rem; }
+
+    .aboutContainer {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+    }
+
+    .aboutImage { height: 300px; }
+
+    .aboutTitle { font-size: 2rem; }
+
+    .specialization,
+    .services,
+    .merch,
+    .inventory,
+    .news { padding: 4rem 0; }
+
+    /* El header mantiene padding lateral aunque el grid se vuelva carrusel */
+    .sectionHeader,
+    .servicesFooter,
+    .blockHeader { padding: 0 1.5rem; }
+
+    .sectionTitle { font-size: 2rem; }
+
+    /* ── Carruseles: los grids pasan a scroll horizontal con snap ── */
+    .carsGrid,
+    .servicesGrid,
+    .merchGrid,
+    .newsGrid {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 1rem;
+        padding-left: 1.5rem;
+        padding-right: 2rem;
+        padding-bottom: 1.25rem;
+        scrollbar-width: none;
+    }
+
+    .carsGrid::-webkit-scrollbar,
+    .servicesGrid::-webkit-scrollbar,
+    .merchGrid::-webkit-scrollbar,
+    .newsGrid::-webkit-scrollbar { display: none; }
+
+    .carCard,
+    .newsCard,
+    .inventoryCard {
+        flex: 0 0 82%;
+        scroll-snap-align: start;
+    }
+
+    .serviceCard {
+        flex: 0 0 78%;
+        scroll-snap-align: start;
+    }
+
+    .merchCard {
+        flex: 0 0 72%;
+        scroll-snap-align: start;
+    }
+
+    .blockHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .cta { padding: 4rem 1.5rem; }
+    .ctaTitle { font-size: 1.8rem; }
+
+    .ctaContent .heroButtons {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+}
+
+/* ═══ RESPONSIVE — MOBILE SMALL ═══ */
+@media (max-width: 480px) {
+    .heroTitle { font-size: 1.9rem; }
+    .aboutStats { grid-template-columns: 1fr; }
+}
