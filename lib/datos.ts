@@ -2,8 +2,8 @@ import { consultar } from './supabase';
 import type {
   AutoConFotos,
   ClaveSeccion,
+  Miembro,
   Noticia,
-  Piloto,
   ProductoConFotos,
   Seccion,
 } from './types';
@@ -43,11 +43,11 @@ export async function seccionActiva(clave: ClaveSeccion): Promise<boolean> {
   return filas[0]?.activa ?? false;
 }
 
-/** Pilotos activos, en el orden definido desde el backoffice. */
-export async function getPilotos(): Promise<Piloto[]> {
-  return consultar<Piloto[]>(
-    'pilotos activos',
-    (db) => db.from('pilotos').select('*').eq('activo', true).order('orden').order('id'),
+/** Miembros activos del equipo, en el orden definido desde el backoffice. */
+export async function getMiembros(): Promise<Miembro[]> {
+  return consultar<Miembro[]>(
+    'miembros activos',
+    (db) => db.from('miembros').select('*').eq('activo', true).order('orden').order('id'),
     [],
   );
 }

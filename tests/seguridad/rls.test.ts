@@ -20,7 +20,7 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const TABLAS = [
   'secciones',
   'ajustes',
-  'pilotos',
+  'miembros',
   'autos',
   'auto_fotos',
   'productos',
@@ -44,7 +44,7 @@ function rest(path: string, init: RequestInit = {}) {
 const PAYLOAD: Record<string, Record<string, unknown>> = {
   secciones: { activa: true },
   ajustes: { valor: 'alterado-por-prueba' },
-  pilotos: { nombre: 'intruso' },
+  miembros: { nombre: 'intruso' },
   autos: { marca: 'intruso', modelo: 'intruso', precio: 1 },
   auto_fotos: { url: 'https://ejemplo.invalido/x.jpg' },
   productos: { nombre: 'intruso', precio: 1 },
@@ -56,7 +56,7 @@ const PAYLOAD: Record<string, Record<string, unknown>> = {
 const FILTRO: Record<string, string> = {
   secciones: 'clave=eq.merch',
   ajustes: 'clave=eq.whatsapp_numero',
-  pilotos: 'id=gt.0',
+  miembros: 'id=gt.0',
   autos: 'id=gt.0',
   auto_fotos: 'id=gt.0',
   productos: 'id=gt.0',
@@ -142,10 +142,10 @@ describe('los datos siguen intactos después de los intentos', () => {
 
   it('no quedó ningún registro "intruso"', async () => {
     const autos = await (await rest('autos?select=marca&marca=eq.intruso')).json();
-    const pilotos = await (await rest('pilotos?select=nombre&nombre=eq.intruso')).json();
+    const miembros = await (await rest('miembros?select=nombre&nombre=eq.intruso')).json();
     const productos = await (await rest('productos?select=nombre&nombre=eq.intruso')).json();
     expect(autos).toHaveLength(0);
-    expect(pilotos).toHaveLength(0);
+    expect(miembros).toHaveLength(0);
     expect(productos).toHaveLength(0);
   });
 });

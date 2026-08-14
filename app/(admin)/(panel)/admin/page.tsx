@@ -17,9 +17,9 @@ async function contar(tabla: string, filtro?: (q: never) => never) {
 }
 
 export default async function PanelPage() {
-  const [autos, pilotos, productos, noticias] = await Promise.all([
+  const [autos, miembros, productos, noticias] = await Promise.all([
     contar('autos'),
-    contar('pilotos'),
+    contar('miembros'),
     contar('productos'),
     contar('noticias'),
   ]);
@@ -33,11 +33,11 @@ export default async function PanelPage() {
       conteo: `${autos} cargado${autos === 1 ? '' : 's'}`,
     },
     {
-      href: '/admin/pilotos',
+      href: '/admin/miembros',
       icono: '🏁',
-      titulo: 'Pilotos',
-      desc: 'Equipo, biografías y logros.',
-      conteo: `${pilotos} cargado${pilotos === 1 ? '' : 's'}`,
+      titulo: 'Equipo',
+      desc: 'Pilotos, socios y técnicos.',
+      conteo: `${miembros} cargado${miembros === 1 ? '' : 's'}`,
     },
     {
       href: '/admin/productos',

@@ -8,7 +8,7 @@ import s from '../../admin.module.css';
 const SECCIONES = [
   { href: '/admin', label: 'Inicio' },
   { href: '/admin/autos', label: 'Autos' },
-  { href: '/admin/pilotos', label: 'Pilotos' },
+  { href: '/admin/miembros', label: 'Equipo' },
   { href: '/admin/productos', label: 'Merch' },
   { href: '/admin/noticias', label: 'Noticias' },
   { href: '/admin/secciones', label: 'Secciones' },

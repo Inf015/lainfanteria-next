@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import type { Piloto } from '@/lib/types';
+import type { Miembro } from '@/lib/types';
 import { aParrafos } from '@/lib/formato';
 import s from './equipo.module.css';
 
@@ -10,12 +10,12 @@ import s from './equipo.module.css';
  * Tarjeta de piloto con bio expandible. Es el único pedazo interactivo de
  * /equipo, así que el resto de la página queda como server component.
  */
-export default function PilotoCard({ piloto }: { piloto: Piloto }) {
+export default function MiembroCard({ miembro }: { miembro: Miembro }) {
   const [abierto, setAbierto] = useState(false);
   const [fotoFallo, setFotoFallo] = useState(false);
 
-  const tieneFoto = Boolean(piloto.foto_url) && !fotoFallo;
-  const inicial = piloto.nombre.trim().charAt(0).toUpperCase() || '?';
+  const tieneFoto = Boolean(miembro.foto_url) && !fotoFallo;
+  const inicial = miembro.nombre.trim().charAt(0).toUpperCase() || '?';
 
   return (
     <div className={s.pilotCard}>
@@ -23,12 +23,12 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
         className={s.pilotPhotoWrap}
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        aria-label={`${abierto ? 'Cerrar' : 'Ver'} biografía de ${piloto.nombre}`}
+        aria-label={`${abierto ? 'Cerrar' : 'Ver'} biografía de ${miembro.nombre}`}
       >
         {tieneFoto ? (
           <Image
-            src={piloto.foto_url as string}
-            alt={piloto.nombre}
+            src={miembro.foto_url as string}
+            alt={miembro.nombre}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             style={{ objectFit: 'cover', objectPosition: 'top' }}
@@ -40,20 +40,21 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
           </div>
         )}
 
-        {piloto.numero && <span className={s.pilotNumber}>#{piloto.numero}</span>}
+        {/* El número de carrera solo aplica a pilotos */}
+        {miembro.numero && <span className={s.pilotNumber}>#{miembro.numero}</span>}
 
-        {piloto.biografia && (
+        {miembro.biografia && (
           <div className={s.bioHint}>{abierto ? '▲ CERRAR' : '▼ VER BIO'}</div>
         )}
       </button>
 
       <div className={s.pilotInfo}>
-        <h3 className={s.pilotName}>{piloto.nombre}</h3>
+        <h3 className={s.pilotName}>{miembro.nombre}</h3>
 
-        {piloto.biografia && (
+        {miembro.biografia && (
           <div className={`${s.pilotBioWrap} ${abierto ? s.bioOpen : ''}`}>
             <div className={s.pilotBioInner}>
-              {aParrafos(piloto.biografia).map((parrafo, i) => (
+              {aParrafos(miembro.biografia).map((parrafo, i) => (
                 <p className={s.pilotBio} key={i}>
                   {parrafo}
                 </p>
@@ -62,9 +63,9 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
           </div>
         )}
 
-        {piloto.logros.length > 0 && (
+        {miembro.logros.length > 0 && (
           <div className={s.pilotLogros}>
-            {piloto.logros.map((logro) => (
+            {miembro.logros.map((logro) => (
               <span className={s.logro} key={logro}>
                 🏆 {logro}
               </span>
@@ -72,11 +73,11 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
           </div>
         )}
 
-        {(piloto.instagram_url || piloto.youtube_url) && (
+        {(miembro.instagram_url || miembro.youtube_url) && (
           <div className={s.pilotSocial}>
-            {piloto.instagram_url && (
+            {miembro.instagram_url && (
               <a
-                href={piloto.instagram_url}
+                href={miembro.instagram_url}
                 target="_blank"
                 rel="noopener"
                 className={s.socialLink}
@@ -84,9 +85,9 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
                 IG
               </a>
             )}
-            {piloto.youtube_url && (
+            {miembro.youtube_url && (
               <a
-                href={piloto.youtube_url}
+                href={miembro.youtube_url}
                 target="_blank"
                 rel="noopener"
                 className={s.socialLink}

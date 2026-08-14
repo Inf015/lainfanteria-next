@@ -100,7 +100,7 @@ describe('el panel está protegido', () => {
   const rutas = [
     '/admin',
     '/admin/autos',
-    '/admin/pilotos',
+    '/admin/miembros',
     '/admin/productos',
     '/admin/noticias',
     '/admin/secciones',

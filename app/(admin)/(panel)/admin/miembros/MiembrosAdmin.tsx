@@ -3,12 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
-import type { Piloto } from '@/lib/types';
+import type { Miembro } from '@/lib/types';
+import { aLista } from '@/lib/formato';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import s from '../../../admin.module.css';
 
-interface FormPiloto {
+const ROLES_SUGERIDOS = ['Piloto', 'Socio', 'Mecánico'];
+
+interface FormMiembro {
   nombre: string;
+  roles: string[];
   numero: string;
   biografia: string;
   foto_url: string | null;
@@ -19,8 +23,9 @@ interface FormPiloto {
   activo: boolean;
 }
 
-const VACIO: FormPiloto = {
+const VACIO: FormMiembro = {
   nombre: '',
+  roles: ['Piloto'],
   numero: '',
   biografia: '',
   foto_url: null,
@@ -31,9 +36,10 @@ const VACIO: FormPiloto = {
   activo: true,
 };
 
-function aForm(p: Piloto): FormPiloto {
+function aForm(p: Miembro): FormMiembro {
   return {
     nombre: p.nombre,
+    roles: p.roles?.length ? p.roles : ['Piloto'],
     numero: p.numero ?? '',
     biografia: p.biografia ?? '',
     foto_url: p.foto_url,
@@ -46,12 +52,12 @@ function aForm(p: Piloto): FormPiloto {
   };
 }
 
-export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
+export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
   const router = useRouter();
-  const [pilotos, setPilotos] = useState(inicial);
-  const [editando, setEditando] = useState<Piloto | null>(null);
+  const [miembros, setMiembros] = useState(inicial);
+  const [editando, setEditando] = useState<Miembro | null>(null);
   const [abierto, setAbierto] = useState(false);
-  const [form, setForm] = useState<FormPiloto>(VACIO);
+  const [form, setForm] = useState<FormMiembro>(VACIO);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -68,7 +74,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
     setAbierto(true);
   }
 
-  function abrirEdicion(p: Piloto) {
+  function abrirEdicion(p: Miembro) {
     setEditando(p);
     setForm(aForm(p));
     setError(null);
@@ -83,12 +89,18 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
       setError('El nombre es obligatorio.');
       return;
     }
+    if (form.roles.length === 0) {
+      // La base tiene un CHECK que lo exige; se avisa acá para dar un mensaje claro
+      setError('Elegí al menos un rol.');
+      return;
+    }
 
     setGuardando(true);
     const db = crearClienteNavegador();
 
     const fila = {
       nombre: form.nombre.trim(),
+      roles: form.roles,
       numero: form.numero.trim() || null,
       biografia: form.biografia.trim(),
       foto_url: form.foto_url,
@@ -103,19 +115,19 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
     };
 
     if (editando) {
-      const { error: err } = await db.from('pilotos').update(fila).eq('id', editando.id);
+      const { error: err } = await db.from('miembros').update(fila).eq('id', editando.id);
       if (err) {
         setError(err.message);
         setGuardando(false);
         return;
       }
-      setPilotos((prev) =>
-        prev.map((p) => (p.id === editando.id ? ({ ...p, ...fila } as Piloto) : p)),
+      setMiembros((prev) =>
+        prev.map((p) => (p.id === editando.id ? ({ ...p, ...fila } as Miembro) : p)),
       );
-      avisar('Piloto actualizado');
+      avisar('Miembro actualizado');
     } else {
       const { data, error: err } = await db
-        .from('pilotos')
+        .from('miembros')
         .insert(fila)
         .select('*')
         .single();
@@ -124,8 +136,8 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
         setGuardando(false);
         return;
       }
-      setPilotos((prev) => [...prev, data as Piloto]);
-      avisar('Piloto creado');
+      setMiembros((prev) => [...prev, data as Miembro]);
+      avisar('Miembro creado');
     }
 
     setGuardando(false);
@@ -134,7 +146,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
     router.refresh();
   }
 
-  async function borrar(p: Piloto) {
+  async function borrar(p: Miembro) {
     if (
       !confirm(
         `¿Borrar a ${p.nombre}? Si solo querés sacarlo del sitio, destildá "Visible".`,
@@ -143,13 +155,13 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
       return;
 
     const db = crearClienteNavegador();
-    const { error: err } = await db.from('pilotos').delete().eq('id', p.id);
+    const { error: err } = await db.from('miembros').delete().eq('id', p.id);
     if (err) {
       avisar(`No se pudo borrar: ${err.message}`);
       return;
     }
-    setPilotos((prev) => prev.filter((x) => x.id !== p.id));
-    avisar('Piloto borrado');
+    setMiembros((prev) => prev.filter((x) => x.id !== p.id));
+    avisar('Miembro borrado');
     router.refresh();
   }
 
@@ -157,15 +169,15 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
     <>
       <div className={s.encabezado}>
         <div>
-          <h1 className={s.titulo}>Pilotos</h1>
+          <h1 className={s.titulo}>Equipo</h1>
           <p className={s.subtitulo}>
-            El equipo que se muestra en la página Equipo. Los no visibles quedan
-            guardados pero no aparecen.
+            Pilotos, socios y técnicos. Se agrupan por rol en la página Equipo; los
+            no visibles quedan guardados pero no aparecen.
           </p>
         </div>
         <div className={s.barraAcciones}>
           <button className={s.btnNuevo} onClick={abrirNuevo}>
-            + Nuevo piloto
+            + Nuevo miembro
           </button>
         </div>
       </div>
@@ -176,6 +188,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
             <tr>
               <th className={s.celdaFoto}></th>
               <th>Nombre</th>
+              <th>Roles</th>
               <th>Número</th>
               <th>Logros</th>
               <th>Visible</th>
@@ -183,14 +196,14 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
             </tr>
           </thead>
           <tbody>
-            {pilotos.length === 0 ? (
+            {miembros.length === 0 ? (
               <tr>
-                <td colSpan={6} className={s.vacio}>
-                  Todavía no cargaste ningún piloto.
+                <td colSpan={7} className={s.vacio}>
+                  Todavía no cargaste a nadie del equipo.
                 </td>
               </tr>
             ) : (
-              pilotos.map((p) => (
+              miembros.map((p) => (
                 <tr key={p.id}>
                   <td className={s.celdaFoto}>
                     {p.foto_url ? (
@@ -202,6 +215,13 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                   </td>
                   <td>
                     <strong>{p.nombre}</strong>
+                  </td>
+                  <td>
+                    {(p.roles ?? []).map((r) => (
+                      <span className={`${s.pill} ${s.pillGris}`} key={r} style={{ marginRight: '0.3rem' }}>
+                        {r}
+                      </span>
+                    ))}
                   </td>
                   <td>{p.numero ? `#${p.numero}` : '—'}</td>
                   <td>{p.logros?.length ?? 0}</td>
@@ -232,7 +252,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
           <div className={s.modal} onClick={(e) => e.stopPropagation()}>
             <div className={s.modalCabecera}>
               <h2 className={s.modalTitulo}>
-                {editando ? editando.nombre : 'Nuevo piloto'}
+                {editando ? editando.nombre : 'Nuevo miembro'}
               </h2>
               <button
                 className={s.modalCerrar}
@@ -259,7 +279,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                   </div>
                   <div className={s.fila}>
                     <div className={s.campo}>
-                      <label className={s.label}>NÚMERO</label>
+                      <label className={s.label}>NÚMERO DE CARRERA</label>
                       <input
                         className={s.input}
                         value={form.numero}
@@ -280,10 +300,10 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                 </div>
 
                 <SubirFotoUnica
-                  carpeta="pilotos"
+                  carpeta="miembros"
                   url={form.foto_url}
                   onCambio={(url) => setForm({ ...form, foto_url: url })}
-                  etiqueta="Foto del piloto"
+                  etiqueta="Foto"
                 />
 
                 <div className={s.campo}>
@@ -294,7 +314,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                     onChange={(e) => setForm({ ...form, biografia: e.target.value })}
                   />
                   <p className={s.ayuda}>
-                    Se despliega al hacer clic en la foto del piloto en el sitio.
+                    Se despliega al hacer clic en la foto en el sitio.
                   </p>
                 </div>
 
@@ -334,6 +354,48 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                   </div>
                 </div>
 
+                <div className={s.campo}>
+                  <label className={s.label}>ROLES *</label>
+                  <div className={s.opcionesRoles}>
+                    {ROLES_SUGERIDOS.map((rol) => (
+                      <label className={s.chipRol} key={rol}>
+                        <input
+                          type="checkbox"
+                          checked={form.roles.includes(rol)}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              roles: e.target.checked
+                                ? [...form.roles, rol]
+                                : form.roles.filter((r) => r !== rol),
+                            })
+                          }
+                        />
+                        {rol}
+                      </label>
+                    ))}
+                  </div>
+                  <input
+                    className={s.input}
+                    style={{ marginTop: '0.6rem' }}
+                    value={form.roles.filter((r) => !ROLES_SUGERIDOS.includes(r)).join(', ')}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        roles: [
+                          ...form.roles.filter((r) => ROLES_SUGERIDOS.includes(r)),
+                          ...aLista(e.target.value),
+                        ],
+                      })
+                    }
+                    placeholder="Otros roles, separados por coma"
+                  />
+                  <p className={s.ayuda}>
+                    Una persona puede tener varios: aparece en cada grupo de la página
+                    Equipo. El número de carrera solo se muestra si tiene alguno.
+                  </p>
+                </div>
+
                 <div className={s.checkFila}>
                   <input
                     type="checkbox"
@@ -360,7 +422,7 @@ export default function PilotosAdmin({ inicial }: { inicial: Piloto[] }) {
                 className={s.btnNuevo}
                 disabled={guardando}
               >
-                {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear piloto'}
+                {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear miembro'}
               </button>
             </div>
           </div>

@@ -729,3 +729,31 @@
 @media (max-width: 640px) {
     .fila, .fila3 { grid-template-columns: 1fr; }
 }
+
+/* ─── Selector de roles ─── */
+.opcionesRoles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chipRol {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #333;
+    background: var(--color-bg-medium);
+    color: #ccc;
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.84rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.chipRol:hover { border-color: #666; }
+.chipRol:has(input:checked) {
+    border-color: var(--color-primary);
+    background: var(--color-primary-dim);
+    color: #fff;
+}

@@ -293,3 +293,36 @@
     .pilotsGrid { grid-template-columns: 1fr; }
     .pilotPhotoWrap { height: 280px; }
 }
+
+/* ─── Grupos por rol ─── */
+.grupo {
+    margin-bottom: 4rem;
+}
+
+.grupo:last-child { margin-bottom: 0; }
+
+.grupoCabecera {
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.grupoTitulo {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+
+.grupoSub {
+    color: #666;
+    font-size: 0.88rem;
+    margin: 0.4rem 0 0;
+}
+
+@media (max-width: 768px) {
+    .grupo { margin-bottom: 3rem; }
+    .grupoTitulo { font-size: 1.3rem; }
+}

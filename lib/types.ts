@@ -21,10 +21,15 @@ export interface Seccion {
   orden: number;
 }
 
-export interface Piloto {
+/** Rol dentro del equipo. Texto libre: sumar uno nuevo no requiere migración. */
+export type RolMiembro = 'Piloto' | 'Socio' | 'Mecánico' | (string & {});
+
+export interface Miembro {
   id: number;
   nombre: string;
+  /** Número de carrera. Solo aplica a pilotos. */
   numero: string | null;
+  roles: RolMiembro[];
   biografia: string;
   foto_url: string | null;
   foto_public_id: string | null;
