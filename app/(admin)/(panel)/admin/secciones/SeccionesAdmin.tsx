@@ -6,7 +6,7 @@ import type { Seccion } from '@/lib/types';
 import s from '../../../admin.module.css';
 
 /** Secciones cuya página pública todavía no existe. */
-const SIN_PAGINA = new Set(['merch', 'noticias']);
+const SIN_PAGINA = new Set(['merch']);
 
 export default function SeccionesAdmin({ inicial }: { inicial: Seccion[] }) {
   const [secciones, setSecciones] = useState(inicial);

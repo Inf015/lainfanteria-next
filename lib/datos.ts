@@ -121,6 +121,17 @@ export async function getNoticias(limite?: number): Promise<Noticia[]> {
   );
 }
 
+/** Una noticia publicada por su slug, o null si no existe o es borrador. */
+export async function getNoticiaPorSlug(slug: string): Promise<Noticia | null> {
+  const filas = await consultar<Noticia[]>(
+    `noticia ${slug}`,
+    (db) =>
+      db.from('noticias').select('*').eq('slug', slug).eq('publicada', true).limit(1),
+    [],
+  );
+  return filas[0] ?? null;
+}
+
 /** Ajustes globales (whatsapp_numero, email_contacto, ...) como diccionario. */
 export async function getAjustes(): Promise<Record<string, string>> {
   const filas = await consultar<{ clave: string; valor: string }[]>(
