@@ -1,49 +1,85 @@
+/* Portado desde wwwroot/app.css del proyecto Blazor.
+   Se dejaron afuera los estilos del backoffice (tablas, modales, upload de
+   fotos) y los restos de Bootstrap/Blazor, que ya no aplican. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    --color-primary:       #d32f2f;
+    --color-primary-hover: #b71c1c;
+    --color-primary-dim:   #2a1010;
+    --color-navbar:        #0a0a0a;
+    --color-bg-dark:       #121212;
+    --color-bg-medium:     #161616;
+    --color-bg-light:      #1a1a1a;
+    --color-bg-card:       #1e1e1e;
+    --color-border:        #2a2a2a;
+    --color-text:          #ffffff;
+    --color-text-muted:    #aaaaaa;
+    --color-text-faint:    #888888;
+    --color-text-dim:      #555555;
+    --font-display:        'Arial Black', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
-html {
-  height: 100%;
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-bg-dark);
+    color: var(--color-text);
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+/* Deja lugar al navbar fijo de 80px */
+.page {
+    padding-top: 80px;
 }
 
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ─── Utilidades compartidas entre páginas ──────────────────────────────── */
+
+.section-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.section-label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.accent { color: var(--color-primary); }
+
+.page-banner {
+    background-color: var(--color-bg-medium);
+    border-bottom: 2px solid var(--color-primary);
+    padding: 5rem 0 4rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.page-banner-title {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0.5rem 0;
+    line-height: 1.1;
+}
+
+.page-banner-sub {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin: 0.75rem 0 0;
+    max-width: 560px;
+}
+
+@media (max-width: 768px) {
+    .page-banner { padding: 4rem 0 3rem; }
+    .page-banner-title { font-size: 2rem; }
+    .section-container { padding: 0 1.25rem; }
 }
