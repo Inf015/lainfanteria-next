@@ -55,6 +55,12 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
+      // Miniaturas de los videos del canal de YouTube
+      {
+        protocol: 'https' as const,
+        hostname: 'i.ytimg.com',
+        pathname: '/**',
+      },
       // Fotos heredadas del proyecto Blazor, todavía servidas desde Cloudinary
       {
         protocol: 'https' as const,

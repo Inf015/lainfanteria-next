@@ -10,6 +10,7 @@ export type ClaveSeccion =
   | 'equipo'
   | 'autos'
   | 'merch'
+  | 'videos'
   | 'noticias'
   | 'nosotros';
 

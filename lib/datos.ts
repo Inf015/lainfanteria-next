@@ -17,8 +17,9 @@ const SECCIONES_FALLBACK: Seccion[] = [
   { clave: 'equipo', nombre: 'Equipo', ruta: '/equipo', activa: true, orden: 2 },
   { clave: 'autos', nombre: 'Venta de Autos', ruta: '/autos', activa: true, orden: 3 },
   { clave: 'merch', nombre: 'Merch', ruta: '/merch', activa: false, orden: 4 },
-  { clave: 'noticias', nombre: 'Noticias', ruta: '/noticias', activa: false, orden: 5 },
-  { clave: 'nosotros', nombre: 'Nosotros', ruta: '/nosotros', activa: true, orden: 6 },
+  { clave: 'videos', nombre: 'Videos', ruta: '/videos', activa: false, orden: 5 },
+  { clave: 'noticias', nombre: 'Noticias', ruta: '/noticias', activa: false, orden: 6 },
+  { clave: 'nosotros', nombre: 'Nosotros', ruta: '/nosotros', activa: true, orden: 7 },
 ];
 
 /** Todas las secciones activas, ordenadas para el navbar. */

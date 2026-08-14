@@ -35,6 +35,17 @@ const GRUPOS: { titulo: string; campos: CampoDef[] }[] = [
       { clave: 'youtube_url', etiqueta: 'YouTube', placeholder: 'https://youtube.com/@…' },
     ],
   },
+  {
+    titulo: 'Sección Videos',
+    campos: [
+      {
+        clave: 'youtube_channel_id',
+        etiqueta: 'ID del canal de YouTube',
+        ayuda: 'Empieza con UC. Es lo que alimenta la sección Videos: se leen los últimos videos del canal automáticamente. Si lo dejás vacío, la sección no muestra nada.',
+        placeholder: 'UChv8SENnzPzMqi1uqQZ0b8A',
+      },
+    ],
+  },
 ];
 
 export default function AjustesAdmin({ inicial }: { inicial: Record<string, string> }) {
