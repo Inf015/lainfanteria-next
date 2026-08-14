@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { Piloto } from '@/lib/types';
+import { aParrafos } from '@/lib/formato';
 import s from './equipo.module.css';
 
 /**
@@ -51,7 +52,13 @@ export default function PilotoCard({ piloto }: { piloto: Piloto }) {
 
         {piloto.biografia && (
           <div className={`${s.pilotBioWrap} ${abierto ? s.bioOpen : ''}`}>
-            <p className={s.pilotBio}>{piloto.biografia}</p>
+            <div className={s.pilotBioInner}>
+              {aParrafos(piloto.biografia).map((parrafo, i) => (
+                <p className={s.pilotBio} key={i}>
+                  {parrafo}
+                </p>
+              ))}
+            </div>
           </div>
         )}
 

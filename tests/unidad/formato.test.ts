@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aLista,
+  aParrafos,
   aSlug,
   formatPrecio,
   nombreAuto,
@@ -129,5 +130,29 @@ describe('ordenarFotos', () => {
     ];
     ordenarFotos(fotos);
     expect(fotos[0].id).toBe(1);
+  });
+});
+
+describe('aParrafos', () => {
+  it('separa por saltos de línea', () => {
+    expect(aParrafos('uno\ndos')).toEqual(['uno', 'dos']);
+  });
+
+  it('trata el doble salto como un solo corte, sin dejar vacíos', () => {
+    // Caso real: una biografía escrita con línea en blanco entre párrafos
+    expect(aParrafos('Primero.\n\nSegundo.')).toEqual(['Primero.', 'Segundo.']);
+  });
+
+  it('soporta saltos de Windows', () => {
+    expect(aParrafos('uno\r\ndos')).toEqual(['uno', 'dos']);
+  });
+
+  it('descarta espacios sobrantes y líneas en blanco', () => {
+    expect(aParrafos('  uno  \n\n\n   \n dos ')).toEqual(['uno', 'dos']);
+  });
+
+  it('devuelve lista vacía si no hay contenido', () => {
+    expect(aParrafos('')).toEqual([]);
+    expect(aParrafos('\n\n  \n')).toEqual([]);
   });
 });

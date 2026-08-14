@@ -120,22 +120,33 @@
 }
 
 /* ── Bio expandible ── */
+/* Se anima con grid en vez de max-height: una biografía más larga que el
+   límite fijo quedaba cortada a la mitad al desplegarse. Así se adapta al
+   contenido, sea cual sea su largo. */
 .pilotBioWrap {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.35s ease;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s ease;
 }
 
 .bioOpen {
-    max-height: 400px;
+    grid-template-rows: 1fr;
+}
+
+.pilotBioInner {
+    overflow: hidden;
+    min-height: 0;
 }
 
 .pilotBio {
     color: #aaa;
     font-size: 0.85rem;
     line-height: 1.6;
-    margin: 0;
-    padding-bottom: 0.25rem;
+    margin: 0 0 0.7rem;
+}
+
+.pilotBio:last-child {
+    margin-bottom: 0.25rem;
 }
 
 /* ── Hint en foto ── */

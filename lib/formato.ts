@@ -69,3 +69,17 @@ export function ordenarFotos<T extends { es_principal: boolean; orden: number }>
     (a, b) => Number(b.es_principal) - Number(a.es_principal) || a.orden - b.orden,
   );
 }
+
+/**
+ * Divide un texto de textarea en párrafos.
+ *
+ * El contenido se escribe en textareas, donde los saltos de línea son la única
+ * forma de separar párrafos. En HTML esos saltos colapsan, así que hay que
+ * convertirlos en elementos separados o el texto se ve corrido.
+ */
+export function aParrafos(texto: string): string[] {
+  return texto
+    .split(/\r?\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}

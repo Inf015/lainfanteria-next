@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getNoticiaPorSlug, seccionActiva } from '@/lib/datos';
+import { aParrafos } from '@/lib/formato';
 import s from '../noticias.module.css';
 
 export async function generateMetadata({
@@ -43,10 +44,7 @@ export default async function NoticiaPage({ params }: PageProps<'/noticias/[slug
   if (!noticia) notFound();
 
   // El cuerpo se escribe en un textarea: los saltos de línea son los párrafos.
-  const parrafos = noticia.cuerpo
-    .split(/\n\s*\n|\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const parrafos = aParrafos(noticia.cuerpo);
 
   return (
     <article className={s.articulo}>
