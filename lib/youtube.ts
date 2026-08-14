@@ -45,9 +45,11 @@ export function parsearFeed(xml: string): Video[] {
       const titulo = extraer(entrada, 'media:title') || extraer(entrada, 'title');
       if (!id || !titulo) return null;
 
-      const miniatura =
-        entrada.match(/<media:thumbnail[^>]*url="([^"]+)"/)?.[1] ??
-        `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+      // El feed reparte las miniaturas entre subdominios rotativos —i1, i2,
+      // i3, i4.ytimg.com— así que la URL que trae no es estable. Se arma la
+      // canónica desde el id: siempre el mismo host, y next/image necesita
+      // tener declarado uno solo en vez de adivinar cuántos son.
+      const miniatura = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
       return {
         id,

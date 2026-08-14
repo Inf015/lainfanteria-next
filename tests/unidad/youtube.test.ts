@@ -49,17 +49,29 @@ describe('parsearFeed', () => {
     expect(parsearFeed(FEED)[0].url).toBe('https://www.youtube.com/watch?v=7uS-pJczL5A');
   });
 
-  it('toma la miniatura declarada en el feed', () => {
-    expect(parsearFeed(FEED)[0].miniatura).toBe(
+  it('normaliza la miniatura al host canónico', () => {
+    // Bug real: el feed reparte entre i1/i2/i3/i4.ytimg.com y next/image
+    // rechazaba los subdominios no declarados, rompiendo las 15 miniaturas
+    const conSubdominio = FEED.replace(
+      'https://i.ytimg.com/vi/7uS-pJczL5A/hqdefault.jpg',
+      'https://i4.ytimg.com/vi/7uS-pJczL5A/hqdefault.jpg',
+    );
+    expect(parsearFeed(conSubdominio)[0].miniatura).toBe(
       'https://i.ytimg.com/vi/7uS-pJczL5A/hqdefault.jpg',
     );
   });
 
-  it('deduce la miniatura si el feed no la trae', () => {
+  it('siempre da miniatura, aunque el feed no la traiga', () => {
     const sinThumb = FEED.replace(/<media:thumbnail[^>]*\/>/g, '');
     expect(parsearFeed(sinThumb)[0].miniatura).toBe(
       'https://i.ytimg.com/vi/7uS-pJczL5A/hqdefault.jpg',
     );
+  });
+
+  it('ninguna miniatura usa un subdominio rotativo', () => {
+    for (const v of parsearFeed(FEED)) {
+      expect(v.miniatura).toMatch(/^https:\/\/i\.ytimg\.com\//);
+    }
   });
 
   it('conserva el título con caracteres especiales', () => {
