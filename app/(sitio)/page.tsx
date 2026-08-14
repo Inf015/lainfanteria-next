@@ -10,7 +10,7 @@ import {
   seccionActiva,
 } from '@/lib/datos';
 import { getVideos } from '@/lib/youtube';
-import VideosGrid from './videos/VideosGrid';
+import NovedadesGrid, { type Novedad } from './_componentes/NovedadesGrid';
 import s from './home.module.css';
 import { formatPrecio, soloDigitos } from '@/lib/formato';
 
@@ -107,9 +107,37 @@ export default async function Home() {
   const [autos, productos, videos, noticias] = await Promise.all([
     autosOn ? getAutos() : Promise.resolve([]),
     merchOn ? getProductos(4) : Promise.resolve([]),
-    videosOn ? getVideos(ajustes.youtube_channel_id ?? '', 3) : Promise.resolve([]),
-    noticiasOn ? getNoticias(3) : Promise.resolve([]),
+    videosOn ? getVideos(ajustes.youtube_channel_id ?? '', 6) : Promise.resolve([]),
+    noticiasOn ? getNoticias(6) : Promise.resolve([]),
   ]);
+
+  // Noticias y videos se mezclan en un solo bloque ordenado por fecha: para
+  // quien visita el sitio ambos son "lo último del equipo".
+  const novedades: Novedad[] = [
+    ...noticias.map(
+      (n): Novedad => ({
+        tipo: 'noticia',
+        id: `n${n.id}`,
+        titulo: n.titulo,
+        resumen: n.resumen,
+        imagen: n.imagen_portada_url,
+        fecha: n.fecha_publicacion ?? n.creada_en,
+        slug: n.slug,
+      }),
+    ),
+    ...videos.map(
+      (v): Novedad => ({
+        tipo: 'video',
+        id: v.id,
+        titulo: v.titulo,
+        imagen: v.miniatura,
+        fecha: v.publicado,
+        url: v.url,
+      }),
+    ),
+  ]
+    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+    .slice(0, 6);
 
   const numero = ajustes.whatsapp_numero ?? '';
   const wa = `https://wa.me/${numero}`;
@@ -356,91 +384,39 @@ export default async function Home() {
         </section>
       )}
 
-      {/* ─── NOTICIAS (solo si la sección está activa) ─── */}
-      {noticiasOn && (
+      {/* ─── NOVEDADES: noticias y videos en un solo bloque ─── */}
+      {(noticiasOn || videosOn) && (
         <section className={s.news}>
           <div className={s.sectionContainer}>
             <div className={s.blockHeader}>
               <div>
-                <span className={s.sectionLabel}>ÚLTIMAS NOTICIAS</span>
+                <span className={s.sectionLabel}>LO ÚLTIMO</span>
                 <h2 className={s.sectionTitle}>
-                  Últimas <span className={s.accent}>noticias</span>
+                  Novedades del <span className={s.accent}>equipo</span>
                 </h2>
                 <p className={s.sectionSubtitle}>
-                  Resultados, novedades y todo lo que pasa en La Infantería.
+                  Resultados, videos del canal y todo lo que pasa dentro y fuera de la
+                  pista.
                 </p>
               </div>
-              <Link href="/noticias" className={s.linkWhatsapp}>
-                VER TODAS →
-              </Link>
+              <div className={s.enlacesNovedades}>
+                {noticiasOn && (
+                  <Link href="/noticias" className={s.linkWhatsapp}>
+                    NOTICIAS →
+                  </Link>
+                )}
+                {videosOn && (
+                  <Link href="/videos" className={s.linkWhatsapp}>
+                    VIDEOS →
+                  </Link>
+                )}
+              </div>
             </div>
 
-            {noticias.length > 0 ? (
-              <div className={s.newsGrid}>
-                {noticias.map((n) => (
-                  <article className={s.newsCard} key={n.id}>
-                    {n.imagen_portada_url && (
-                      <div className={s.newsImageWrap}>
-                        <Image
-                          src={n.imagen_portada_url}
-                          alt={n.titulo}
-                          fill
-                          sizes="(max-width: 768px) 82vw, 33vw"
-                          style={{ objectFit: 'cover' }}
-                        />
-                      </div>
-                    )}
-                    <div className={s.newsBody}>
-                      <span className={s.newsCategory}>
-                        {n.categoria?.toUpperCase() ?? 'NOTICIAS'}
-                      </span>
-                      <h3 className={s.newsTitle}>{n.titulo}</h3>
-                      {n.resumen && <p className={s.newsExcerpt}>{n.resumen}</p>}
-                      <span className={s.newsDate}>
-                        {n.fecha_publicacion
-                          ? new Date(n.fecha_publicacion).toLocaleDateString('es-DO', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : ''}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
+            {novedades.length > 0 ? (
+              <NovedadesGrid novedades={novedades} />
             ) : (
-              <p className={s.emptyHint}>
-                Próximamente — las últimas noticias del equipo.
-              </p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ─── VIDEOS (solo si la sección está activa) ─── */}
-      {videosOn && (
-        <section className={s.news}>
-          <div className={s.sectionContainer}>
-            <div className={s.blockHeader}>
-              <div>
-                <span className={s.sectionLabel}>NUESTRO CANAL</span>
-                <h2 className={s.sectionTitle}>
-                  Últimos <span className={s.accent}>videos</span>
-                </h2>
-                <p className={s.sectionSubtitle}>
-                  Carreras, podcast y todo lo que pasa dentro y fuera de la pista.
-                </p>
-              </div>
-              <Link href="/videos" className={s.linkWhatsapp}>
-                VER TODOS →
-              </Link>
-            </div>
-
-            {videos.length > 0 ? (
-              <VideosGrid videos={videos} />
-            ) : (
-              <p className={s.emptyHint}>Próximamente — videos del equipo.</p>
+              <p className={s.emptyHint}>Próximamente — novedades del equipo.</p>
             )}
           </div>
         </section>

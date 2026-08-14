@@ -847,3 +847,11 @@
     .heroTitle { font-size: 1.9rem; }
     .aboutStats { grid-template-columns: 1fr; }
 }
+
+/* Enlaces del encabezado de Novedades: dos destinos, noticias y videos */
+.enlacesNovedades {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
