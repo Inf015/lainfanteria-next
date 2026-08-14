@@ -62,6 +62,39 @@ Para un auto con fotos:
 3. **Table Editor** → `auto_fotos` → una fila por foto, con `auto_id` y `url`.
    Marcar `es_principal` en **una sola** — es la que sale en la tarjeta
 
+## Pruebas
+
+```bash
+npm test              # unitarias: rápidas, sin red
+npm run test:seguridad # invariantes de RLS contra el Supabase real
+npm run test:humo      # sitio desplegado de punta a punta
+npm run test:todo      # las tres
+```
+
+Las tres suites están separadas a propósito: `npm test` corre en milisegundos y
+sirve mientras se programa; las otras dos necesitan red y credenciales.
+
+**`tests/seguridad`** es la más importante. Comprueba que la *base* rechaza, no
+que la aplicación se porte bien: aunque el panel tenga un bug, Postgres tiene que
+seguir diciendo que no. Solo intenta escrituras que deben fallar, así que es
+segura de correr contra producción, y después verifica que los datos no cambiaron.
+
+Dos trampas que estas pruebas ya contemplan, porque hacen que una prueba pase por
+el motivo equivocado:
+
+- Un `PATCH` con cuerpo vacío devuelve `204` sin llegar a la base.
+- Un `UPDATE` sin `WHERE` devuelve `400` por una protección de PostgREST, antes
+  de evaluar permisos.
+
+Por eso las pruebas mandan datos reales, con filtro, y exigen el código `42501`
+—permiso denegado— y no un rechazo cualquiera.
+
+**`tests/humo`** corre contra producción por defecto; para apuntar a local:
+
+```bash
+SITIO=http://localhost:3000 npm run test:humo
+```
+
 ## Deploy
 
 Vercel, conectado al repositorio: cada push a `main` despliega solo.

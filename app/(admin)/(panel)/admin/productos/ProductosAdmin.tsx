@@ -6,6 +6,7 @@ import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Moneda, ProductoConFotos } from '@/lib/types';
 import SubirFotos, { type FotoFila } from '../_componentes/SubirFotos';
 import s from '../../../admin.module.css';
+import { aLista, formatPrecio } from '@/lib/formato';
 
 const CATEGORIAS = ['Hoodie', 'Camiseta', 'Gorra', 'Accesorio'];
 
@@ -33,12 +34,6 @@ const VACIO: FormProducto = {
   activo: true,
 };
 
-/** "S, M, L" ⇄ ['S','M','L']. Coma es más cómodo que una línea por talla. */
-const aLista = (txt: string) =>
-  txt
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
 
 function aForm(p: ProductoConFotos): FormProducto {
   return {
@@ -54,10 +49,6 @@ function aForm(p: ProductoConFotos): FormProducto {
   };
 }
 
-function precioTexto(p: ProductoConFotos) {
-  const simbolo = p.moneda === 'USD' ? 'US$' : 'RD$';
-  return `${simbolo} ${new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(p.precio)}`;
-}
 
 export default function ProductosAdmin({ inicial }: { inicial: ProductoConFotos[] }) {
   const router = useRouter();
@@ -239,7 +230,7 @@ export default function ProductosAdmin({ inicial }: { inicial: ProductoConFotos[
                       )}
                     </td>
                     <td>{p.categoria ?? '—'}</td>
-                    <td>{precioTexto(p)}</td>
+                    <td>{formatPrecio(p.precio, p.moneda)}</td>
                     <td>{p.activo ? 'Sí' : 'No'}</td>
                     <td>{p.producto_fotos.length}</td>
                     <td className={s.celdaAcciones}>

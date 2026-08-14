@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:seguridad": "vitest run --config vitest.seguridad.config.mts",
+    "test:humo": "vitest run --config vitest.humo.config.mts",
+    "test:todo": "npm run test && npm run test:seguridad && npm run test:humo"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -19,8 +24,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

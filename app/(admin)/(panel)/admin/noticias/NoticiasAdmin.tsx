@@ -6,6 +6,7 @@ import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Noticia } from '@/lib/types';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import s from '../../../admin.module.css';
+import { aSlug } from '@/lib/formato';
 
 const CATEGORIAS = ['Carrera', 'Taller', 'Equipo', 'General'];
 
@@ -31,17 +32,6 @@ const VACIO: FormNoticia = {
   fecha_publicacion: '',
 };
 
-/** Título → slug: sin tildes, minúsculas y con guiones. */
-function aSlug(texto: string) {
-  return texto
-    .normalize('NFD')
-    // Marcas diacríticas que NFD separó de su letra base
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
 
 function aForm(n: Noticia): FormNoticia {
   return {

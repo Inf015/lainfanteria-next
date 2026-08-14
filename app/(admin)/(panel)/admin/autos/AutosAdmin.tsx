@@ -6,6 +6,7 @@ import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { AutoConFotos, EstadoAuto, Moneda } from '@/lib/types';
 import SubirFotos, { type FotoFila } from '../_componentes/SubirFotos';
 import s from '../../../admin.module.css';
+import { formatPrecio } from '@/lib/formato';
 
 const ESTADOS: { valor: EstadoAuto; label: string; clase: string }[] = [
   { valor: 'disponible', label: 'Disponible', clase: 'pillVerde' },
@@ -64,10 +65,6 @@ function aForm(a: AutoConFotos): FormAuto {
   };
 }
 
-function precioTexto(a: AutoConFotos) {
-  const simbolo = a.moneda === 'USD' ? 'US$' : 'RD$';
-  return `${simbolo} ${new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(a.precio)}`;
-}
 
 export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   const router = useRouter();
@@ -259,7 +256,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
                       )}
                     </td>
                     <td>{a.anio ?? '—'}</td>
-                    <td>{precioTexto(a)}</td>
+                    <td>{formatPrecio(a.precio, a.moneda)}</td>
                     <td>
                       <span className={`${s.pill} ${s[est.clase]}`}>{est.label}</span>
                     </td>

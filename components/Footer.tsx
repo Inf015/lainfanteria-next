@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { getAjustes } from '@/lib/datos';
 import s from './Footer.module.css';
+import { soloDigitos } from '@/lib/formato';
 
 /**
  * Los datos de contacto vienen de `ajustes` y cada bloque se muestra solo si
@@ -18,7 +19,7 @@ export default async function Footer() {
       label: 'TELÉFONO',
       valor: a.telefono,
       // El número se guarda con formato legible; tel: necesita solo dígitos.
-      href: `tel:${(a.telefono ?? '').replace(/\D/g, '')}`,
+      href: `tel:${soloDigitos(a.telefono ?? '')}`,
     },
     {
       icono: '✉️',

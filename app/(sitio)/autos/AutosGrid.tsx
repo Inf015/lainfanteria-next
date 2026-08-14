@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import type { AutoConFotos, EstadoAuto } from '@/lib/types';
 import s from './autos.module.css';
+import { formatPrecio, nombreAuto } from '@/lib/formato';
 
 const ESTADO_LABEL: Record<EstadoAuto, string> = {
   disponible: 'Disponible',
@@ -17,16 +18,6 @@ const ESTADO_CLASE: Record<EstadoAuto, string> = {
   vendido: s.estadoGris,
 };
 
-function nombreAuto(a: AutoConFotos) {
-  return [a.marca, a.modelo, a.version, a.anio].filter(Boolean).join(' ');
-}
-
-function formatPrecio(a: AutoConFotos) {
-  const simbolo = a.moneda === 'USD' ? 'US$' : 'RD$';
-  return `${simbolo} ${new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(
-    a.precio,
-  )}`;
-}
 
 export default function AutosGrid({
   autos,
@@ -140,7 +131,7 @@ export default function AutosGrid({
                   </div>
                   {auto.motor && <p className={s.autoCardMotor}>{auto.motor}</p>}
                   <div className={s.autoCardFooter}>
-                    <span className={s.autoPrice}>{formatPrecio(auto)}</span>
+                    <span className={s.autoPrice}>{formatPrecio(auto.precio, auto.moneda)}</span>
                     {auto.kilometraje && (
                       <span className={s.autoKm}>{auto.kilometraje}</span>
                     )}
@@ -228,7 +219,7 @@ export default function AutosGrid({
               <h2 className={s.modalTitle}>
                 {detalle.marca} {detalle.modelo}
               </h2>
-              <div className={s.modalPrice}>{formatPrecio(detalle)}</div>
+              <div className={s.modalPrice}>{formatPrecio(detalle.precio, detalle.moneda)}</div>
 
               <div className={s.modalSpecs}>
                 <div className={s.spec}>

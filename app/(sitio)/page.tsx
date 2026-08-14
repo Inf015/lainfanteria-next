@@ -9,8 +9,8 @@ import {
   getProductos,
   seccionActiva,
 } from '@/lib/datos';
-import type { AutoConFotos, Moneda } from '@/lib/types';
 import s from './home.module.css';
+import { formatPrecio, soloDigitos } from '@/lib/formato';
 
 /**
  * Devuelve la ruta pública de la foto si el archivo existe, o null.
@@ -91,14 +91,6 @@ const stats = [
   { valor: '24h', label: 'Diagnóstico express' },
 ];
 
-function precio(monto: number, moneda: Moneda) {
-  const simbolo = moneda === 'USD' ? 'US$' : 'RD$';
-  return `${simbolo} ${new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(monto)}`;
-}
-
-function nombreAuto(a: AutoConFotos) {
-  return `${a.marca} ${a.modelo}`;
-}
 
 export default async function Home() {
   const [ajustes, autosOn, merchOn, noticiasOn] = await Promise.all([
@@ -335,7 +327,7 @@ export default async function Home() {
                           {p.categoria?.toUpperCase() ?? 'MERCH'}
                         </span>
                         <h3 className={s.merchName}>{p.nombre}</h3>
-                        <p className={s.merchPrice}>{precio(p.precio, p.moneda)}</p>
+                        <p className={s.merchPrice}>{formatPrecio(p.precio, p.moneda)}</p>
                         <a
                           href={`${wa}?text=${encodeURIComponent(
                             `Hola! Me interesa el producto ${p.nombre}.`,
@@ -390,7 +382,7 @@ export default async function Home() {
                         {foto ? (
                           <Image
                             src={foto.url}
-                            alt={nombreAuto(auto)}
+                            alt={`${auto.marca} ${auto.modelo}`}
                             fill
                             sizes="(max-width: 768px) 82vw, 33vw"
                             style={{ objectFit: 'cover' }}
@@ -401,18 +393,18 @@ export default async function Home() {
                         <span className={s.cardBadge}>DESTACADO</span>
                       </div>
                       <div className={s.inventoryInfo}>
-                        <h3 className={s.inventoryName}>{nombreAuto(auto)}</h3>
+                        <h3 className={s.inventoryName}>{`${auto.marca} ${auto.modelo}`}</h3>
                         <span className={s.inventoryYear}>{auto.anio ?? ''}</span>
                         <div className={s.inventorySpecs}>
                           {auto.motor && <span>⚙️ {auto.motor}</span>}
                           {auto.kilometraje && <span>📍 {auto.kilometraje}</span>}
                         </div>
                         <p className={s.inventoryPrice}>
-                          {precio(auto.precio, auto.moneda)}
+                          {formatPrecio(auto.precio, auto.moneda)}
                         </p>
                         <a
                           href={`${wa}?text=${encodeURIComponent(
-                            `Hola! Me interesa el ${nombreAuto(auto)}. ¿Está disponible?`,
+                            `Hola! Me interesa el ${`${auto.marca} ${auto.modelo}`}. ¿Está disponible?`,
                           )}`}
                           target="_blank"
                           rel="noopener"
@@ -528,7 +520,7 @@ export default async function Home() {
               <div className={s.ctaPhone}>
                 <p>O llámanos directamente:</p>
                 {/* El número se guarda con formato legible; tel: necesita solo dígitos */}
-                <a href={`tel:${telefono.replace(/\D/g, '')}`}>{telefono}</a>
+                <a href={`tel:${soloDigitos(telefono)}`}>{telefono}</a>
               </div>
             )}
           </div>

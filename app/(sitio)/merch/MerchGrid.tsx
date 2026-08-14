@@ -4,11 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import type { ProductoConFotos } from '@/lib/types';
 import s from './merch.module.css';
+import { formatPrecio } from '@/lib/formato';
 
-function precioTexto(p: ProductoConFotos) {
-  const simbolo = p.moneda === 'USD' ? 'US$' : 'RD$';
-  return `${simbolo} ${new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(p.precio)}`;
-}
 
 export default function MerchGrid({
   productos,
@@ -59,7 +56,7 @@ export default function MerchGrid({
 
   /** El mensaje lleva el producto, y las opciones si el producto las tiene. */
   function waLink(p: ProductoConFotos) {
-    const partes = [`Hola! Me interesa el producto "${p.nombre}" (${precioTexto(p)}).`];
+    const partes = [`Hola! Me interesa el producto "${p.nombre}" (${formatPrecio(p.precio, p.moneda)}).`];
     if (p.tallas.length) partes.push(`Tallas disponibles: ${p.tallas.join(', ')}.`);
     if (p.colores.length) partes.push(`Colores: ${p.colores.join(', ')}.`);
     return `https://wa.me/${whatsappNumero}?text=${encodeURIComponent(partes.join(' '))}`;
@@ -119,7 +116,7 @@ export default function MerchGrid({
                   <p className={s.tarjetaTallas}>{p.tallas.join(' · ')}</p>
                 )}
                 <div className={s.tarjetaPie}>
-                  <span className={s.precio}>{precioTexto(p)}</span>
+                  <span className={s.precio}>{formatPrecio(p.precio, p.moneda)}</span>
                 </div>
               </div>
             </button>
@@ -193,7 +190,7 @@ export default function MerchGrid({
             <div className={s.modalInfo}>
               {detalle.categoria && <span className={s.modalCat}>{detalle.categoria}</span>}
               <h2 className={s.modalTitulo}>{detalle.nombre}</h2>
-              <div className={s.modalPrecio}>{precioTexto(detalle)}</div>
+              <div className={s.modalPrecio}>{formatPrecio(detalle.precio, detalle.moneda)}</div>
 
               {detalle.descripcion && <p className={s.modalDesc}>{detalle.descripcion}</p>}
 
