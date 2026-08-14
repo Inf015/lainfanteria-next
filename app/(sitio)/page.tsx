@@ -356,6 +356,96 @@ export default async function Home() {
         </section>
       )}
 
+      {/* ─── NOTICIAS (solo si la sección está activa) ─── */}
+      {noticiasOn && (
+        <section className={s.news}>
+          <div className={s.sectionContainer}>
+            <div className={s.blockHeader}>
+              <div>
+                <span className={s.sectionLabel}>ÚLTIMAS NOTICIAS</span>
+                <h2 className={s.sectionTitle}>
+                  Últimas <span className={s.accent}>noticias</span>
+                </h2>
+                <p className={s.sectionSubtitle}>
+                  Resultados, novedades y todo lo que pasa en La Infantería.
+                </p>
+              </div>
+              <Link href="/noticias" className={s.linkWhatsapp}>
+                VER TODAS →
+              </Link>
+            </div>
+
+            {noticias.length > 0 ? (
+              <div className={s.newsGrid}>
+                {noticias.map((n) => (
+                  <article className={s.newsCard} key={n.id}>
+                    {n.imagen_portada_url && (
+                      <div className={s.newsImageWrap}>
+                        <Image
+                          src={n.imagen_portada_url}
+                          alt={n.titulo}
+                          fill
+                          sizes="(max-width: 768px) 82vw, 33vw"
+                          style={{ objectFit: 'cover' }}
+                        />
+                      </div>
+                    )}
+                    <div className={s.newsBody}>
+                      <span className={s.newsCategory}>
+                        {n.categoria?.toUpperCase() ?? 'NOTICIAS'}
+                      </span>
+                      <h3 className={s.newsTitle}>{n.titulo}</h3>
+                      {n.resumen && <p className={s.newsExcerpt}>{n.resumen}</p>}
+                      <span className={s.newsDate}>
+                        {n.fecha_publicacion
+                          ? new Date(n.fecha_publicacion).toLocaleDateString('es-DO', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : ''}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className={s.emptyHint}>
+                Próximamente — las últimas noticias del equipo.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── VIDEOS (solo si la sección está activa) ─── */}
+      {videosOn && (
+        <section className={s.news}>
+          <div className={s.sectionContainer}>
+            <div className={s.blockHeader}>
+              <div>
+                <span className={s.sectionLabel}>NUESTRO CANAL</span>
+                <h2 className={s.sectionTitle}>
+                  Últimos <span className={s.accent}>videos</span>
+                </h2>
+                <p className={s.sectionSubtitle}>
+                  Carreras, podcast y todo lo que pasa dentro y fuera de la pista.
+                </p>
+              </div>
+              <Link href="/videos" className={s.linkWhatsapp}>
+                VER TODOS →
+              </Link>
+            </div>
+
+            {videos.length > 0 ? (
+              <VideosGrid videos={videos} />
+            ) : (
+              <p className={s.emptyHint}>Próximamente — videos del equipo.</p>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ─── AUTOS DISPONIBLES ─── */}
       {autosOn && (
         <section className={s.inventory}>
@@ -423,96 +513,6 @@ export default async function Home() {
               </div>
             ) : (
               <p className={s.emptyHint}>Próximamente — nuevas unidades disponibles.</p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ─── VIDEOS (solo si la sección está activa) ─── */}
-      {videosOn && (
-        <section className={s.news}>
-          <div className={s.sectionContainer}>
-            <div className={s.blockHeader}>
-              <div>
-                <span className={s.sectionLabel}>NUESTRO CANAL</span>
-                <h2 className={s.sectionTitle}>
-                  Últimos <span className={s.accent}>videos</span>
-                </h2>
-                <p className={s.sectionSubtitle}>
-                  Carreras, podcast y todo lo que pasa dentro y fuera de la pista.
-                </p>
-              </div>
-              <Link href="/videos" className={s.linkWhatsapp}>
-                VER TODOS →
-              </Link>
-            </div>
-
-            {videos.length > 0 ? (
-              <VideosGrid videos={videos} />
-            ) : (
-              <p className={s.emptyHint}>Próximamente — videos del equipo.</p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ─── NOTICIAS (solo si la sección está activa) ─── */}
-      {noticiasOn && (
-        <section className={s.news}>
-          <div className={s.sectionContainer}>
-            <div className={s.blockHeader}>
-              <div>
-                <span className={s.sectionLabel}>ÚLTIMAS NOTICIAS</span>
-                <h2 className={s.sectionTitle}>
-                  Últimas <span className={s.accent}>noticias</span>
-                </h2>
-                <p className={s.sectionSubtitle}>
-                  Resultados, novedades y todo lo que pasa en La Infantería.
-                </p>
-              </div>
-              <Link href="/noticias" className={s.linkWhatsapp}>
-                VER TODAS →
-              </Link>
-            </div>
-
-            {noticias.length > 0 ? (
-              <div className={s.newsGrid}>
-                {noticias.map((n) => (
-                  <article className={s.newsCard} key={n.id}>
-                    {n.imagen_portada_url && (
-                      <div className={s.newsImageWrap}>
-                        <Image
-                          src={n.imagen_portada_url}
-                          alt={n.titulo}
-                          fill
-                          sizes="(max-width: 768px) 82vw, 33vw"
-                          style={{ objectFit: 'cover' }}
-                        />
-                      </div>
-                    )}
-                    <div className={s.newsBody}>
-                      <span className={s.newsCategory}>
-                        {n.categoria?.toUpperCase() ?? 'NOTICIAS'}
-                      </span>
-                      <h3 className={s.newsTitle}>{n.titulo}</h3>
-                      {n.resumen && <p className={s.newsExcerpt}>{n.resumen}</p>}
-                      <span className={s.newsDate}>
-                        {n.fecha_publicacion
-                          ? new Date(n.fecha_publicacion).toLocaleDateString('es-DO', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : ''}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className={s.emptyHint}>
-                Próximamente — las últimas noticias del equipo.
-              </p>
             )}
           </div>
         </section>
