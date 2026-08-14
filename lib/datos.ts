@@ -1,5 +1,5 @@
 import { consultar } from './supabase';
-import type { ClaveSeccion, Seccion } from './types';
+import type { AutoConFotos, ClaveSeccion, Piloto, Seccion } from './types';
 
 /**
  * Secciones por defecto, usadas solo si Supabase no responde o todavía no
@@ -34,6 +34,43 @@ export async function seccionActiva(clave: ClaveSeccion): Promise<boolean> {
     SECCIONES_FALLBACK.filter((s) => s.clave === clave).map((s) => ({ activa: s.activa })),
   );
   return filas[0]?.activa ?? false;
+}
+
+/** Pilotos activos, en el orden definido desde el backoffice. */
+export async function getPilotos(): Promise<Piloto[]> {
+  return consultar<Piloto[]>(
+    'pilotos activos',
+    (db) => db.from('pilotos').select('*').eq('activo', true).order('orden').order('id'),
+    [],
+  );
+}
+
+/**
+ * Autos del inventario con sus fotos. Excluye los vendidos: la página solo
+ * ofrece filtrar entre disponibles y reservados.
+ */
+export async function getAutos(): Promise<AutoConFotos[]> {
+  const autos = await consultar<AutoConFotos[]>(
+    'autos en inventario',
+    (db) =>
+      db
+        .from('autos')
+        .select('*, auto_fotos(*)')
+        .eq('activo', true)
+        .neq('estado', 'vendido')
+        .order('orden')
+        .order('id'),
+    [],
+  );
+
+  // Las fotos vienen sin orden garantizado desde el join.
+  return autos.map((a) => ({
+    ...a,
+    precio: Number(a.precio),
+    auto_fotos: [...(a.auto_fotos ?? [])].sort(
+      (x, y) => Number(y.es_principal) - Number(x.es_principal) || x.orden - y.orden,
+    ),
+  }));
 }
 
 /** Ajustes globales (whatsapp_numero, email_contacto, ...) como diccionario. */

@@ -1,0 +1,588 @@
+/* Portado del bloque <style> de Components/Pages/Autos.razor.
+   El .modal-overlay base venía de app.css (sección del backoffice); acá se
+   define junto con el resto para que la página sea autónoma. */
+
+/* ─── Shared ─── */
+.sectionContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.sectionLabel {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.accent { color: var(--color-primary); }
+
+/* ─── Banner ─── */
+.pageBanner {
+    position: relative;
+    background-color: var(--color-bg-medium);
+    border-bottom: 2px solid var(--color-primary);
+    padding: 5rem 0 4rem;
+    overflow: hidden;
+}
+
+.pageBanner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 80px,
+            rgba(211,47,47,0.03) 80px,
+            rgba(211,47,47,0.03) 81px
+        );
+    pointer-events: none;
+}
+
+.pageBannerTitle {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0.5rem 0;
+    line-height: 1.1;
+}
+
+.pageBannerSub {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin: 0.75rem 0 0;
+    max-width: 560px;
+}
+
+.bannerStats {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    font-size: 0.9rem;
+    color: #777;
+}
+
+.bannerStats strong { color: #e0e0e0; }
+.statSep { color: #444; }
+
+/* ─── Section ─── */
+.autosSection {
+    background: var(--color-bg-dark);
+    padding: 2.5rem 0 5rem;
+    min-height: 45vh;
+}
+
+/* ─── Filtros ─── */
+.autosFilters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.filterPill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    color: #888;
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-weight: 500;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.filterPill:hover {
+    border-color: #555;
+    color: #ddd;
+}
+
+.pillActive {
+    border-color: var(--color-primary);
+    color: #fff;
+    background: var(--color-primary-dim);
+}
+
+.pillCount {
+    background: #222;
+    border-radius: 999px;
+    padding: 0 0.5rem;
+    font-size: 0.72rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.pillActive .pillCount {
+    background: rgba(211,47,47,0.25);
+    color: #ef9a9a;
+}
+
+/* ─── Grid ─── */
+.autosGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 960px) { .autosGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .autosGrid { grid-template-columns: 1fr; } }
+
+/* ─── Card ─── */
+.autoCard {
+    background: var(--color-bg-card);
+    border: 1px solid #222;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+    display: block;
+    font: inherit;
+    color: inherit;
+}
+
+.autoCard:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 8px 32px rgba(211,47,47,0.12);
+    transform: translateY(-4px);
+}
+
+.autoCardImgWrap {
+    position: relative;
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    background: #0d0d0d;
+}
+
+.autoCardImgWrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.autoCard:hover .autoCardImgWrap img {
+    transform: scale(1.06);
+}
+
+.autoImgPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    opacity: 0.2;
+}
+
+.autoCardOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 1rem;
+    opacity: 0;
+    transition: opacity 0.25s;
+}
+
+.autoCard:hover .autoCardOverlay { opacity: 1; }
+
+.overlayCta {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--color-primary);
+    padding: 0.35rem 0.9rem;
+    border-radius: 4px;
+}
+
+/* Estado badge */
+.autoEstado {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.estadoVerde    { background: rgba(27,94,32,0.9);  color: #a5d6a7; border: 1px solid #2e7d32; }
+.estadoAmarillo { background: rgba(51,33,0,0.92);  color: #ffe082; border: 1px solid #f9a825; }
+.estadoGris     { background: rgba(20,20,20,0.85); color: #888;    border: 1px solid #333; }
+
+/* Card body */
+.autoCardBody { padding: 1rem 1.1rem 1.15rem; }
+
+.autoCardTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.autoCardTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #e8e8e8;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.autoCardYear {
+    font-size: 0.82rem;
+    color: #555;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.autoCardMotor {
+    font-size: 0.78rem;
+    color: #666;
+    margin: 0 0 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.autoCardFooter {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid #1e1e1e;
+}
+
+.autoPrice {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--color-primary);
+}
+
+.autoKm {
+    font-size: 0.75rem;
+    color: #555;
+}
+
+/* ─── Estado vacío ─── */
+.autosEmpty {
+    text-align: center;
+    padding: 5rem 1rem;
+    color: #555;
+}
+
+.emptyIcon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+
+.autosEmpty h3 {
+    font-size: 1.1rem;
+    color: #777;
+    margin: 0 0 0.5rem;
+}
+
+.autosEmpty p {
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+}
+
+.btnWaOutline {
+    display: inline-block;
+    border: 1px solid #2e7d32;
+    color: #66bb6a;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+
+.btnWaOutline:hover {
+    background: rgba(46,125,50,0.15);
+    color: #a5d6a7;
+}
+
+/* ─── Modal ─── */
+.overlay {
+    position: fixed;
+    inset: 0;
+    /* Por encima del navbar (1000) y del drawer mobile (1002) */
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0,0,0,0.82);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.autoModal {
+    background: var(--color-bg-card);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 880px;
+    max-height: 92vh;
+    display: grid;
+    grid-template-columns: 55% 45%;
+    overflow: hidden;
+    position: relative;
+}
+
+@media (max-width: 680px) {
+    .autoModal {
+        grid-template-columns: 1fr;
+        max-height: 95vh;
+        overflow-y: auto;
+        border-radius: 12px 12px 0 0;
+        align-self: flex-end;
+    }
+}
+
+/* Gallery */
+.autoModalGallery {
+    position: relative;
+    background: #080808;
+    min-height: 320px;
+    overflow: hidden;
+}
+
+.galleryMainImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.galleryPlaceholder { min-height: 320px; }
+
+.galleryBtn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    z-index: 2;
+}
+
+.galleryBtn:hover { background: var(--color-primary); border-color: var(--color-primary); }
+.galleryPrev { left: 0.75rem; }
+.galleryNext { right: 0.75rem; }
+
+.galleryDots {
+    position: absolute;
+    bottom: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, transform 0.15s;
+}
+
+.dotActive {
+    background: #fff;
+    transform: scale(1.25);
+}
+
+.galleryCounter {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background: rgba(0,0,0,0.6);
+    color: #ddd;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+.modalCloseBtn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0,0,0,0.65);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    z-index: 3;
+}
+
+.modalCloseBtn:hover { background: var(--color-primary); }
+
+/* Modal info panel */
+.autoModalInfo {
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    overflow-y: auto;
+}
+
+.modalInfoHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.modalEstado {
+    position: static;
+    padding: 0.22rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.modalYear {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0;
+}
+
+.modalTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #f0f0f0;
+    margin: 0;
+    line-height: 1.15;
+}
+
+.modalPrice {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    letter-spacing: -0.01em;
+    line-height: 1;
+}
+
+.modalSpecs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    background: var(--color-bg-medium);
+    border: 1px solid #222;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.spec {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.specLbl {
+    font-size: 0.65rem;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.specVal {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ccc;
+}
+
+.modalDesc {
+    font-size: 0.875rem;
+    color: #888;
+    line-height: 1.65;
+    margin: 0;
+}
+
+.btnWaModal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #1b5e20;
+    border: 1px solid #2e7d32;
+    color: #a5d6a7;
+    padding: 0.85rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    margin-top: auto;
+}
+
+.btnWaModal:hover {
+    background: #2e7d32;
+    color: #fff;
+}
+
+.modalNote {
+    font-size: 0.72rem;
+    color: #444;
+    text-align: center;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .pageBannerTitle { font-size: 2rem; }
+    .sectionContainer { padding: 0 1.25rem; }
+}
