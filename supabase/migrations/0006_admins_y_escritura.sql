@@ -98,6 +98,9 @@ create policy "admin borra fotos" on storage.objects
 -- Promueve la cuenta del dueño si ya existe. Si todavía no fue creada desde
 -- Authentication > Users, esto no hace nada y hay que correr el insert después.
 
+-- El correo se pasa por `app.admin_email` al aplicar la migración; ver la 0007.
+-- Sin el ajuste definido esto no hace nada, que es el comportamiento buscado.
 insert into admins (user_id, email)
-select id, email from auth.users where email = 'ADMIN_EMAIL_NO_VERSIONADO'
+select id, email from auth.users
+where email = nullif(current_setting('app.admin_email', true), '')
 on conflict (user_id) do nothing;

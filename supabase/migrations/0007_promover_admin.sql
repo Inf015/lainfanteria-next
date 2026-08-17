@@ -5,11 +5,20 @@
 -- no está registrado, la migración falla en vez de terminar en silencio
 -- dejando un panel al que nadie puede entrar.
 
+-- El correo no se versiona: decir cuál es la cuenta con acceso al panel en un
+-- repositorio público es regalar media credencial. Se pasa al aplicar:
+--   psql "$DATABASE_URL" -c "set app.admin_email = 'tu@correo'" -f 0007_promover_admin.sql
+
 do $$
 declare
-    correo constant text := 'ADMIN_EMAIL_NO_VERSIONADO';
+    correo constant text := nullif(current_setting('app.admin_email', true), '');
     insertadas int;
 begin
+    if correo is null then
+        raise exception
+            'Falta app.admin_email. Definilo antes de aplicar esta migración: set app.admin_email = ''tu@correo''.';
+    end if;
+
     insert into admins (user_id, email)
     select id, email from auth.users where email = correo
     on conflict (user_id) do nothing;
