@@ -1,5 +1,7 @@
 # La Infantería Motorsport
 
+[![CI](https://github.com/Inf015/lainfanteria-next/actions/workflows/ci.yml/badge.svg)](https://github.com/Inf015/lainfanteria-next/actions/workflows/ci.yml)
+
 Sitio de La Infantería Motorsport — taller de alto rendimiento y equipo de
 competición en República Dominicana.
 

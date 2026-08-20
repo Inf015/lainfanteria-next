@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipos
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      # Solo las unitarias. Las de seguridad y las de humo van contra un Supabase real:
+      # necesitan credenciales y una base con datos, así que se corren a mano antes de
+      # desplegar. Meterlas acá obligaría a poner claves en el repositorio.
+      - name: Pruebas unitarias
+        run: npm test
