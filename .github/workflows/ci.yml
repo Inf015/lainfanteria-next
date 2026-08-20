@@ -18,6 +18,12 @@ jobs:
 
       - run: npm ci
 
+      # `LayoutProps` y `PageProps` son tipos globales que genera Next, no existen en
+      # el repositorio. Sin esto, tsc falla en CI aunque pase en una máquina donde ya
+      # se haya construido alguna vez y quede un .next de antes.
+      - name: Generar tipos de rutas
+        run: npx next typegen
+
       - name: Tipos
         run: npx tsc --noEmit
 
