@@ -4,16 +4,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getMiembro, getMiembros, seccionActiva } from '@/lib/datos';
 import { aParrafos } from '@/lib/formato';
-import {
-  ICONO_POSICION,
-  NOMBRE_POSICION,
-  contexto,
-  fechaLogro,
-  hayMasQueFichas,
-  porAnio,
-  resumirPalmares,
-  totalTrofeos,
-} from '@/lib/palmares';
+import { hayMasQueFichas, resumirPalmares, totalTrofeos } from '@/lib/palmares';
+import GaleriaTrofeos from './GaleriaTrofeos';
 import s from './miembro.module.css';
 
 /**
@@ -63,7 +55,6 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
 
   const total = totalTrofeos(miembro);
   const resumen = resumirPalmares(miembro.palmares);
-  const anios = porAnio(miembro.palmares);
   const parrafos = aParrafos(miembro.biografia);
 
   /*
@@ -176,56 +167,7 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
               </p>
             )}
 
-            {anios.map(([anio, logros]) => (
-              <div className={s.anio} key={anio}>
-                <div className={s.anioCabecera}>
-                  <h3 className={s.anioTitulo}>{anio}</h3>
-                  <span className={s.anioConteo}>
-                    {logros.length} {logros.length === 1 ? 'trofeo' : 'trofeos'}
-                  </span>
-                </div>
-
-                <ul className={s.logros}>
-                  {logros.map((logro) => (
-                    <li className={s.logro} key={logro.id}>
-                      <span className={s.logroIcono} aria-hidden="true">
-                        {ICONO_POSICION[logro.posicion]}
-                      </span>
-
-                      <div className={s.logroCuerpo}>
-                        <p className={s.logroTitulo}>{logro.titulo}</p>
-                        <p className={s.logroMeta}>
-                          {[
-                            NOMBRE_POSICION[logro.posicion],
-                            contexto(logro),
-                            fechaLogro(logro),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </p>
-                      </div>
-
-                      {logro.foto_url && (
-                        <a
-                          href={logro.foto_url}
-                          target="_blank"
-                          rel="noopener"
-                          className={s.logroFoto}
-                        >
-                          <Image
-                            src={logro.foto_url}
-                            alt={`Trofeo: ${logro.titulo}`}
-                            fill
-                            sizes="88px"
-                            style={{ objectFit: 'cover' }}
-                          />
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <GaleriaTrofeos logros={miembro.palmares} />
           </section>
         )}
 

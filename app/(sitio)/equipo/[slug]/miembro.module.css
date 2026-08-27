@@ -254,15 +254,120 @@
     margin: 0.25rem 0 0;
 }
 
-/* La foto del trofeo es opcional: cuando está, va como miniatura clicable. */
+/* La foto del trofeo es opcional: cuando está, va como miniatura que abre el
+   visor. Es un <button>, así que hay que apagarle los estilos de botón. */
 .logroFoto {
     position: relative;
     flex-shrink: 0;
     width: 88px;
     height: 66px;
     overflow: hidden;
+    padding: 0;
+    background: none;
     border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: border-color 0.2s;
 }
+
+.logroFoto:hover {
+    border-color: var(--color-primary);
+}
+
+/* ── Visor de fotos ── */
+.visorFondo {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    /* Mismo tratamiento que el reproductor de la página de videos. El desenfoque
+       no es adorno: sin él, las miniaturas de trofeos que quedan detrás siguen
+       leyéndose a través del velo y compiten con la foto que se está mirando. */
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.visor {
+    position: relative;
+    width: min(1000px, 90vw);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.visorMarco {
+    position: relative;
+    width: 100%;
+    height: 70vh;
+}
+
+.visorCerrar {
+    position: absolute;
+    top: -3rem;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: 1px solid #444;
+    color: #ccc;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.visorCerrar:hover {
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.visorPie {
+    text-align: center;
+}
+
+.visorTitulo {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.visorMeta {
+    color: #888;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0.3rem 0 0;
+}
+
+.visorPaso {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 64px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    color: #ccc;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.visorPaso:hover {
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.visorAnterior { left: -1rem; }
+.visorSiguiente { right: -1rem; }
 
 /* ── Cierre ── */
 .cierre {
@@ -313,4 +418,14 @@
         width: 100%;
         height: 140px;
     }
+
+    .visorFondo { padding: 1rem; }
+
+    .visor { width: 100%; }
+
+    .visorMarco { height: 60vh; }
+
+    /* Pegadas al borde no se pueden tocar sin taparlo; adentro sí. */
+    .visorAnterior { left: 0; }
+    .visorSiguiente { right: 0; }
 }
