@@ -10,6 +10,12 @@ export const metadata: Metadata = {
 
 export default async function AdminMiembrosPage() {
   const db = await crearClienteServidor();
-  const { data } = await db.from('miembros').select('*').order('orden').order('id');
+  // `palmares:logros(*)` con alias: `logros` a secas choca con la columna vieja
+  // del mismo nombre que quedó en la tabla (ver 0011).
+  const { data } = await db
+    .from('miembros')
+    .select('*, palmares:logros(*)')
+    .order('orden')
+    .order('id');
   return <MiembrosAdmin inicial={(data ?? []) as Miembro[]} />;
 }

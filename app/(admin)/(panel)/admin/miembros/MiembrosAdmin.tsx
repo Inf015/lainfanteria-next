@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Miembro } from '@/lib/types';
-import { aLista } from '@/lib/formato';
+import { aLista, aSlug } from '@/lib/formato';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
+import PalmaresModal from './PalmaresModal';
 import s from '../../../admin.module.css';
 
 const ROLES_SUGERIDOS = ['Piloto', 'Socio', 'Mecánico'];
@@ -18,7 +19,7 @@ interface FormMiembro {
   foto_url: string | null;
   instagram_url: string;
   youtube_url: string;
-  logros: string;
+  trofeos_total: string;
   orden: string;
   activo: boolean;
 }
@@ -31,7 +32,7 @@ const VACIO: FormMiembro = {
   foto_url: null,
   instagram_url: '',
   youtube_url: '',
-  logros: '',
+  trofeos_total: '',
   orden: '0',
   activo: true,
 };
@@ -45,8 +46,7 @@ function aForm(p: Miembro): FormMiembro {
     foto_url: p.foto_url,
     instagram_url: p.instagram_url ?? '',
     youtube_url: p.youtube_url ?? '',
-    // Un logro por línea es más natural de editar que una lista con comas.
-    logros: (p.logros ?? []).join('\n'),
+    trofeos_total: p.trofeos_total === null ? '' : String(p.trofeos_total),
     orden: String(p.orden),
     activo: p.activo,
   };
@@ -56,6 +56,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
   const router = useRouter();
   const [miembros, setMiembros] = useState(inicial);
   const [editando, setEditando] = useState<Miembro | null>(null);
+  const [palmaresDe, setPalmaresDe] = useState<Miembro | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState<FormMiembro>(VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -106,10 +107,10 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
       foto_url: form.foto_url,
       instagram_url: form.instagram_url.trim() || null,
       youtube_url: form.youtube_url.trim() || null,
-      logros: form.logros
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean),
+      // El slug es la URL de su página: se deriva del nombre, como en noticias.
+      slug: aSlug(form.nombre),
+      // Vacío es "no lo sé": ahí la página cuenta los trofeos cargados.
+      trofeos_total: form.trofeos_total.trim() === '' ? null : Number(form.trofeos_total),
       orden: Number(form.orden) || 0,
       activo: form.activo,
     };
@@ -190,7 +191,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
               <th>Nombre</th>
               <th>Roles</th>
               <th>Número</th>
-              <th>Logros</th>
+              <th>Trofeos</th>
               <th>Visible</th>
               <th></th>
             </tr>
@@ -224,7 +225,12 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                     ))}
                   </td>
                   <td>{p.numero ? `#${p.numero}` : '—'}</td>
-                  <td>{p.logros?.length ?? 0}</td>
+                  <td>
+                    {p.trofeos_total ?? (p.palmares?.length ?? 0)}
+                    {p.trofeos_total !== null &&
+                      p.trofeos_total !== undefined &&
+                      ` (${p.palmares?.length ?? 0} cargados)`}
+                  </td>
                   <td>{p.activo ? 'Sí' : 'No'}</td>
                   <td className={s.celdaAcciones}>
                     <button
@@ -232,6 +238,12 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                       onClick={() => abrirEdicion(p)}
                     >
                       Editar
+                    </button>
+                    <button
+                      className={s.btnAccion}
+                      onClick={() => setPalmaresDe(p)}
+                    >
+                      Palmarés
                     </button>
                     <button
                       className={`${s.btnAccion} ${s.btnBorrar}`}
@@ -314,20 +326,25 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                     onChange={(e) => setForm({ ...form, biografia: e.target.value })}
                   />
                   <p className={s.ayuda}>
-                    Se despliega al hacer clic en la foto en el sitio.
+                    Se muestra en su página, /equipo/&lt;nombre&gt;.
                   </p>
                 </div>
 
                 <div className={s.campo}>
-                  <label className={s.label}>LOGROS</label>
-                  <textarea
-                    className={s.textarea}
-                    value={form.logros}
-                    onChange={(e) => setForm({ ...form, logros: e.target.value })}
-                    placeholder={'Campeón DADR 2024\nSubcampeón Pro Stock 2023'}
+                  <label className={s.label}>TOTAL DE TROFEOS</label>
+                  <input
+                    className={s.input}
+                    type="number"
+                    min="0"
+                    value={form.trofeos_total}
+                    onChange={(e) => setForm({ ...form, trofeos_total: e.target.value })}
+                    placeholder="Ej: 128"
                   />
                   <p className={s.ayuda}>
-                    Uno por línea. Cada uno se muestra como una insignia en su tarjeta.
+                    El número grande de su ficha. Dejalo vacío y el sitio cuenta los
+                    trofeos cargados en el palmarés; escribilo cuando tenga más de los
+                    que vale la pena cargar uno por uno. El palmarés se edita desde el
+                    botón «Palmarés» de la tabla.
                   </p>
                 </div>
 
@@ -427,6 +444,20 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
             </div>
           </div>
         </div>
+      )}
+
+      {palmaresDe && (
+        <PalmaresModal
+          miembro={palmaresDe}
+          onCerrar={() => setPalmaresDe(null)}
+          onCambio={(palmares) => {
+            setMiembros((prev) =>
+              prev.map((m) => (m.id === palmaresDe.id ? { ...m, palmares } : m)),
+            );
+            setPalmaresDe((m) => (m ? { ...m, palmares } : m));
+            router.refresh();
+          }}
+        />
       )}
 
       {toast && <div className={s.toast}>{toast}</div>}

@@ -2,6 +2,7 @@ import { consultar } from './supabase';
 import type {
   AutoConFotos,
   ClaveSeccion,
+  Logro,
   Miembro,
   Noticia,
   ProductoConFotos,
@@ -44,13 +45,69 @@ export async function seccionActiva(clave: ClaveSeccion): Promise<boolean> {
   return filas[0]?.activa ?? false;
 }
 
+/*
+ * Columnas del miembro más su palmarés.
+ *
+ * Se enumeran en vez de usar `*` por dos razones: `miembros.logros` es la
+ * columna vieja de texto que ya no lee nadie y no hace falta traerla, y el
+ * embebido tiene que ir con alias porque comparte nombre con ella —`logros(*)`
+ * junto a la columna `logros` es ambiguo—.
+ */
+/* Una sola línea a propósito: partida o concatenada, supabase-js pierde el tipo
+   literal del select y deja de inferir la forma de la respuesta. */
+// prettier-ignore
+const COLUMNAS_MIEMBRO =
+  'id, nombre, slug, numero, roles, biografia, foto_url, foto_public_id, instagram_url, youtube_url, trofeos_total, orden, activo, creado_en, palmares:logros(*)' as const;
+
+/**
+ * Ordena un palmarés de lo más reciente a lo más viejo, dejando al final lo que
+ * no tiene fecha.
+ *
+ * Se ordena acá y no en la consulta a propósito: ordenar un embebido depende de
+ * cómo PostgREST nombre la relación aliasada, y son unos cientos de filas por
+ * miembro. En memoria es exacto y no depende de esa sutileza.
+ */
+function ordenarPalmares(logros: Logro[]): Logro[] {
+  return [...logros].sort((a, b) => {
+    if (a.anio !== b.anio) return (b.anio ?? -Infinity) - (a.anio ?? -Infinity);
+    if (a.mes !== b.mes) return (b.mes ?? -Infinity) - (a.mes ?? -Infinity);
+    return b.id - a.id;
+  });
+}
+
 /** Miembros activos del equipo, en el orden definido desde el backoffice. */
 export async function getMiembros(): Promise<Miembro[]> {
-  return consultar<Miembro[]>(
+  const miembros = await consultar<Miembro[]>(
     'miembros activos',
-    (db) => db.from('miembros').select('*').eq('activo', true).order('orden').order('id'),
+    (db) =>
+      db
+        .from('miembros')
+        .select(COLUMNAS_MIEMBRO)
+        .eq('activo', true)
+        .order('orden')
+        .order('id'),
     [],
   );
+
+  return miembros.map((m) => ({ ...m, palmares: ordenarPalmares(m.palmares ?? []) }));
+}
+
+/** Un miembro por su slug, para su página propia. Null si no existe o está inactivo. */
+export async function getMiembro(slug: string): Promise<Miembro | null> {
+  const filas = await consultar<Miembro[]>(
+    `miembro ${slug}`,
+    (db) =>
+      db
+        .from('miembros')
+        .select(COLUMNAS_MIEMBRO)
+        .eq('slug', slug)
+        .eq('activo', true)
+        .limit(1),
+    [],
+  );
+
+  const miembro = filas[0];
+  return miembro ? { ...miembro, palmares: ordenarPalmares(miembro.palmares ?? []) } : null;
 }
 
 /**

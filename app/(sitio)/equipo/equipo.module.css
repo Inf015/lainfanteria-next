@@ -34,6 +34,9 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
+    /* Sin esto la fila iguala todas las tarjetas a la más alta y a los pilotos
+       con menos palmarés les queda medio metro de fondo vacío debajo. */
+    align-items: start;
 }
 
 /* ── Card ── */
@@ -55,6 +58,7 @@
     overflow: hidden;
     background-color: var(--color-bg-medium);
     width: 100%;
+    display: block;
     padding: 0;
     border: none;
     display: block;
@@ -119,78 +123,82 @@
     margin: 0;
 }
 
-/* ── Bio expandible ── */
-/* Se anima con grid en vez de max-height: una biografía más larga que el
-   límite fijo quedaba cortada a la mitad al desplegarse. Así se adapta al
-   contenido, sea cual sea su largo. */
-.pilotBioWrap {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.35s ease;
+/* ── Nombre como enlace al perfil ── */
+.pilotName a {
+    color: inherit;
+    text-decoration: none;
 }
 
-.bioOpen {
-    grid-template-rows: 1fr;
+.pilotCard:hover .pilotName a {
+    color: var(--color-primary);
 }
 
-.pilotBioInner {
-    overflow: hidden;
-    min-height: 0;
-}
-
-.pilotBio {
-    color: #aaa;
-    font-size: 0.85rem;
-    line-height: 1.6;
-    margin: 0 0 0.7rem;
-}
-
-.pilotBio:last-child {
-    margin-bottom: 0.25rem;
-}
-
-/* ── Hint en foto ── */
-.bioHint {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.75));
-    color: #ccc;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-align: center;
-    padding: 1.5rem 0 0.6rem;
-    transition: color 0.2s;
-}
-
-.pilotCard:hover .bioHint {
-    color: white;
-}
-
-/* ── Logros (reemplaza el bloque de stats) ── */
-.pilotLogros {
+/* ── Trofeos ── */
+/* En la tarjeta va el número grande y hasta tres destacados; el palmarés
+   completo vive en la página del miembro. */
+.contadorLogros {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     gap: 0.4rem;
-    border-top: 1px solid var(--color-border);
-    padding-top: 1rem;
+    color: #999;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin: 0;
 }
 
-.logro {
+.destacados {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.9rem;
+}
+
+.destacado {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #bbb;
+}
+
+.destacadoIcono {
+    flex-shrink: 0;
+}
+
+.destacadoTexto {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.destacadoMeta {
+    color: #777;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.verPerfil {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    background-color: var(--color-bg-medium);
-    border: 1px solid var(--color-border);
-    border-left: 2px solid var(--color-primary);
-    color: #bbb;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    padding: 0.35rem 0.6rem;
+    align-self: flex-start;
+    min-height: 44px;
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    transition: opacity 0.2s;
 }
+
+.verPerfil:hover { opacity: 0.75; }
 
 /* ── Social ── */
 .pilotSocial {
@@ -325,4 +333,14 @@
 @media (max-width: 768px) {
     .grupo { margin-bottom: 3rem; }
     .grupoTitulo { font-size: 1.3rem; }
+
+    /* IG y YT medían 40x28: no hay otro enlace a esas redes en la página, así
+       que estos tienen que ser del tamaño de un dedo. El nombre se queda como
+       está: lleva al mismo sitio que la foto, que ya es un objetivo enorme. */
+    .socialLink {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 1rem;
+    }
 }

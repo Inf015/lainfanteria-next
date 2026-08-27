@@ -25,9 +25,44 @@ export interface Seccion {
 /** Rol dentro del equipo. Texto libre: sumar uno nuevo no requiere migración. */
 export type RolMiembro = 'Piloto' | 'Socio' | 'Mecánico' | (string & {});
 
+/**
+ * Puesto conseguido. `otro` cubre trofeos y reconocimientos que no son un lugar
+ * del podio, como el trofeo a la SUV más rápida de un evento.
+ */
+export type PosicionLogro = 'campeon' | 'primero' | 'segundo' | 'tercero' | 'otro';
+
+/**
+ * Las tres cosas distintas que hay en el calendario: la puntuable, que corre
+ * unas cuatro veces al año; el evento suelto (Dominican Roll Race, BP Day…),
+ * una o dos veces al año; y el campeonato, que cierra la temporada.
+ */
+export type TipoCompetencia = 'campeonato' | 'puntuable' | 'evento';
+
+export interface Logro {
+  id: number;
+  miembro_id: number;
+  posicion: PosicionLogro;
+  tipo: TipoCompetencia;
+  /** Texto completo: incluye evento y categoría, tal como se carga en el panel. */
+  titulo: string;
+  /** Nulo cuando el logro se cargó sin fecha. */
+  anio: number | null;
+  /** 1-12. Nulo cuando solo se conoce el año, que es el caso más común. */
+  mes: number | null;
+  /** Cuál de las puntuables del año (1ra, 2da…). Nulo fuera de las puntuables. */
+  ronda: number | null;
+  /** Si sube a la tarjeta de la grilla. La página del miembro los muestra todos. */
+  destacado: boolean;
+  /** Foto del trofeo, opcional. */
+  foto_url: string | null;
+  creado_en: string;
+}
+
 export interface Miembro {
   id: number;
   nombre: string;
+  /** Identificador de su página: /equipo/<slug>. */
+  slug: string;
   /** Número de carrera. Solo aplica a pilotos. */
   numero: string | null;
   roles: RolMiembro[];
@@ -36,7 +71,18 @@ export interface Miembro {
   foto_public_id: string | null;
   instagram_url: string | null;
   youtube_url: string | null;
-  logros: string[];
+  /**
+   * Total declarado de trofeos. Manda sobre la cantidad de fichas cargadas, que
+   * son solo las destacadas: un piloto con cien trofeos no carga cien fichas.
+   * Nulo = no se declaró y la página cuenta las que hay.
+   */
+  trofeos_total: number | null;
+  /**
+   * Su palmarés, ya ordenado de lo más reciente a lo más viejo. Se llama así y
+   * no `logros` porque `miembros.logros` es la columna vieja de texto que la
+   * tabla `logros` reemplazó en la migración 0011.
+   */
+  palmares: Logro[];
   orden: number;
   activo: boolean;
   creado_en: string;

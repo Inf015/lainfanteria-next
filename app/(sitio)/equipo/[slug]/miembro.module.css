@@ -1,0 +1,332 @@
+/* Ficha de un miembro: /equipo/<slug>. */
+
+.pagina {
+    background-color: var(--color-bg-dark);
+    padding: 3rem 2rem 5rem;
+}
+
+.contenedor {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.volver {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: #888;
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+}
+
+.volver:hover { color: var(--color-primary); }
+
+/* ── Cabecera ── */
+.cabecera {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+    margin-top: 1rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.fotoWrap {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background-color: var(--color-bg-medium);
+    border: 1px solid var(--color-border);
+}
+
+.fotoPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 5rem;
+    font-weight: 900;
+    color: #2e2e2e;
+}
+
+.numero {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 900;
+    padding: 0.3rem 0.75rem;
+    letter-spacing: 1px;
+}
+
+.identidad {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.rol {
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 0.25rem 0.6rem;
+}
+
+.nombre {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1.1;
+    margin: 0;
+}
+
+/* ── Cifras ── */
+.cifras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.cifra {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.cifraValor {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.cifraEtiqueta {
+    color: #888;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.redes {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.red {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.red:hover {
+    border-color: var(--color-primary);
+    color: white;
+}
+
+/* ── Bloques ── */
+.bloque {
+    padding-top: 2.5rem;
+}
+
+.bloqueTitulo {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: white;
+    margin: 0 0 1.25rem;
+}
+
+.bio {
+    color: #aaa;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 0 0 1rem;
+}
+
+.aclaracion {
+    color: #777;
+    font-size: 0.85rem;
+    margin: -0.5rem 0 1.5rem;
+}
+
+/* ── Palmarés por año ── */
+.anio {
+    margin-bottom: 2rem;
+}
+
+.anioCabecera {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+
+.anioTitulo {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    margin: 0;
+    letter-spacing: 0.05em;
+}
+
+.anioConteo {
+    color: #666;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.logros {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.logro {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 2px solid var(--color-primary);
+    padding: 0.75rem 0.9rem;
+}
+
+.logroIcono {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+}
+
+.logroCuerpo {
+    flex: 1;
+    min-width: 0;
+}
+
+.logroTitulo {
+    color: #ddd;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.logroMeta {
+    color: #777;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0.25rem 0 0;
+}
+
+/* La foto del trofeo es opcional: cuando está, va como miniatura clicable. */
+.logroFoto {
+    position: relative;
+    flex-shrink: 0;
+    width: 88px;
+    height: 66px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+/* ── Cierre ── */
+.cierre {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.btnWa {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 1.5rem;
+    background-color: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    transition: background 0.2s;
+}
+
+.btnWa:hover { background-color: var(--color-primary-hover); }
+
+.btnEquipo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: #999;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.btnEquipo:hover { color: white; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .pagina { padding: 2rem 1.25rem 4rem; }
+
+    .cabecera {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    /* De cuerpo entero la foto ocupaba media pantalla antes del nombre */
+    .fotoWrap { aspect-ratio: 4 / 3; }
+
+    .nombre { font-size: 2rem; }
+
+    .cifras { gap: 1.5rem; }
+
+    .cifraValor { font-size: 1.6rem; }
+
+    /* La miniatura del trofeo baja a su propia línea antes que apretar el texto */
+    .logro { flex-wrap: wrap; }
+
+    .logroFoto {
+        width: 100%;
+        height: 140px;
+    }
+}
