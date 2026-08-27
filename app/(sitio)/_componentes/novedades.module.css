@@ -252,17 +252,18 @@
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         gap: 1rem;
-        padding-left: 1.5rem;
-        padding-right: 2rem;
         padding-bottom: 1.25rem;
         scrollbar-width: none;
+        /* Ver el comentario en home.module.css: el padding es el aire que sobra
+           de la tarjeta, para que la primera y la última también centren. */
+        padding-inline: 10vw;
     }
 
     .grilla::-webkit-scrollbar { display: none; }
 
     .tarjeta {
-        flex: 0 0 82%;
-        scroll-snap-align: start;
+        flex: 0 0 80vw;
+        scroll-snap-align: center;
     }
 
     .cerrar { top: -2.4rem; }

@@ -29,10 +29,14 @@
 }
 
 .footerBrand img {
+    /*
+     * `align-self` porque la columna es flex y estiraba la imagen a todo el
+     * ancho: la caja quedaba en 240px con el logo de 146px centrado dentro, y
+     * next/image avisaba de la relación de aspecto rota.
+     */
+    align-self: flex-start;
     height: 80px;
     width: auto;
-    max-width: 240px;
-    object-fit: contain;
 }
 
 .footerBrand p {
@@ -159,5 +163,18 @@
         flex-direction: column;
         gap: 0.75rem;
         text-align: center;
+    }
+
+    /* Redes y datos de contacto: 44px de alto real, que es lo que ocupa un dedo. */
+    .footerSocial a {
+        width: 44px;
+        height: 44px;
+    }
+
+    .contactItem a {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        margin-top: 0;
     }
 }

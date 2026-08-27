@@ -180,9 +180,11 @@
         flex-shrink: 0;
     }
 
+    /* 48px de lado: por debajo de eso el dedo falla más de lo que acierta. */
     .hamburger {
         display: flex;
         width: 52px;
+        height: 48px;
         flex-shrink: 0;
         justify-content: center;
         align-items: center;
@@ -209,12 +211,22 @@
         background-color: var(--color-navbar);
         border-right: 2px solid var(--color-primary);
         z-index: 1002;
-        transition: left 0.35s ease;
         overflow-y: auto;
+        /*
+         * Cerrado no basta con sacarlo de pantalla: sus enlaces seguirían siendo
+         * enfocables con el tabulador y los leería el lector de pantalla, que es
+         * justo lo que niega el aria-hidden del componente. `visibility` los saca
+         * del árbol, y se retrasa hasta que termina el desplazamiento para no
+         * cortar la animación de cierre.
+         */
+        visibility: hidden;
+        transition: left 0.35s ease, visibility 0s linear 0.35s;
     }
 
     .mobile-drawer.mobile-drawer-open {
         left: 0;
+        visibility: visible;
+        transition: left 0.35s ease;
     }
 
     .drawer-header {
@@ -236,8 +248,8 @@
         border: 1px solid #333;
         color: #aaa;
         font-size: 1rem;
-        width: 32px;
-        height: 32px;
+        width: 44px;
+        height: 44px;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -263,8 +275,10 @@
     }
 
     .mobile-links a {
-        display: block;
-        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        padding: 0.85rem 1.5rem;
         color: #ccc;
         text-decoration: none;
         font-size: 0.85rem;

@@ -275,4 +275,7 @@
     .pageBannerTitle { font-size: 2rem; }
     .sectionContainer { padding: 0 1.25rem; }
     .cerrar { top: -2.4rem; }
+
+    /* El botón del canal medía 35px de alto: queda corto para un dedo. */
+    .btnCanal { min-height: 44px; }
 }

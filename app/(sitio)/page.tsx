@@ -150,6 +150,23 @@ export default async function Home() {
     <>
       {/* ─── HERO ─── */}
       <section className={s.hero}>
+        {/*
+          El fondo era un background-image de CSS, o sea el JPG original de 4 MB
+          y 5472px de ancho tal cual, tanto en un monitor como en un teléfono con
+          datos. Servido por next/image sale redimensionado al ancho real de la
+          pantalla y en AVIF o WebP: en un teléfono baja de 4 MB a unos 70 KB.
+
+          Es la imagen que marca el LCP, así que se precarga desde el <head>.
+          `preload` y no `priority`: en Next 16 `priority` quedó deprecado.
+        */}
+        <Image
+          src="/images/hero-bg.jpg"
+          alt=""
+          fill
+          preload
+          sizes="100vw"
+          className={s.heroFondo}
+        />
         <div className={s.heroOverlay}>
           <div className={s.heroContent}>
             <div className={s.heroTag}>

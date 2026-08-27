@@ -433,4 +433,11 @@
     .ctaActions { flex-direction: column; width: 100%; }
     .btnCtaWa, .btnCtaServicios { justify-content: center; }
     .tallerDeco { display: none; }
+
+    /* «Ver todos los servicios →» medía 16px de alto: se toca por casualidad. */
+    .btnVerServicios {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
 }

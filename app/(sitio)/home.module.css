@@ -5,15 +5,20 @@
 .hero {
     width: 100%;
     min-height: 100vh;
-    background-image: url('/images/hero-bg.jpg');
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
     background-color: var(--color-bg-light);
     position: relative;
+    overflow: hidden;
+}
+
+.heroFondo {
+    object-fit: cover;
+    object-position: center center;
+    z-index: 0;
 }
 
 .heroOverlay {
+    position: relative;
+    z-index: 1;
     min-height: 100vh;
     background: linear-gradient(to right, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.3) 100%);
     display: flex;
@@ -747,9 +752,36 @@
 
 /* ═══ RESPONSIVE — MOBILE ═══ */
 @media (max-width: 768px) {
+    /*
+     * En el teléfono el hero ocupa exactamente lo que queda bajo la navbar fija.
+     * `svh` y no `vh`: vh cuenta con la barra del navegador retraída, así que con
+     * ella a la vista el hero sobresalía y obligaba a un scroll de más antes de
+     * llegar al contenido.
+     */
+    .hero,
     .heroOverlay {
-        padding: 6rem 1.5rem 3rem;
-        align-items: flex-start;
+        min-height: calc(100vh - 80px);
+        min-height: calc(100svh - 80px);
+    }
+
+    .heroOverlay {
+        /* El degradado horizontal se pensó para pantalla ancha: en vertical dejaba
+           el texto sobre la parte clara de la foto. Acá va de arriba abajo. */
+        background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.78) 0%,
+            rgba(0, 0, 0, 0.84) 55%,
+            rgba(0, 0, 0, 0.92) 100%
+        );
+        padding: 2rem 1.5rem;
+        align-items: center;
+    }
+
+    /* Con el espaciado de escritorio, la etiqueta partía «AMERICAN MUSCLE» en
+       dos líneas y el recuadro quedaba descuadrado. Así entra en una. */
+    .heroTag {
+        font-size: 0.7rem;
+        letter-spacing: 1px;
     }
 
     .heroTitle { font-size: 2.2rem; }
@@ -798,10 +830,17 @@
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         gap: 1rem;
-        padding-left: 1.5rem;
-        padding-right: 2rem;
         padding-bottom: 1.25rem;
         scrollbar-width: none;
+        /*
+         * Tarjeta centrada, con el mismo asomo de la siguiente a cada lado.
+         *
+         * El padding lateral es exactamente el aire que sobra de la tarjeta,
+         * (100vw - 80vw) / 2: así la primera y la última también pueden quedar
+         * centradas, que es lo que no ocurre con `scroll-snap-align: start`
+         * —ahí la primera se pega al borde y el snap se come el padding—.
+         */
+        padding-inline: 10vw;
     }
 
     .carsGrid::-webkit-scrollbar,
@@ -811,25 +850,32 @@
 
     .carCard,
     .newsCard,
-    .inventoryCard {
-        flex: 0 0 82%;
-        scroll-snap-align: start;
-    }
-
-    .serviceCard {
-        flex: 0 0 78%;
-        scroll-snap-align: start;
-    }
-
+    .inventoryCard,
+    .serviceCard,
     .merchCard {
-        flex: 0 0 72%;
-        scroll-snap-align: start;
+        flex: 0 0 80vw;
+        scroll-snap-align: center;
     }
 
     .blockHeader {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+    }
+
+    /* Los enlaces de flecha medían 16px de alto: se tocan por casualidad. */
+    .linkWhatsapp {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    /* El teléfono del cierre es el enlace más importante del móvil: llama. */
+    .ctaPhone a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 0.5rem;
     }
 
     .cta { padding: 4rem 1.5rem; }
