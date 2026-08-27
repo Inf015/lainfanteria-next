@@ -16,7 +16,7 @@ export const metadata: Metadata = {
  * después, alfabéticamente: sumar "Jefe de equipo" desde el panel no requiere
  * tocar este archivo.
  */
-const ORDEN_ROLES = ['Piloto', 'Socio', 'Mecánico'];
+const ORDEN_ROLES = ['Piloto', 'Mecánico', 'Socio'];
 
 /** Título del bloque para cada rol. Sin entrada, se usa el rol tal cual. */
 const TITULOS: Record<string, string> = {
