@@ -34,11 +34,20 @@ export function construirCSP(nonce?: string): string {
   const supa = hostSupabase();
   const supaWs = supa.replace(/^https:/, 'wss:');
 
+  /*
+   * React en desarrollo usa eval() para reconstruir pilas de llamada, y sin este
+   * permiso la consola se llena de cientos de errores de CSP que tapan los
+   * de verdad. En producción React nunca lo usa, así que solo se concede
+   * mientras corre `next dev`.
+   */
+  const evalEnDesarrollo =
+    process.env.NODE_ENV === 'production' ? '' : ` 'unsafe-eval'`;
+
   const scriptSrc = nonce
     ? // strict-dynamic: los scripts que cargue uno ya autorizado heredan el
       // permiso, sin tener que enumerar cada archivo generado por el build
-      `'self' 'nonce-${nonce}' 'strict-dynamic'`
-    : `'self' 'unsafe-inline'`;
+      `'self' 'nonce-${nonce}' 'strict-dynamic'${evalEnDesarrollo}`
+    : `'self' 'unsafe-inline'${evalEnDesarrollo}`;
 
   const directivas = [
     `default-src 'self'`,
