@@ -166,7 +166,7 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
 
         {miembro.palmares.length > 0 && (
           <section className={s.bloque}>
-            <h2 className={s.bloqueTitulo}>Palmarés</h2>
+            <h2 className={s.bloqueTitulo}>Galería de trofeos</h2>
 
             {/* Honestidad con el número grande: si el total declarado supera lo
                 cargado, se dice que abajo está lo destacado y no todo. */}

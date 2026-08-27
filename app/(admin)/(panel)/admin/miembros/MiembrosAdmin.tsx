@@ -243,7 +243,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                       className={s.btnAccion}
                       onClick={() => setPalmaresDe(p)}
                     >
-                      Palmarés
+                      Galería de trofeos
                     </button>
                     <button
                       className={`${s.btnAccion} ${s.btnBorrar}`}
@@ -342,9 +342,9 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                   />
                   <p className={s.ayuda}>
                     El número grande de su ficha. Dejalo vacío y el sitio cuenta los
-                    trofeos cargados en el palmarés; escribilo cuando tenga más de los
-                    que vale la pena cargar uno por uno. El palmarés se edita desde el
-                    botón «Palmarés» de la tabla.
+                    trofeos cargados; escribilo cuando tenga más de los que vale la
+                    pena cargar uno por uno. Los trofeos se cargan desde el botón
+                    «Galería de trofeos» de la tabla.
                   </p>
                 </div>
 

@@ -212,7 +212,7 @@ export default function PalmaresModal({ miembro, onCerrar, onCambio }: Props) {
     <div className={s.modalFondo} onClick={onCerrar}>
       <div className={s.modal} onClick={(e) => e.stopPropagation()}>
         <div className={s.modalCabecera}>
-          <h2 className={s.modalTitulo}>Palmarés de {miembro.nombre}</h2>
+          <h2 className={s.modalTitulo}>Galería de trofeos de {miembro.nombre}</h2>
           <button className={s.modalCerrar} onClick={onCerrar} aria-label="Cerrar">
             ✕
           </button>
