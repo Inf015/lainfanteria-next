@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAjustes, getMiembro, getMiembros, seccionActiva } from '@/lib/datos';
+import { getMiembro, getMiembros, seccionActiva } from '@/lib/datos';
 import { aParrafos } from '@/lib/formato';
 import {
   ICONO_POSICION,
@@ -58,10 +58,9 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
   if (!(await seccionActiva('equipo'))) notFound();
 
   const { slug } = await params;
-  const [miembro, ajustes] = await Promise.all([getMiembro(slug), getAjustes()]);
+  const miembro = await getMiembro(slug);
   if (!miembro) notFound();
 
-  const wa = `https://wa.me/${ajustes.whatsapp_numero ?? ''}`;
   const total = totalTrofeos(miembro);
   const resumen = resumirPalmares(miembro.palmares);
   const anios = porAnio(miembro.palmares);
@@ -231,16 +230,6 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
         )}
 
         <div className={s.cierre}>
-          <a
-            href={`${wa}?text=${encodeURIComponent(
-              `Hola, quisiera información sobre ${miembro.nombre} y el equipo.`,
-            )}`}
-            target="_blank"
-            rel="noopener"
-            className={s.btnWa}
-          >
-            💬 ESCRIBIR AL EQUIPO
-          </a>
           <Link href="/equipo" className={s.btnEquipo}>
             Ver todo el equipo →
           </Link>
