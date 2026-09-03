@@ -19,6 +19,22 @@ export const BUCKET_FOTOS = 'fotos';
 const MARCA_PUBLICA = `/storage/v1/object/public/${BUCKET_FOTOS}/`;
 
 /**
+ * Origen del proyecto de Supabase, o `null` si la variable no está o no es una
+ * URL. Se lee en cada llamada y no al cargar el módulo para que se pueda fijar
+ * desde los tests; en el bundle del navegador Next reemplaza la expresión por
+ * el literal igual, esté donde esté.
+ */
+function origenSupabase(): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Ruta dentro del bucket a partir de la URL pública, o `null` si la URL no es
  * de este bucket.
  *
@@ -26,14 +42,32 @@ const MARCA_PUBLICA = `/storage/v1/object/public/${BUCKET_FOTOS}/`;
  * y URLs cargadas a mano que no son nuestras. Sobre esas no hay nada que
  * borrar, y confundirlas con una ruta local sería pedirle a Storage que borre
  * cualquier cosa.
+ *
+ * Por eso no alcanza con buscar la marca dentro del texto: una URL ajena que la
+ * lleve en cualquier posición —`https://externo.example/storage/v1/object/
+ * public/fotos/miembros/victima.jpg`— daría una ruta que sí existe en nuestro
+ * bucket, y borraríamos una foto legítima por pedido de un tercero. Tienen que
+ * coincidir el origen del proyecto y el principio del path.
  */
 export function rutaEnBucket(url: string | null | undefined): string | null {
   if (!url) return null;
-  const i = url.indexOf(MARCA_PUBLICA);
-  if (i === -1) return null;
 
-  // La query (`?t=…` del cache-buster) no es parte de la ruta del objeto.
-  const ruta = url.slice(i + MARCA_PUBLICA.length).split(/[?#]/)[0];
+  const origen = origenSupabase();
+  if (!origen) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null; // relativas y basura: no son nuestras
+  }
+
+  if (parsed.origin !== origen) return null;
+  if (!parsed.pathname.startsWith(MARCA_PUBLICA)) return null;
+
+  // `pathname` ya deja afuera la query (`?t=…` del cache-buster) y el fragmento,
+  // que no son parte de la ruta del objeto.
+  const ruta = parsed.pathname.slice(MARCA_PUBLICA.length);
   return ruta || null;
 }
 
