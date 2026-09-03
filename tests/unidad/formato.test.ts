@@ -260,6 +260,29 @@ describe('fecha y hora del formulario', () => {
     expect(aInputFechaHora('2026-08-15T04:00:00Z')).toBe('2026-08-15T00:00');
   });
 
+  it('rechaza fechas y horas que no existen en el calendario', () => {
+    // `Date.UTC` no rechaza: normaliza. Sin control explícito, estas entraban
+    // como otro instante —30 de febrero se guardaba como 2 de marzo— y el
+    // formulario mostraba después una fecha que nadie escribió.
+    expect(deInputFechaHora('2026-02-30T12:00')).toBeNull();
+    expect(deInputFechaHora('2026-13-01T12:00')).toBeNull();
+    expect(deInputFechaHora('2026-08-14T24:00')).toBeNull();
+    expect(deInputFechaHora('2026-00-10T12:00')).toBeNull();
+    expect(deInputFechaHora('2026-08-00T12:00')).toBeNull();
+    expect(deInputFechaHora('2026-04-31T12:00')).toBeNull();
+    expect(deInputFechaHora('2026-08-14T12:60')).toBeNull();
+    expect(deInputFechaHora('2026-08-14T12:00:60')).toBeNull();
+    // Año bisiesto: el 29 de febrero existe en 2024 y no en 2026
+    expect(deInputFechaHora('2026-02-29T12:00')).toBeNull();
+    expect(deInputFechaHora('2024-02-29T12:00')).toBe('2024-02-29T16:00:00.000Z');
+  });
+
+  it('sigue aceptando las válidas de los bordes', () => {
+    expect(deInputFechaHora('2026-08-14T00:00')).toBe('2026-08-14T04:00:00.000Z');
+    expect(deInputFechaHora('2026-12-31T23:59')).toBe('2027-01-01T03:59:00.000Z');
+    expect(deInputFechaHora('2026-08-14T12:00:30')).toBe('2026-08-14T16:00:30.000Z');
+  });
+
   it('no rompe con nulo ni con basura', () => {
     expect(aInputFechaHora(null)).toBe('');
     expect(aInputFechaHora('')).toBe('');
