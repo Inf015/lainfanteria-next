@@ -41,6 +41,7 @@ as $$
 declare
     v_columna   text;
     v_pertenece boolean;
+    v_filas     integer;
 begin
     if not es_admin() then
         raise exception 'No autorizado' using errcode = '42501';
@@ -68,12 +69,22 @@ begin
     -- Que la foto exista no alcanza: tiene que ser de este registro padre. Si
     -- no se valida, un id de otro auto bajaría la principal de esta galería sin
     -- dejar ninguna en su lugar.
+    --
+    -- FOR UPDATE, no `select exists`: el advisory lock serializa los swaps entre
+    -- sí, pero no frena un DELETE ni un cambio de padre que venga por afuera de
+    -- esta función. Con `exists` la validación solo diría que la fila existía en
+    -- ese instante y la foto podría desaparecer antes de los UPDATE. El FOR
+    -- UPDATE bloquea la fila hasta el final de la transacción, así que la foto
+    -- que se validó es la misma que se termina marcando.
     execute format(
-        'select exists (select 1 from %I where id = $1 and %I = $2)',
+        'select true from %I where id = $1 and %I = $2 for update',
         p_tabla, v_columna
     ) into v_pertenece using p_foto_id, p_padre_id;
 
-    if not v_pertenece then
+    -- `is not true` y no `not v_pertenece`: sin fila la variable queda en null y
+    -- `not null` es null, o sea un if que no dispara y una validación que no
+    -- valida nada.
+    if v_pertenece is not true then
         raise exception 'La foto % no pertenece al registro % de %',
             p_foto_id, p_padre_id, p_tabla
             using errcode = '23503';
@@ -88,10 +99,30 @@ begin
         p_tabla, v_columna
     ) using p_padre_id, p_foto_id;
 
+    -- La columna padre va en el WHERE aunque el id ya sea único y la pertenencia
+    -- esté validada: defensa en profundidad, para que ni un bug futuro pueda
+    -- subir una foto de otra galería.
+    --
+    -- Sin `and not es_principal`: re-marcar la foto que ya era principal es un
+    -- caso normal (doble clic) y con ese filtro el UPDATE afectaría cero filas,
+    -- indistinguible de un fallo real para el chequeo de abajo. El write
+    -- redundante es más barato que perder la señal.
     execute format(
-        'update %I set es_principal = true where id = $1 and not es_principal',
-        p_tabla
-    ) using p_foto_id;
+        'update %I set es_principal = true where id = $1 and %I = $2',
+        p_tabla, v_columna
+    ) using p_foto_id, p_padre_id;
+
+    -- Un UPDATE que no encuentra su fila no es un error para Postgres: termina
+    -- bien y afecta cero filas. Sin este chequeo la función confirmaría una
+    -- galería que quedó sin principal, justo lo que vino a evitar. La excepción
+    -- revierte también la bajada de la anterior.
+    get diagnostics v_filas = row_count;
+
+    if v_filas <> 1 then
+        raise exception 'No se pudo marcar la foto % como principal de % (% filas afectadas)',
+            p_foto_id, p_padre_id, v_filas
+            using errcode = '25000';
+    end if;
 end;
 $$;
 
