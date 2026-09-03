@@ -2,9 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
+import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
 import s from '../../../admin.module.css';
-
-const BUCKET = 'fotos';
 
 export interface FotoFila {
   id: number;
@@ -42,13 +41,6 @@ export default function SubirFotos({
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  /** Extrae la ruta dentro del bucket desde la URL pública. */
-  function rutaDesdeUrl(url: string): string | null {
-    const marca = `/storage/v1/object/public/${BUCKET}/`;
-    const i = url.indexOf(marca);
-    return i === -1 ? null : url.slice(i + marca.length);
-  }
 
   async function subir(archivos: FileList | null) {
     if (!archivos?.length) return;
@@ -114,22 +106,64 @@ export default function SubirFotos({
 
   async function marcarPrincipal(id: number) {
     setError(null);
+
+    const anterior = fotos.find((f) => f.es_principal);
+    if (anterior?.id === id) return;
+
     const db = crearClienteNavegador();
 
-    // Hay un índice único parcial que impide dos principales por registro, así
-    // que primero hay que bajar la actual.
-    const actual = fotos.find((f) => f.es_principal);
-    if (actual && actual.id !== id) {
-      await db.from(tabla).update({ es_principal: false }).eq('id', actual.id);
+    // El índice único parcial (`auto_fotos_una_principal_idx`) admite a lo sumo
+    // una principal por registro, así que no se puede marcar la nueva sin bajar
+    // antes la vieja: son dos UPDATE sí o sí. Lo que hay que cuidar es la
+    // ventana entre ambos, porque el índice garantiza "como máximo una", no
+    // "exactamente una": si el segundo falla, la galería queda sin principal y
+    // la tarjeta del sitio se queda sin foto.
+    if (anterior) {
+      const { error: errBaja } = await db
+        .from(tabla)
+        .update({ es_principal: false })
+        .eq('id', anterior.id);
+
+      if (errBaja) {
+        // No llegó a cambiar nada: la principal sigue siendo la de antes.
+        setError(`No se pudo cambiar la principal: ${errBaja.message}`);
+        return;
+      }
     }
 
-    const { error: err } = await db.from(tabla).update({ es_principal: true }).eq('id', id);
-    if (err) {
-      setError(err.message);
+    const { error: errAlta } = await db
+      .from(tabla)
+      .update({ es_principal: true })
+      .eq('id', id);
+
+    if (!errAlta) {
+      onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
       return;
     }
 
-    onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
+    // Acá sí quedó sin principal: se devuelve la marca a la de antes para
+    // cerrar la ventana.
+    if (!anterior) {
+      setError(`No se pudo cambiar la principal: ${errAlta.message}`);
+      return;
+    }
+
+    const { error: errVuelta } = await db
+      .from(tabla)
+      .update({ es_principal: true })
+      .eq('id', anterior.id);
+
+    if (errVuelta) {
+      // Falló también la vuelta atrás: el estado local tiene que reflejar que
+      // la galería quedó sin principal, o el panel muestra algo que no es.
+      onCambio(fotos.map((f) => ({ ...f, es_principal: false })));
+      setError(
+        `La galería quedó sin foto principal (${errAlta.message}). Volvé a marcar una.`,
+      );
+      return;
+    }
+
+    setError(`No se pudo cambiar la principal: ${errAlta.message}`);
   }
 
   async function borrar(foto: FotoFila) {
@@ -145,8 +179,7 @@ export default function SubirFotos({
 
     // El archivo se borra después: si esto falla queda un huérfano en Storage,
     // molesto pero inofensivo. Al revés dejaría una foto rota en el sitio.
-    const ruta = rutaDesdeUrl(foto.url);
-    if (ruta) await db.storage.from(BUCKET).remove([ruta]);
+    await borrarDelBucket(db, foto.url);
 
     onCambio(fotos.filter((f) => f.id !== foto.id));
   }

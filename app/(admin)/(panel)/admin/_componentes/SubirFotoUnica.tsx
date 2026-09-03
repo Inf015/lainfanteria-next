@@ -2,9 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
+import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
 import s from '../../../admin.module.css';
-
-const BUCKET = 'fotos';
 
 interface Props {
   /** Carpeta dentro del bucket: 'pilotos', 'noticias'… */
@@ -25,6 +24,27 @@ export default function SubirFotoUnica({ carpeta, url, onCambio, etiqueta = 'Fot
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * URLs subidas en esta sesión del formulario.
+   *
+   * Solo estas se pueden borrar del bucket al descartarlas: todavía no las
+   * guardó nadie, así que no hay fila apuntándoles. La URL que venía de la base
+   * sigue estando referenciada mientras el formulario no se guarde —cancelar
+   * después de reemplazar es normal—, y borrarla acá dejaría una foto rota en
+   * el sitio. De esa se ocupa el formulario cuando el cambio se confirma.
+   */
+  const subidasSinGuardar = useRef(new Set<string>());
+
+  /** Descarta la URL actual, borrando el archivo si era una subida sin guardar. */
+  async function descartar(
+    db: ReturnType<typeof crearClienteNavegador>,
+    anterior: string | null,
+  ) {
+    if (!anterior || !subidasSinGuardar.current.has(anterior)) return;
+    subidasSinGuardar.current.delete(anterior);
+    await borrarDelBucket(db, anterior);
+  }
 
   async function subir(archivo: File | undefined) {
     if (!archivo) return;
@@ -54,9 +74,18 @@ export default function SubirFotoUnica({ carpeta, url, onCambio, etiqueta = 'Fot
       data: { publicUrl },
     } = db.storage.from(BUCKET).getPublicUrl(ruta);
 
+    // La que se reemplaza queda sin nadie que la nombre si era de esta sesión.
+    await descartar(db, url);
+    subidasSinGuardar.current.add(publicUrl);
+
     onCambio(publicUrl);
     setSubiendo(false);
     if (inputRef.current) inputRef.current.value = '';
+  }
+
+  async function quitar() {
+    await descartar(crearClienteNavegador(), url);
+    onCambio(null);
   }
 
   return (
@@ -74,7 +103,7 @@ export default function SubirFotoUnica({ carpeta, url, onCambio, etiqueta = 'Fot
               <button
                 type="button"
                 className={`${s.btnFoto} ${s.btnFotoBorrar}`}
-                onClick={() => onCambio(null)}
+                onClick={quitar}
                 title="Quitar"
               >
                 ✕
