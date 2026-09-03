@@ -6,7 +6,8 @@ import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Noticia } from '@/lib/types';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import s from '../../../admin.module.css';
-import { aSlug, fechaCorta } from '@/lib/formato';
+import { aInputFechaHora, aSlug, deInputFechaHora, fechaCorta } from '@/lib/formato';
+import { borrarDelBucket } from '@/lib/storage';
 
 const CATEGORIAS = ['Carrera', 'Taller', 'Equipo', 'General'];
 
@@ -42,10 +43,9 @@ function aForm(n: Noticia): FormNoticia {
     imagen_portada_url: n.imagen_portada_url,
     categoria: n.categoria ?? '',
     publicada: n.publicada,
-    // datetime-local necesita "YYYY-MM-DDTHH:mm"
-    fecha_publicacion: n.fecha_publicacion
-      ? new Date(n.fecha_publicacion).toISOString().slice(0, 16)
-      : '',
+    // datetime-local necesita "YYYY-MM-DDTHH:mm", y en hora dominicana: es la
+    // que se ve en el sitio.
+    fecha_publicacion: aInputFechaHora(n.fecha_publicacion),
   };
 }
 
@@ -104,16 +104,22 @@ export default function NoticiasAdmin({ inicial }: { inicial: Noticia[] }) {
       return;
     }
 
+    // Lo que se escribe en el input es hora dominicana, no la del navegador ni
+    // UTC: se convierte con la misma zona con la que después se muestra.
+    let fecha: string | null = null;
+    if (form.fecha_publicacion !== '') {
+      fecha = deInputFechaHora(form.fecha_publicacion);
+      if (!fecha) {
+        setError('La fecha de publicación no es válida.');
+        return;
+      }
+    } else if (form.publicada) {
+      // Publicar sin fecha explícita la deja con la de ahora.
+      fecha = new Date().toISOString();
+    }
+
     setGuardando(true);
     const db = crearClienteNavegador();
-
-    // Publicar sin fecha explícita la deja con la de ahora.
-    const fecha =
-      form.fecha_publicacion !== ''
-        ? new Date(form.fecha_publicacion).toISOString()
-        : form.publicada
-          ? new Date().toISOString()
-          : null;
 
     const fila = {
       titulo: form.titulo.trim(),
@@ -137,6 +143,12 @@ export default function NoticiasAdmin({ inicial }: { inicial: Noticia[] }) {
         setGuardando(false);
         return;
       }
+      // Recién ahora la portada vieja dejó de estar referenciada: hasta que el
+      // update no confirmó, la fila seguía apuntándole.
+      if (editando.imagen_portada_url !== fila.imagen_portada_url) {
+        await borrarDelBucket(db, editando.imagen_portada_url);
+      }
+
       setNoticias((prev) =>
         prev.map((n) => (n.id === editando.id ? ({ ...n, ...fila } as Noticia) : n)),
       );
@@ -175,6 +187,9 @@ export default function NoticiasAdmin({ inicial }: { inicial: Noticia[] }) {
       avisar(`No se pudo borrar: ${err.message}`);
       return;
     }
+    // Sin la fila, la portada ya no la nombra nadie.
+    await borrarDelBucket(db, n.imagen_portada_url);
+
     setNoticias((prev) => prev.filter((x) => x.id !== n.id));
     avisar('Noticia borrada');
     router.refresh();
