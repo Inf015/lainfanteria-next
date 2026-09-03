@@ -112,58 +112,22 @@ export default function SubirFotos({
 
     const db = crearClienteNavegador();
 
-    // El índice único parcial (`auto_fotos_una_principal_idx`) admite a lo sumo
-    // una principal por registro, así que no se puede marcar la nueva sin bajar
-    // antes la vieja: son dos UPDATE sí o sí. Lo que hay que cuidar es la
-    // ventana entre ambos, porque el índice garantiza "como máximo una", no
-    // "exactamente una": si el segundo falla, la galería queda sin principal y
-    // la tarjeta del sitio se queda sin foto.
-    if (anterior) {
-      const { error: errBaja } = await db
-        .from(tabla)
-        .update({ es_principal: false })
-        .eq('id', anterior.id);
+    // El swap va entero del lado del servidor (migración 0012): bajar la
+    // principal actual y subir la nueva desde acá serían dos UPDATE sueltos, y
+    // si el segundo falla la galería queda sin principal. La función corre en
+    // una transacción, así que o cambian las dos filas o no cambia ninguna.
+    const { error: err } = await db.rpc('marcar_foto_principal', {
+      p_tabla: tabla,
+      p_padre_id: registroId,
+      p_foto_id: id,
+    });
 
-      if (errBaja) {
-        // No llegó a cambiar nada: la principal sigue siendo la de antes.
-        setError(`No se pudo cambiar la principal: ${errBaja.message}`);
-        return;
-      }
-    }
-
-    const { error: errAlta } = await db
-      .from(tabla)
-      .update({ es_principal: true })
-      .eq('id', id);
-
-    if (!errAlta) {
-      onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
+    if (err) {
+      setError(err.message);
       return;
     }
 
-    // Acá sí quedó sin principal: se devuelve la marca a la de antes para
-    // cerrar la ventana.
-    if (!anterior) {
-      setError(`No se pudo cambiar la principal: ${errAlta.message}`);
-      return;
-    }
-
-    const { error: errVuelta } = await db
-      .from(tabla)
-      .update({ es_principal: true })
-      .eq('id', anterior.id);
-
-    if (errVuelta) {
-      // Falló también la vuelta atrás: el estado local tiene que reflejar que
-      // la galería quedó sin principal, o el panel muestra algo que no es.
-      onCambio(fotos.map((f) => ({ ...f, es_principal: false })));
-      setError(
-        `La galería quedó sin foto principal (${errAlta.message}). Volvé a marcar una.`,
-      );
-      return;
-    }
-
-    setError(`No se pudo cambiar la principal: ${errAlta.message}`);
+    onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
   }
 
   async function borrar(foto: FotoFila) {
