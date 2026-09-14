@@ -35,9 +35,12 @@ BASE=$(sed -n 's/^| Base | `\([^`]*\)`.*$/\1/p' "$BRIEF_DEV")
 ACTUAL=$(git -C "$WT" branch --show-current)
 [[ -n $RAMA && $ACTUAL == "$RAMA" ]] || { echo "rama actual '$ACTUAL' ≠ brief '$RAMA'" >&2; exit 1; }
 [[ -n $BASE ]] || { echo "no pude leer la Base del brief-dev.md" >&2; exit 1; }
-if [[ -n $(git -C "$WT" status --porcelain) ]]; then
+# El gate de esta misma ronda se ignora: si un intento anterior se cortó (Codex
+# falló o se interrumpió) quedó sin commitear, y se regenera igual.
+LIMPIO=(-- . ":(exclude)docs/pm/tareas/$ID/gate-r$N.txt")
+if [[ -n $(git -C "$WT" status --porcelain "${LIMPIO[@]}") ]]; then
   echo "el worktree tiene cambios sin commitear — QA revisa lo commiteado:" >&2
-  git -C "$WT" status --short >&2; exit 1
+  git -C "$WT" status --short "${LIMPIO[@]}" >&2; exit 1
 fi
 [[ -d $WT/node_modules ]] || { echo "falta node_modules en $WT (npm ci)" >&2; exit 1; }
 
@@ -70,25 +73,43 @@ paso "tsc"     npx tsc --noEmit
 paso "lint"    npm run lint
 paso "unidad"  npm test
 
+# Gate y reporte se commitean en la rama de la tarea: el dev de la ronda
+# siguiente los necesita y su definición de hecho exige el worktree limpio.
+# `next typegen` puede tocar archivos ignorados, nunca versionados, así que
+# esto no arrastra nada ajeno.
+commitear() {
+  git -C "$WT" add -- "$@"
+  git -C "$WT" commit --quiet -m "$MENSAJE" -- "$@"
+}
+
 if [[ $FALLOS -gt 0 ]]; then
+  MENSAJE="docs(pm): gate $ID r$N — falló" commitear "$GATE"
   echo "Gate con $FALLOS fallo(s) — no se lanza QA. Vuelve al dev. Detalle: $GATE" >&2
   exit 1
 fi
 
 # --- QA -----------------------------------------------------------------------
-PROMPT=$(sed \
-  -e "s|ronda N|ronda $N|g" \
-  -e "s|gate-rN|gate-r$N|g" \
-  -e "s|reporte-qa-rN|reporte-qa-r$N|g" \
-  "$BRIEF_QA")
 LOG="${TMPDIR:-/tmp}/qa-$ID-r$N.log"
 
+# El brief va por stdin (`-`), no como argumento: como argumento queda visible
+# en `ps`, puede pasarse de ARG_MAX, y si stdin queda abierto codex se cuelga en
+# "Reading additional input from stdin...".
 echo "Codex QA (read-only) → $REPORTE   log: $LOG"
-if ! codex exec -C "$WT" -s read-only -o "$REPORTE" "$PROMPT" > "$LOG" 2>&1; then
+if ! sed \
+    -e "s|ronda N|ronda $N|g" \
+    -e "s|gate-rN|gate-r$N|g" \
+    -e "s|reporte-qa-rN|reporte-qa-r$N|g" \
+    "$BRIEF_QA" \
+  | codex exec -C "$WT" -s read-only -o "$REPORTE" - > "$LOG" 2>&1; then
   echo "codex terminó con error — ver $LOG" >&2; exit 1
 fi
 [[ -s $REPORTE ]] || { echo "codex no dejó reporte — ver $LOG" >&2; exit 1; }
 
+VEREDICTO=$(sed -n 's/^\*\*Veredicto:\*\* *\([A-Z-]*\).*/\1/p' "$REPORTE" | head -1)
+DEFECTOS=$(grep -c "^### $ID-D" "$REPORTE" || true)
+MENSAJE="docs(pm): QA $ID r$N — ${VEREDICTO:-SIN VEREDICTO}" commitear "$GATE" "$REPORTE"
+
 echo
-grep -m1 -i '^\*\*Veredicto' "$REPORTE" || echo "(el reporte no tiene línea de Veredicto — revisarlo a mano)"
-grep -c '^### '"$ID"'-D' "$REPORTE" | sed 's/^/defectos reportados: /' || true
+echo "veredicto: ${VEREDICTO:-(no encontrado — revisar el reporte a mano)}"
+echo "defectos reportados: $DEFECTOS"
+echo "commit: $(git -C "$WT" log --oneline -1)"

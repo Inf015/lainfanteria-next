@@ -40,18 +40,26 @@ Mismo prompt, cambiando el paso 3 por:
 
 ## QA — Codex
 
-Siempre por el script (corre el gate, fija sandbox read-only y guarda el reporte):
+Siempre por el script: corre el gate, lanza Codex con sandbox read-only y
+commitea `gate-rN.txt` + `reporte-qa-rN.md` en la rama de la tarea (así el dev
+de la ronda siguiente los tiene y el worktree queda limpio). Si el gate falla,
+commitea solo el gate y no lanza Codex.
 
 ```bash
 docs/pm/scripts/qa-codex.sh <WT> T-NNN <N>
 ```
+
+Si Codex corta (cuota de uso, red, Ctrl+C) el script sale con error y apunta al
+log; se reintenta **la misma ronda** con el mismo comando — el gate a medio
+escribir de esa ronda no bloquea.
 
 Equivalente manual, si hiciera falta:
 
 ```bash
 codex exec -C <WT> -s read-only \
   -o <WT>/docs/pm/tareas/T-NNN/reporte-qa-r<N>.md \
-  "$(cat <WT>/docs/pm/tareas/T-NNN/brief-qa.md)"
+  - < <WT>/docs/pm/tareas/T-NNN/brief-qa.md
+# el prompt SIEMPRE por stdin: con stdin abierto y el prompt como argumento, codex se cuelga
 ```
 
 ## PM — sesión de Claude Code haciendo de PM

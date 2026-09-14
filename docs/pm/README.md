@@ -44,6 +44,8 @@ un PM (Oliver o una sesión de Claude Code haciendo de PM).
                                                       git diff base...HEAD
                                                       reporte-qa-rN.md
  8. lee veredicto ◄──────────────────────────────────┘
+    (el script commitea gate-rN.txt
+     y reporte-qa-rN.md en la rama)
     │
     ├─ FAIL ──► brief de fix (defectos) ──► vuelve a 3  (ronda N+1: confirmation + regression)
     │

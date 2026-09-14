@@ -129,7 +129,7 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 - **Obtenido:** <qué pasa>
 - **Evidencia:** <fragmento de código o salida>
 - **Sugerencia:** <dirección del fix, sin implementarlo>
-- **Introducido por:** <este cambio | preexistente | fix de ronda N-1>
+- **Introducido por:** <este cambio | preexistente | fix de una ronda anterior>
 
 ## Riesgos y preguntas (sin evidencia suficiente para defecto)
 - ...
