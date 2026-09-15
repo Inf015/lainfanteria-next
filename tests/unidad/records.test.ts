@@ -84,45 +84,133 @@ describe('formatearVelocidad', () => {
 });
 
 describe('formatearMarca', () => {
-  it('tiempo y velocidad válidos → las dos, unidas con @', () => {
-    expect(
-      formatearMarca({ tiempo_s: 9.874, velocidad: 142.5, unidad_velocidad: 'mph' }),
-    ).toBe('9.874 s @ 142.5 mph');
-  });
+  /**
+   * Tabla de decisión completa (T-001-D01, QA ronda 1): tiempo {válido, nulo,
+   * inválido} × velocidad {válida, nula, inválida-con-unidad, sin-unidad},
+   * las 12 celdas de la sección 5 del brief, con el resultado esperado
+   * literal y, en la misma fila, si esa combinación cuenta como cifra.
+   * Incluye explícitamente una velocidad negativa con unidad válida: es
+   * inválida por el valor (≤ 0), no por faltarle la unidad.
+   */
+  const MATRIZ = [
+    {
+      tiempoEtq: 'válido (9.874)',
+      tiempo_s: 9.874,
+      velEtq: 'válida (142.5 mph)',
+      velocidad: 142.5,
+      unidad_velocidad: 'mph' as const,
+      esperado: '9.874 s @ 142.5 mph',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'válido (9.874)',
+      tiempo_s: 9.874,
+      velEtq: 'nula',
+      velocidad: null,
+      unidad_velocidad: null,
+      esperado: '9.874 s',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'válido (9.874)',
+      tiempo_s: 9.874,
+      velEtq: 'inválida (-1 con unidad mph)',
+      velocidad: -1,
+      unidad_velocidad: 'mph' as const,
+      esperado: '9.874 s',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'válido (9.874)',
+      tiempo_s: 9.874,
+      velEtq: 'sin unidad (142.5)',
+      velocidad: 142.5,
+      unidad_velocidad: null,
+      esperado: '9.874 s',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'nulo',
+      tiempo_s: null,
+      velEtq: 'válida (142.5 mph)',
+      velocidad: 142.5,
+      unidad_velocidad: 'mph' as const,
+      esperado: '142.5 mph',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'nulo',
+      tiempo_s: null,
+      velEtq: 'nula',
+      velocidad: null,
+      unidad_velocidad: null,
+      esperado: null,
+      cifras: false,
+    },
+    {
+      tiempoEtq: 'nulo',
+      tiempo_s: null,
+      velEtq: 'inválida (-1 con unidad mph)',
+      velocidad: -1,
+      unidad_velocidad: 'mph' as const,
+      esperado: null,
+      cifras: false,
+    },
+    {
+      tiempoEtq: 'nulo',
+      tiempo_s: null,
+      velEtq: 'sin unidad (142.5)',
+      velocidad: 142.5,
+      unidad_velocidad: null,
+      esperado: null,
+      cifras: false,
+    },
+    {
+      tiempoEtq: 'inválido (0)',
+      tiempo_s: 0,
+      velEtq: 'válida (142.5 mph)',
+      velocidad: 142.5,
+      unidad_velocidad: 'mph' as const,
+      esperado: '142.5 mph',
+      cifras: true,
+    },
+    {
+      tiempoEtq: 'inválido (0)',
+      tiempo_s: 0,
+      velEtq: 'nula',
+      velocidad: null,
+      unidad_velocidad: null,
+      esperado: null,
+      cifras: false,
+    },
+    {
+      tiempoEtq: 'inválido (0)',
+      tiempo_s: 0,
+      velEtq: 'inválida (-1 con unidad mph)',
+      velocidad: -1,
+      unidad_velocidad: 'mph' as const,
+      esperado: null,
+      cifras: false,
+    },
+    {
+      tiempoEtq: 'inválido (0)',
+      tiempo_s: 0,
+      velEtq: 'sin unidad (142.5)',
+      velocidad: 142.5,
+      unidad_velocidad: null,
+      esperado: null,
+      cifras: false,
+    },
+  ];
 
-  it('solo tiempo válido → solo el tiempo', () => {
-    expect(formatearMarca({ tiempo_s: 6.12, velocidad: null, unidad_velocidad: null })).toBe(
-      '6.120 s',
-    );
-  });
-
-  it('tiempo válido con velocidad inválida (sin unidad) → solo el tiempo', () => {
-    expect(
-      formatearMarca({ tiempo_s: 6.12, velocidad: 142.5, unidad_velocidad: null }),
-    ).toBe('6.120 s');
-  });
-
-  it('solo velocidad válida → solo la velocidad', () => {
-    expect(formatearMarca({ tiempo_s: null, velocidad: 198, unidad_velocidad: 'mph' })).toBe(
-      '198 mph',
-    );
-  });
-
-  it('velocidad válida con tiempo inválido (cero) → solo la velocidad', () => {
-    expect(formatearMarca({ tiempo_s: 0, velocidad: 198, unidad_velocidad: 'mph' })).toBe(
-      '198 mph',
-    );
-  });
-
-  it('ninguna cifra válida → null: es un hito', () => {
-    expect(
-      formatearMarca({ tiempo_s: null, velocidad: null, unidad_velocidad: null }),
-    ).toBeNull();
-    expect(formatearMarca({ tiempo_s: 0, velocidad: 0, unidad_velocidad: null })).toBeNull();
-    expect(
-      formatearMarca({ tiempo_s: null, velocidad: 142.5, unidad_velocidad: null }),
-    ).toBeNull();
-  });
+  it.each(MATRIZ)(
+    'tiempo $tiempoEtq × velocidad $velEtq → $esperado',
+    ({ tiempo_s, velocidad, unidad_velocidad, esperado, cifras }) => {
+      const r = { tiempo_s, velocidad, unidad_velocidad };
+      expect(formatearMarca(r)).toBe(esperado);
+      expect(tieneCifras(r)).toBe(cifras);
+    },
+  );
 });
 
 describe('tieneCifras y etiquetaRecord', () => {
