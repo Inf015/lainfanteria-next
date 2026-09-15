@@ -40,6 +40,7 @@ function miembro(parcial: Partial<Miembro>): Miembro {
     youtube_url: null,
     trofeos_total: null,
     palmares: [],
+    records: [],
     orden: 0,
     activo: true,
     creado_en: '2026-01-01T00:00:00Z',
