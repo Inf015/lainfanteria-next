@@ -3,7 +3,7 @@
 | Campo | Valor |
 | ----- | ----- |
 | Rama | `oliver132123/records-sitio` |
-| Worktree | `<ruta absoluta>` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-sitio` |
 | Base | `oliver132123/records-schema` |
 | Tipo | feat |
 | Migración | No |
@@ -96,7 +96,7 @@ devuelve `null`.
 - [ ] Unidad: si extraés lógica propia (p. ej. el texto pluralizado del distintivo o la línea del historial), va en una función pura en un `.ts` de `app/(sitio)/_componentes/`, con test en `tests/unidad/`. **No** agregues lógica en `lib/records.ts`.
 - [ ] Seguridad: nada nuevo.
 - [ ] Humo: nada nuevo (la ruta ya existe y la prueba de humo corre contra producción, sin récords cargados aún).
-- [ ] **Verificación visual** (evidencia en la entrega): con `npx supabase start` en tu worktree (requiere Docker), `npm run dev` apuntando a la base local, y estos datos en la base **local**:
+- [ ] **Verificación visual** (evidencia en la entrega): con el **Supabase local compartido** de la sección 8 y `npm run dev -- -p 3003`, y estos datos en la base **local**:
   - miembro A: nacional vigente con tiempo + velocidad + fuente; nacional vigente solo con velocidad en km/h; hito nacional vigente de ~200 caracteres; hito vigente sin alcance; uno superado con cifras; un hito superado
   - miembro B: solo un récord de pista vigente con tiempo, y un hito sin alcance
   - miembro C: sin récords
@@ -118,3 +118,18 @@ No aplica en ronda 1.
 - [ ] Working tree limpio
 - [ ] `entrega-dev.md` escrita en esta carpeta y commiteada
 - [ ] Sin push, sin PR, sin `db push`, sin tocar `app/(admin)/` ni `lib/records.ts`
+
+## 8. Entorno local compartido (lo provee el PM — gana sobre cualquier otra instrucción de entorno)
+
+T-002 y T-003 corren **en paralelo** contra **una sola** instancia de Supabase
+local, que ya está levantada con las migraciones 0001–0013 de esta épica.
+
+- **Prohibido** `npx supabase start`, `stop`, `db reset`, `db push` o cualquier `drop`/`truncate`: reiniciarla borra el trabajo del otro dev.
+- Variables y usuarios de prueba: `/private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env` (no lo copies al repo ni lo commitees). Levantá el sitio así:
+  ```bash
+  set -a; source /private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env; set +a
+  npm run dev -- -p 3003      # el 3000 lo ocupa otro proyecto
+  ```
+  Las variables del shell ganan sobre `.env.local`, que apunta a producción: **nunca** corras `npm run dev` sin cargar ese archivo antes.
+- Datos de prueba: todo lo que crees (miembros, slugs, récords) con el prefijo **`t003-`** en `slug` y `titulo`, para no chocar con el otro dev. Si cargás por SQL: `docker exec -i supabase_db_lainfanteria-next psql -U postgres -d postgres` y **solo `insert`/`update`/`delete` de filas con tu prefijo**.
+- Al terminar no borres tus datos: el PM y QA los usan para verificar.
