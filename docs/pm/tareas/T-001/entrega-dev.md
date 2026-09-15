@@ -1,33 +1,67 @@
-# Entrega T-001 — ronda 2
+# Entrega T-001 — ronda 3
 
 **Estado:** LISTA PARA QA
 
-Ronda de fix sobre `reporte-qa-r1.md` (veredicto PASS-WITH-RESERVATIONS).
-Único defecto de esa ronda: **T-001-D01** (S3/P3, testware). El resto del
-reporte —riesgos y preguntas sobre redondeo decimal, submínimos, CA-4/CA-14
-dinámicos— **no se tocó**: son preguntas para el PM antes de T-002, no
-defectos de esta tarea (brief, sección 6).
+Última ronda de fix permitida. Hallazgos del PM en `pruebas-pm-r2.txt`
+(exploración SQL de bordes, sección "Ronda 3" del brief): **T-001-D02** y
+**T-001-D03**, los dos S3/P2. La 0013 sigue sin aplicarse en ningún entorno
+remoto, así que el fix va en el mismo archivo, sin migración `0014`.
 
 ## Qué hice
 
-| Defecto | Cambio | Test |
-| ------- | ------ | ---- |
-| **T-001-D01** — `tests/unidad/records.test.ts:86-126` no persistía la tabla de decisión completa de `formatearMarca` (faltaba velocidad negativa con unidad válida y la matriz de 12 celdas) | Reemplacé el bloque de 6 `it` sueltos por un `it.each` sobre un array de 12 filas — tiempo {válido `9.874`, nulo, inválido `0`} × velocidad {válida `142.5 mph`, nula, inválida `-1` con unidad `mph`, sin unidad `142.5`} — cada fila con el `string`/`null` esperado literal y la aserción de `tieneCifras` en la misma fila | `tests/unidad/records.test.ts` › `describe('formatearMarca')`, 12/12 verdes (nombres de test verificados con `--reporter=verbose`, ver abajo) |
+Los dos defectos son CHECKs de `supabase/migrations/0013_records.sql` que
+aceptaban un dato que no debían. Sin tests nuevos: son invariantes de base
+que no se pueden ejercitar desde `tests/unidad` ni con `anon` en
+`tests/seguridad` — el brief pide explícitamente no agregarlos; el PM los
+corre contra Supabase local con los casos de `pruebas-pm-r2.txt`.
 
-No toqué `lib/records.ts`: las 12 combinaciones —incluida la celda nueva,
-velocidad `-1` con unidad `mph`— pasan tal cual con la implementación
-actual. No hizo falta preguntarle nada al PM.
+### T-001-D02 — título de solo blancos no imprimibles
 
-## Commits (ronda 2)
+`records_titulo_no_vacio` usaba `btrim(titulo)`, que solo recorta espacios
+comunes: un título de puro tab, salto de línea, CR o espacio duro (U+00A0)
+pasaba el CHECK y quedaba como una ficha vacía en la página.
+
+```diff
+- constraint records_titulo_no_vacio     check (btrim(titulo) <> ''),
++ constraint records_titulo_no_vacio     check (titulo ~ '[^[:space:]]'),
+```
+
+Mismo nombre de constraint. `[:space:]` en esta base cubre tab, salto de
+línea, CR y U+00A0 (verificado por el PM en `pruebas-pm-r2.txt:17-18`); el
+CHECK exige al menos un carácter fuera de esa clase.
+
+### T-001-D03 — `tiempo_s` / `velocidad` aceptaban `'NaN'`
+
+En Postgres, `numeric` admite el valor especial `NaN`, y `NaN` se define
+mayor que cualquier número — así que `tiempo_s > 0` (y `velocidad > 0`) lo
+dejaban pasar en vez de rechazarlo.
+
+```diff
+- constraint records_tiempo_positivo     check (tiempo_s is null or tiempo_s > 0),
+- constraint records_velocidad_positiva  check (velocidad is null or velocidad > 0),
++ constraint records_tiempo_positivo
++     check (tiempo_s is null or (tiempo_s > 0 and tiempo_s <> 'NaN')),
++ constraint records_velocidad_positiva
++     check (velocidad is null or (velocidad > 0 and velocidad <> 'NaN')),
+```
+
+Mismos nombres de constraint. `Infinity` no hacía falta tocarlo: ya lo
+rechaza la precisión de la columna (`numeric(8,3)` / `numeric(6,2)`) con
+`22003: numeric field overflow`, visto en `pruebas-pm-r2.txt:24` para
+`tiempo 100000`.
+
+No toqué `lib/`, tests ni ningún otro archivo. No usé `ask`: los dos
+defectos traían el CHECK exacto en el brief.
+
+## Commits (ronda 3)
 
 ```
-55726a6 test(records): matriz completa de formatearMarca (T-001-D01)
+bf2b20d fix(db): CHECKs de records rechazan título en blanco y NaN (T-001-D02, D03)
 ```
 
-(`git log --oneline oliver132123/integracion-records..HEAD`; los commits de
-`2bd856b` a `0c31693` son de la ronda 1, ya entregada; `be34a04`, `457e9f2`,
-`3ad328e` y `4e5c534` son gate/QA/pruebas-PM/brief que agregó el PM entre
-rondas.)
+(`git log --oneline oliver132123/integracion-records..HEAD`; todo lo
+anterior a `bf2b20d` es de rondas 1-2, ya entregado, o gate/QA/pruebas-PM que
+agregó el PM entre rondas.)
 
 ## Verificación (salida real, recortada)
 
@@ -43,57 +77,48 @@ $ npm run lint
 $ npm test
  Test Files  7 passed (7)
       Tests  135 passed (135)
-   Duration  239ms
-
-$ npx vitest run tests/unidad/records.test.ts --reporter=verbose | grep formatearMarca
- ✓ formatearMarca > tiempo 'válido (9.874)' × velocidad 'válida (142.5 mph)' → '9.874 s @ 142.5 mph'
- ✓ formatearMarca > tiempo 'válido (9.874)' × velocidad 'nula' → '9.874 s'
- ✓ formatearMarca > tiempo 'válido (9.874)' × velocidad 'inválida (-1 con unidad mph)' → '9.874 s'
- ✓ formatearMarca > tiempo 'válido (9.874)' × velocidad 'sin unidad (142.5)' → '9.874 s'
- ✓ formatearMarca > tiempo 'nulo' × velocidad 'válida (142.5 mph)' → '142.5 mph'
- ✓ formatearMarca > tiempo 'nulo' × velocidad 'nula' → null
- ✓ formatearMarca > tiempo 'nulo' × velocidad 'inválida (-1 con unidad mph)' → null
- ✓ formatearMarca > tiempo 'nulo' × velocidad 'sin unidad (142.5)' → null
- ✓ formatearMarca > tiempo 'inválido (0)' × velocidad 'válida (142.5 mph)' → '142.5 mph'
- ✓ formatearMarca > tiempo 'inválido (0)' × velocidad 'nula' → null
- ✓ formatearMarca > tiempo 'inválido (0)' × velocidad 'inválida (-1 con unidad mph)' → null
- ✓ formatearMarca > tiempo 'inválido (0)' × velocidad 'sin unidad (142.5)' → null
+   Duration  202ms
 ```
 
-135 = 129 de la ronda 1 − 6 `it` reemplazados + 12 filas de la matriz nueva.
-No corrí `build` ni las suites contra Supabase (`test:seguridad`,
-`test:humo`): esta ronda no tocó `lib/`, `datos.ts` ni la migración, y el
-brief solo exige `typegen && tsc && lint && test` para el fix.
+135/135, sin cambios respecto a la ronda 2: este fix es solo SQL, no toca
+nada que las suites de TypeScript ejerciten. No corrí la migración ni ningún
+SQL — la prueba el PM contra Supabase local con los casos de
+`pruebas-pm-r2.txt` (título tab/salto de línea, `tiempo_s`/`velocidad` NaN).
 
 ## Migraciones
 
-Sin cambios respecto a la ronda 1. `supabase/migrations/0013_records.sql`
-sigue **REQUIERE db push ANTES del merge** (ver `docs/pm/tareas/T-001/gate-r1.txt`
-y el `entrega-dev.md` de ronda 1 en el historial de commits, `0c31693`, para
-el detalle y el revert).
+`supabase/migrations/0013_records.sql` — **sigue REQUIRE db push ANTES del
+merge** (sin cambios en esa condición desde la ronda 1). Se **editó el mismo
+archivo** en vez de sumar una `0014`, porque la 0013 todavía no se aplicó en
+ningún entorno remoto (confirmado en el brief de esta ronda).
+
+**Revertir** (sin cambios respecto a rondas anteriores):
+```sql
+drop table if exists records;
+drop type if exists alcance_record;
+drop type if exists unidad_velocidad;
+```
 
 ## Decisiones tomadas
 
-- **Reemplacé el bloque entero en vez de agregarle filas.** El brief pedía
-  "reemplazar/completar"; los 6 `it` viejos quedaban subsumidos por las 12
-  celdas de la matriz (mismos casos, más los que faltaban), así que
-  mantenerlos aparte hubiera sido cobertura duplicada sin agregar nada. La
-  sugerencia de QA ("parametrizar... conservar la exploración como regresión
-  reproducible") apunta a lo mismo: una sola tabla, no dos bloques.
-- **Usé interpolación `$variable` en el título de `it.each`** (no `%s`
-  posicional) para poder nombrar tiempo, velocidad y resultado esperado en el
-  mismo título sin depender del orden de las columnas del array — confirmado
-  con `--reporter=verbose` que los 12 nombres salen legibles (arriba).
-- **No agregué los casos de empate decimal ni `0.001`** que señala QA en
-  "Riesgos y preguntas": el brief los excluye explícitamente de esta ronda
-  porque el PM todavía no definió el resultado esperado.
+- **Edité el archivo 0013 en vez de crear 0014**, como indica el brief:
+  todavía no hay ningún entorno remoto con la 0013 aplicada, así que no hay
+  nada que una migración nueva tenga que corregir sobre datos ya cargados.
+- **No agregué tests.** Ambos son invariantes de `CHECK` de Postgres
+  (clase de caracteres `[:space:]`, comparación con `NaN`) sin manera de
+  ejercitarlos desde `tests/unidad` (no hay conexión a Postgres real ahí) ni
+  desde `tests/seguridad` (que solo prueba permisos con `anon`, no
+  invariantes de dominio). El brief lo pide así explícitamente.
+- **No toqué el CHECK de `fuente_url` ni ningún otro**: `pruebas-pm-r2.txt`
+  confirma que los demás (año, mes, mes-sin-año, velocidad-con-unidad, URL)
+  siguen rechazando lo que tienen que rechazar.
 
 ## Fuera de alcance que vi (no tocado)
 
 - Ningún hallazgo nuevo. Los riesgos y preguntas de `reporte-qa-r1.md`
-  (redondeo decimal, positivos submínimos, blancos/numeric especiales,
-  CA-4/CA-14 dinámico) siguen abiertos para que el PM los resuelva antes de
-  T-002; no son parte de esta ronda.
+  (redondeo decimal, positivos submínimos) y lo no probado de
+  `pruebas-pm-r2.txt` (getMiembros/getMiembro con fixtures reales) siguen
+  abiertos para el PM antes de T-002; no son parte de esta ronda.
 
 ## Preguntas / bloqueos
 
