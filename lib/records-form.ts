@@ -1,4 +1,5 @@
-import type { AlcanceRecord, RecordDeportivo, UnidadVelocidad } from './types';
+import { ordenarRecords } from './records';
+import type { AlcanceRecord, Miembro, RecordDeportivo, UnidadVelocidad } from './types';
 
 /**
  * Formulario de un récord: validación y conversión, como funciones puras.
@@ -6,6 +7,11 @@ import type { AlcanceRecord, RecordDeportivo, UnidadVelocidad } from './types';
  * `RecordsModal.tsx` (T-002) es el único que arma el formulario hoy, pero
  * `aFilaRecord` acepta `miembroId: null` para que T-004 (récords del equipo)
  * no tenga que cambiar la firma.
+ *
+ * `aplicarGuardado`/`aplicarBorrado`/`aplicarRecordsDeMiembro` (ronda 2, T-002-D01/D02)
+ * son también funciones puras a propósito: cada respuesta async del panel se
+ * aplica por id sobre el estado más reciente, nunca reconstruyendo la lista
+ * desde un snapshot capturado antes del await.
  */
 
 export interface FormRecord {
@@ -157,4 +163,41 @@ export function aFilaRecord(
     vigente: form.vigente,
     fuente_url: fuenteTexto === '' ? null : fuenteTexto,
   };
+}
+
+/**
+ * Reemplaza (por id) o inserta la fila devuelta por un guardado, y reordena.
+ * Se aplica siempre sobre el estado más reciente de la lista (nunca sobre un
+ * snapshot capturado antes del `await`), para que dos guardados concurrentes
+ * no se pisen (T-002-D02).
+ */
+export function aplicarGuardado(
+  lista: RecordDeportivo[],
+  fila: RecordDeportivo,
+): RecordDeportivo[] {
+  const existe = lista.some((r) => r.id === fila.id);
+  const actualizada = existe
+    ? lista.map((r) => (r.id === fila.id ? fila : r))
+    : [...lista, fila];
+  return ordenarRecords(actualizada);
+}
+
+/** Saca la fila por id; no falla si ya no está (borrado concurrente). */
+export function aplicarBorrado(lista: RecordDeportivo[], id: number): RecordDeportivo[] {
+  return lista.filter((r) => r.id !== id);
+}
+
+/**
+ * Aplica `actualizar` solo a los records del miembro `miembroId`, dejando el
+ * resto de la lista de miembros intacta. Evita que una respuesta tardía de un
+ * miembro reemplace por error los records de otro (T-002-D01).
+ */
+export function aplicarRecordsDeMiembro(
+  miembros: Miembro[],
+  miembroId: number,
+  actualizar: (records: RecordDeportivo[]) => RecordDeportivo[],
+): Miembro[] {
+  return miembros.map((m) =>
+    m.id === miembroId ? { ...m, records: actualizar(m.records ?? []) } : m,
+  );
 }
