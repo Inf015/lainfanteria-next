@@ -38,6 +38,9 @@ if [[ -n $DESDE ]]; then
   done
   grep -q "^# $ID " "$DESDE/brief-dev.md" \
     || { echo "$DESDE/brief-dev.md no es de $ID (el título debe empezar con '# $ID ')" >&2; exit 1; }
+  RAMA_BRIEF=$(sed -n 's/^| Rama | `\(.*\)` |$/\1/p' "$DESDE/brief-dev.md")
+  [[ $RAMA_BRIEF == "oliver132123/$SLUG" ]] \
+    || { echo "el brief dice rama '$RAMA_BRIEF' y el slug da 'oliver132123/$SLUG'" >&2; exit 1; }
 fi
 
 [[ $BASE == origin/* ]] && git -C "$RAIZ" fetch --quiet origin
