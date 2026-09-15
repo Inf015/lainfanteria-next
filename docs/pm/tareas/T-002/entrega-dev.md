@@ -1,56 +1,60 @@
-# Entrega T-002 — ronda 1
+# Entrega T-002 — ronda 2 (fix de `reporte-qa-r1.md`)
 
 **Estado:** LISTA PARA QA
 
-## Qué hice
+Corrige los 5 defectos de `reporte-qa-r1.md` (veredicto FAIL) siguiendo
+`brief-dev.md` sección 6. No se tocó nada fuera de eso: `lib/records.ts`,
+`lib/types.ts`, `lib/datos.ts`, `app/(sitio)/`, `PalmaresModal.tsx` y
+`page.tsx` quedan intactos.
 
-- `lib/records-form.ts` (nuevo) — contrato exacto del brief: `FormRecord`,
-  `formVacio`, `formDesdeRecord`, `validarRecord`, `aFilaRecord`. Parseo de
-  número con coma o punto sin separador de miles, límites de tiempo (3
-  decimales, ≤ 99999.999) y velocidad (2 decimales, ≤ 9999.99), año
-  1950–2100, fuente http(s), y el caso `alcance`: `''` = sin elegir (inválido)
-  vs `'ninguno'` = elegido, no suma (→ `null` en `aFilaRecord`).
-- `app/(admin)/(panel)/admin/miembros/RecordsModal.tsx` (nuevo) — lista +
-  formulario de alta/edición + marcar superado/vigente + borrar, calcado en
-  estructura y estilos de `PalmaresModal.tsx` (sin compartir código con él).
-- `app/(admin)/(panel)/admin/miembros/page.tsx:17` — el `select` pasa a
-  `'*, palmares:logros(*), records(*)'`.
-- `app/(admin)/(panel)/admin/miembros/MiembrosAdmin.tsx` — botón «Récords»
-  por fila (junto a «Galería de trofeos») y estado del modal
-  (`recordsDe`/`onCambio`), mismo patrón que el palmarés.
-- `tests/unidad/records-form.test.ts` (nuevo) — 48 tests.
+## Defecto → cambio → test
 
-No toqué `lib/records.ts`, `lib/types.ts`, `lib/datos.ts`, `app/(sitio)/` ni
-`PalmaresModal.tsx`.
+| Defecto | Cambio | Test |
+| --- | --- | --- |
+| **T-002-D01** (S1/P1) — respuesta tardía de A contamina el modal de B y permite reasignar el récord al editar | (a) `RecordsModal` ya no arma la lista completa ni la manda por `onCambio`: reporta `onGuardado(miembroId, fila)` / `onBorrado(miembroId, id)` con el **dueño real** del récord (`editando.miembro_id` al editar, no `miembro.id` del modal abierto). `MiembrosAdmin.tsx:216-225` aplica el cambio por `miembroId` sobre el estado más reciente (`setMiembros`/`setRecordsDe` funcionales) y solo toca `recordsDe` si `m.id === miembroId`. (b) El `UPDATE`/`DELETE` filtran además por `.eq('miembro_id', …)` con el dueño real (`RecordsModal.tsx:144-150`, `:188-194`, `:210-214`), así que aunque el modal tuviera datos contaminados, la base rechaza reasignar. (c) `borradorRef`/`montadoRef` (`RecordsModal.tsx:75-94`) hacen que una respuesta que llega después de Cancelar, abrir otro borrador o cerrar el modal **no** toque `form`/`error`/`guardando` de la sesión actual — sí sigue actualizando la lista global (correcto: el guardado en base es real). | `tests/unidad/records-form.test.ts` describe `aplicarRecordsDeMiembro — T-002-D01…` (2 tests): actualizar los records de A no toca los de B en la lista de miembros, y el modal abierto de B no cambia cuando llega la respuesta de A. La parte (b) (filtro `.eq('miembro_id', …)` contra la base real) y (c) (no tocar form/error de un borrador viejo) son de integración/UI — no mockeable como función pura; quedan en la lista de verificación del PM (`brief-dev.md` sección 6, prueba 1). |
+| **T-002-D02** (S2/P1) — dos acciones rápidas capturan el mismo snapshot y la última respuesta restaura el estado viejo de la otra fila | Se extrajo la lógica de listas a funciones puras en `lib/records-form.ts`: `aplicarGuardado(lista, fila)` (reemplaza por id o inserta, reordena con `ordenarRecords`, `:174-183`) y `aplicarBorrado(lista, id)` (`:186-188`). `RecordsModal` ya no arma el array; solo llama `onGuardado`/`onBorrado`. `MiembrosAdmin.tsx:216-225` las aplica dentro del `setState` funcional, es decir sobre el estado más reciente en el momento en que cada respuesta llega, nunca sobre un snapshot capturado antes del `await`. Errores de acciones rápidas se limpian tras un éxito (`RecordsModal.tsx:200`, `:220`). | `tests/unidad/records-form.test.ts` describe `aplicarGuardado` (3 tests: reemplaza por id, inserta si no existe, reordena), `aplicarBorrado` (2 tests) y `aplicarGuardado / aplicarBorrado — T-002-D02…` (3 tests): dos "marcar superado" en cualquier orden dejan ambas filas aplicadas, borrar una fila y actualizar otra durante la espera (la borrada no reaparece), actualizar y luego borrar la misma fila. |
+| **T-002-D03** (S3/P2) — el mensaje de error queda fuera de la vista al enviar desde abajo | El contenedor de error tiene `role="alert"`, `tabIndex={-1}` y un `ref`; un `useEffect` sobre `error` hace `scrollIntoView({ behavior: 'smooth', block: 'center' })` y `focus()` cuando aparece. Vale tanto para el error de `validarRecord` (CA-4) como el de Supabase (CA-9), porque ambos pasan por el mismo `setError`. | `RecordsModal.tsx:84-90`, `:234-238`. Es comportamiento de scroll/foco en el DOM real — no una función pura; queda en la verificación de interfaz del PM (`brief-dev.md` sección 6, prueba 6, a 730×837). |
+| **T-002-D04** (S3/P2) — `type="number" min/max` dispara la validación nativa del navegador antes de `validarRecord`, mostrando el mensaje del navegador en vez del contrato en español | `noValidate` en el `<form id="form-record">` (`RecordsModal.tsx:241`). Se mantienen `min`/`max`/`type="number"` en el campo Año como pista visual (spinners, teclado numérico), pero ya no bloquean el submit: `validarRecord` es quien decide y quien manda el mensaje. | Sin test unitario nuevo: `validarRecord` para año 1949/2101/2024.5 ya estaba cubierto (`describe('validarRecord — mes y año')`); lo que cambia es que ahora ese mensaje se ve en el navegador en vez del nativo, que es una verificación de interfaz (`brief-dev.md` sección 6, prueba 6). |
+| **T-002-D05** (S4/P3) — un hito (sin cifras) muestra «—» en la columna Marca en vez de nada | Se sacó el `?? '—'`: la celda renderiza directamente `formatearMarca(r)`, que es `null` en un hito y React no imprime nada. | Sin test nuevo: `formatearMarca` ya está probado en `tests/unidad/records.test.ts` (T-001, no tocado) — devuelve `null` sin cifras. El cambio es puramente de JSX (`RecordsModal.tsx:456`), verificable a simple vista por el PM. |
 
-## Trazabilidad
+## Refactor de soporte (no es un defecto propio, pero lo pide la sección 6)
 
-| CA | Cómo se cumple | Test / evidencia |
-| -- | --------------- | ----------------- |
-| CA-1 | `RecordsModal` título `Récords de {miembro.nombre}`; lista con `ordenarRecords(miembro.records ?? [])` | `RecordsModal.tsx:56` — reutiliza `ordenarRecords` de T-001, ya probado en `tests/unidad/records.test.ts` |
-| CA-2 | Fila con `formatearMarca`, título, categoría condicional, `etiquetaRecord`, `fechaLogro`, pill VIGENTE/SUPERADO y pill SUMA si `vigente && alcance === 'nacional'` | `RecordsModal.tsx:305-345`; verificado funcionalmente contra Supabase local (ver abajo) |
-| CA-3 | Sin récords: `<p className={s.vacio}>Todavía no tiene récords cargados.</p>` y botón «+ Agregar récord» siempre visible | `RecordsModal.tsx:270-274` |
-| CA-4 | `validarRecord` — cada mensaje exacto del brief, en el mismo orden (título, alcance, tiempo, velocidad, mes sin año, año, fuente) | `tests/unidad/records-form.test.ts` describes "validarRecord — …" (37 tests, incluye todos los límites: 1949/1950/2100/2101, tiempo 0/0.001/0.0001/-1/99999.999/100000/'abc', velocidad 0.01/0.001/9999.99/10000, URLs https/HTTP/ftp/javascript/vacía) |
-| CA-5 | Tiempo/velocidad vacíos válidos; coma o punto con espacios; sin separador de miles | `tests/unidad/records-form.test.ts` describe "validarRecord — separador decimal" |
-| CA-6 | `aFilaRecord` recorta espacios, vacíos → `null`, `anio`/`mes` → `null`/`number`, `alcance: 'ninguno'` → `null`, velocidad vacía → `unidad_velocidad: null` | `tests/unidad/records-form.test.ts` describe "aFilaRecord" (11 tests) |
-| CA-7 | Alta hace `insert().select('*').single()` y agrega al estado local; edición hace `update().eq('id', …)` y reemplaza la fila; `formDesdeRecord` mapea `alcance: null → 'ninguno'` | `RecordsModal.tsx:83-119`; ida y vuelta probada en `tests/unidad/records-form.test.ts` describe "formDesdeRecord → aFilaRecord" (4 casos) y describe "alcance nulo muestra 'ninguno'" |
-| CA-8 | Botón deshabilitado + «Guardando…» mientras `guardando`; `guardar()` también corta temprano si `guardando` ya es `true` (doble Enter no dispara dos inserts) | `RecordsModal.tsx:76,145` |
-| CA-9 | Error de Supabase → `setError(err.message)`, `setGuardando(false)`, el `form` no se limpia (se retorna antes de `setForm(null)`) | `RecordsModal.tsx:97-101,110-114`; CHECK de la base probado contra Supabase local (ver abajo, error `23514`) |
-| CA-10 | `alternarVigente` solo cambia `vigente`; en error, `setError` sin tocar la lista | `RecordsModal.tsx:132-144`; verificado contra Supabase local |
-| CA-11 | `borrar` usa `confirm(...)`, si se cancela no hace nada; si acepta, `delete().eq('id', …)` y saca la fila del estado | `RecordsModal.tsx:146-155`; verificado contra Supabase local |
-| CA-12 | El estado vive en `miembros` de `MiembrosAdmin` (`onCambio` actualiza `prev.map(...)`); cada modal recibe solo `miembro.records` del miembro abierto | `MiembrosAdmin.tsx` bloque `recordsDe && <RecordsModal .../>` |
-| CA-13 | No se tocó nada de editar/galería/borrar miembro; `npm test` sigue en 177/177 (incluye los tests previos de miembros/palmarés) | `npm test` |
+`RecordsModal` cambió su contrato con el padre: antes mandaba la lista
+completa reconstruida (`onCambio: (records) => void`, la causa raíz de D01 y
+D02); ahora manda solo el delta con el dueño (`onGuardado(miembroId, fila)` /
+`onBorrado(miembroId, id)`, `RecordsModal.tsx:56-62`) y es
+`MiembrosAdmin`/`lib/records-form.ts` quien decide, por id y sobre el estado
+más reciente, a qué miembro y a qué modal abierto aplicarlo
+(`aplicarRecordsDeMiembro`, `lib/records-form.ts:195-199`;
+`MiembrosAdmin.tsx:216-225`).
 
-## Commits
+## Archivos tocados
 
-```
-08feb9b feat(admin): conecta el botón Récords en la tabla de miembros
-c17ad5a feat(admin): agrega RecordsModal.tsx con la lista y el alta/edición de récords
-e3dd454 feat(admin): agrega lib/records-form.ts con la validación y conversión del formulario de récords
-```
-(`bbbe879` es el commit del brief que el PM ya tenía en la rama antes de empezar; no es mío.)
+- `lib/records-form.ts` — agrega `aplicarGuardado`, `aplicarBorrado`,
+  `aplicarRecordsDeMiembro` (funciones puras, importan `ordenarRecords` de
+  `lib/records.ts` para reordenar — no se modificó ese archivo, solo se
+  importa lo que ya exportaba).
+- `app/(admin)/(panel)/admin/miembros/RecordsModal.tsx` — contrato
+  `onGuardado`/`onBorrado` con dueño explícito, filtro `.eq('miembro_id', …)`
+  en update/delete, `borradorRef`/`montadoRef`, error con `role="alert"` +
+  scroll/foco, `noValidate`, celda Marca sin `'—'`.
+- `app/(admin)/(panel)/admin/miembros/MiembrosAdmin.tsx` — reemplaza
+  `onCambio` por `onGuardado`/`onBorrado` conectados a
+  `actualizarRecordsDeMiembro`, que aplica por id sobre el estado más
+  reciente.
+- `tests/unidad/records-form.test.ts` — 10 tests nuevos (helper `miembro()` +
+  los 4 `describe` de arriba).
 
-## Verificación (salida real, recortada)
+No se tocó `page.tsx`: su `select` ya traía `records(*)` desde la ronda 1 y
+ningún defecto de esta ronda lo requería.
+
+## Commits de esta ronda
+
+Ver `git log` en la rama — un commit por defecto/grupo relacionado más el de
+tests, conventional commits en español, cada uno con los archivos stageados
+por nombre.
+
+## Verificación (salida real)
 
 ```
 $ npx next typegen && npx tsc --noEmit
@@ -64,102 +68,42 @@ $ npm run lint
 
 $ npm test
  Test Files  8 passed (8)
-      Tests  177 passed (177)
+      Tests  187 passed (187)
 
 $ npm run build
-✓ Compiled successfully in 2.8s
+✓ Compiled successfully in 639ms
   Running TypeScript ...
-  Finished TypeScript in 2.3s ...
-[supabase] "miembros activos" falló: {
-  code: 'PGRST200',
-  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
-}
+  Finished TypeScript in 1424ms ...
+[supabase] "miembros activos" falló: { code: 'PGRST200', ... }
 ✓ Generating static pages using 7 workers (13/13)
 ```
 
-El error de `PGRST200` durante el build es **esperado**: el build corre contra
-el Supabase de **producción**, donde la migración 0013 (T-001) todavía no está
-aplicada. `consultar()` cae a `[]` y la build igual termina en verde (mismo
-comportamiento documentado en la sección "Orden de deploy" de la épica). No lo
-"arreglé": es la advertencia del NO-GO si T-001 se despliega después que T-002.
+El `PGRST200` es el mismo esperado de ronda 1 (build corre contra Supabase de
+**producción**, sin la migración 0013 aplicada todavía; no es de esta
+tarea).
 
-## Verificación manual (Supabase local compartido)
+## Qué verifiqué en local y qué no
 
-**No pude completar el recorrido por clic en el navegador.** El servidor
-(`npm run dev -- -p 3002` con `local-dev.env` cargado) sí levantó y respondió
-bien — confirmado con `curl http://localhost:3002/admin/login` → `200`. Pero
-la herramienta de navegador embebido de este entorno corre en una red aislada
-sin ruta a `localhost`/`127.0.0.1` del host; solo pudo llegar por la IP de LAN
-(`192.168.0.20`), y ahí la directiva `upgrade-insecure-requests` del CSP del
-panel (`lib/csp.ts`, preexistente, no tocado) fuerza a HTTPS todos los
-recursos (`_next/static/*.js`, `.css`), que el dev server sirve por HTTP sin
-TLS → `ERR_SSL_PROTOCOL_ERROR` en cada chunk, así que React nunca hidrata y no
-pude ni loguearme desde ahí. Por `localhost` sí funciona (es un origen seguro
-para el navegador y no dispara el upgrade); es la única vía en la que corre
-como está pensado, pero mi herramienta de navegador no tiene esa ruta.
+**Verificado esta ronda:** los 5 checks de arriba (typegen, tsc, lint,
+187/187 tests, build), incluidos los 10 tests nuevos que cubren exactamente
+los escenarios D01 (respuesta de A no contamina el modal/lista de B) y D02
+(dos respuestas en ambos órdenes, y borrado + actualización concurrente de
+otra fila) sobre las funciones puras `aplicarGuardado`/`aplicarBorrado`/
+`aplicarRecordsDeMiembro`.
 
-Como alternativa hice la verificación **funcional contra el Supabase local
-compartido**, reproduciendo con `curl` exactamente los payloads que
-`RecordsModal.tsx` + `lib/records-form.ts` arman (login real como
-`admin2@local.test`, token de sesión real, mismos endpoints REST que usa
-`crearClienteNavegador()`). Datos con prefijo `t002-`, dejados sin borrar:
-
-- Creé el miembro `t002-piloto-prueba` (id 4).
-- **Alta con tiempo y velocidad** (nacional, vigente): `t002-1/4 de milla`,
-  9.874 s @ 142.5 mph, categoría, año/mes, fuente — insertó bien (id 9).
-- **Alta de un hito que suma** (alcance nacional, sin cifras, vigente):
-  `t002-Primer dominicano en el ROC nacional` — insertó bien (id 10).
-- **Alta de un hito que no suma** (`alcance: null`): `t002-Hito sin alcance`
-  — insertó bien (id 11).
-- **Quitar la velocidad** a un récord que la tenía (id 9): `PATCH` con
-  `velocidad: null, unidad_velocidad: null` (igual que arma `aFilaRecord`
-  cuando el campo queda vacío) — aceptado, el CHECK de la base no protesta.
-- **Marcar superado** (id 10): `PATCH { vigente: false }` — aceptado.
-- **Borrar** (id 11): `DELETE` — `200`, fila eliminada.
-- **CHECK de la base** (equivalente al error de CA-9): insertar velocidad sin
-  unidad → `400`, `code 23514`, `records_velocidad_con_unidad` — confirma que
-  cuando el CHECK dispara, el modal recibe un `err.message` para mostrar (la
-  ruta de `setError` en sí está cubierta por el código, no por este curl).
-- **Consulta del panel**: `GET /miembros?select=id,nombre,palmares:logros(*),records(*)&id=eq.4`
-  devolvió el miembro con sus 2 récords restantes anidados — confirma que el
-  `select` de `page.tsx` funciona contra el schema local con la 0013 aplicada.
-
-Quedan **sin verificar por UI real**: la interacción del formulario en sí
-(clics, disabled del botón Guardar, mensaje de error en pantalla), el
-distintivo SUMA renderizado, y el error de validación (`'javascript:...'` u
-otro) mostrándose sin llamar a la base. Estos tres los cubre el código
-revisado a mano + los 48 tests unitarios de `records-form.ts`, pero no los vi
-correr en un navegador real. Recomiendo que QA/PM confirmen el clic-a-clic
-desde su propia máquina (`localhost:3002`, sin el problema de red que tuve
-yo), sobre todo el punto de "SUMA" visible y el error inline.
+**No verificado por mí esta ronda:** no levanté `npm run dev` ni toqué el
+Supabase local compartido. `brief-dev.md` sección 6 es explícito en que la
+verificación de interfaz (D01-b/c, D03, D04, CA-8/9/12 con carreras reales)
+la hace el PM con las 10 pruebas listadas en `reporte-qa-r1.md` sección
+"Pruebas a ejecutar por el PM", y que la lógica de listas debe probarse con
+funciones puras sin mockear la base — que es lo que entrego. No repetí la
+verificación manual con `curl` de ronda 1 porque ningún defecto de esta ronda
+toca el `insert`/`select` básico ya confirmado entonces.
 
 ## Migraciones
 
 Ninguna.
 
-## Decisiones tomadas
-
-- El pill de "récord/hito" en la lista usa `etiquetaRecord` con `pillGris`
-  siempre (no varía color por alcance) — porque el brief solo pide que el
-  distintivo **SUMA** se distinga a simple vista, no cada nivel de alcance;
-  meter 4 colores más era alcance no pedido.
-- Alcance del `<select>`: opción `""` no seleccionable como valor real (queda
-  como placeholder si no se elige nada), igual que "— sin especificar —" en
-  el `<select>` de mes de `PalmaresModal`, para no inventar un patrón nuevo.
-- `parseDecimal` vive privado dentro de `lib/records-form.ts`, no exportado:
-  el contrato del brief solo pide las 4 funciones listadas.
-
-## Fuera de alcance que vi (no tocado)
-
-- El mismo hallazgo que ya anota la épica: `tests/seguridad/rls.test.ts` no
-  cubre `records` (ni `logros`) en `TABLAS`. No lo toqué — es de T-001 /
-  tarea aparte según `EPICA-records.md`.
-- `lib/csp.ts` fuerza `upgrade-insecure-requests` incluso en dev, lo que
-  rompe cualquier acceso al panel por una IP que no sea `localhost`/loopback.
-  No es un bug de esta tarea (preexistente, fuera de mis archivos) pero
-  explica por qué mi verificación de navegador no pudo completarse por LAN.
-
 ## Preguntas / bloqueos
 
-Ninguno. Entrega no bloqueada; la única reserva es la verificación manual por
-UI real, marcada como no hecha arriba en vez de darla por buena.
+Ninguno.
