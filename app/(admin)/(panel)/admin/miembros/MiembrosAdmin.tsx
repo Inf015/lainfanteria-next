@@ -8,6 +8,7 @@ import { aLista, aSlug, slugUnico } from '@/lib/formato';
 import { borrarDelBucket } from '@/lib/storage';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import PalmaresModal from './PalmaresModal';
+import RecordsModal from './RecordsModal';
 import s from '../../../admin.module.css';
 
 const ROLES_SUGERIDOS = ['Piloto', 'Socio', 'Mecánico'];
@@ -58,6 +59,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
   const [miembros, setMiembros] = useState(inicial);
   const [editando, setEditando] = useState<Miembro | null>(null);
   const [palmaresDe, setPalmaresDe] = useState<Miembro | null>(null);
+  const [recordsDe, setRecordsDe] = useState<Miembro | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState<FormMiembro>(VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -285,6 +287,12 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                       Galería de trofeos
                     </button>
                     <button
+                      className={s.btnAccion}
+                      onClick={() => setRecordsDe(p)}
+                    >
+                      Récords
+                    </button>
+                    <button
                       className={`${s.btnAccion} ${s.btnBorrar}`}
                       onClick={() => borrar(p)}
                     >
@@ -494,6 +502,20 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
               prev.map((m) => (m.id === palmaresDe.id ? { ...m, palmares } : m)),
             );
             setPalmaresDe((m) => (m ? { ...m, palmares } : m));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {recordsDe && (
+        <RecordsModal
+          miembro={recordsDe}
+          onCerrar={() => setRecordsDe(null)}
+          onCambio={(records) => {
+            setMiembros((prev) =>
+              prev.map((m) => (m.id === recordsDe.id ? { ...m, records } : m)),
+            );
+            setRecordsDe((m) => (m ? { ...m, records } : m));
             router.refresh();
           }}
         />
