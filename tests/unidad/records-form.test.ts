@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   aFilaRecord,
+  aplicarBorrado,
+  aplicarGuardado,
+  aplicarRecordsDeMiembro,
   formDesdeRecord,
   formVacio,
   validarRecord,
   type FormRecord,
 } from '@/lib/records-form';
-import type { RecordDeportivo } from '@/lib/types';
+import type { Miembro, RecordDeportivo } from '@/lib/types';
 
 function form(overrides: Partial<FormRecord> = {}): FormRecord {
   return {
@@ -33,6 +36,28 @@ function record(overrides: Partial<RecordDeportivo> = {}): RecordDeportivo {
     mes: null,
     vigente: true,
     fuente_url: null,
+    creado_en: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function miembro(overrides: Partial<Miembro> = {}): Miembro {
+  return {
+    id: 1,
+    nombre: 'T002 Piloto',
+    slug: 't002-piloto',
+    numero: null,
+    roles: ['Piloto'],
+    biografia: '',
+    foto_url: null,
+    foto_public_id: null,
+    instagram_url: null,
+    youtube_url: null,
+    trofeos_total: null,
+    palmares: [],
+    records: [],
+    orden: 0,
+    activo: true,
     creado_en: '2026-01-01T00:00:00Z',
     ...overrides,
   };
@@ -364,5 +389,107 @@ describe('formDesdeRecord — alcance nulo muestra "ninguno", no ""', () => {
   it('alcance null → \'ninguno\'', () => {
     const r = record({ alcance: null });
     expect(formDesdeRecord(r).alcance).toBe('ninguno');
+  });
+});
+
+describe('aplicarGuardado', () => {
+  it('reemplaza por id cuando ya existe', () => {
+    const lista = [record({ id: 11, titulo: 'Uno' }), record({ id: 12, titulo: 'Dos' })];
+    const actualizado = aplicarGuardado(lista, record({ id: 11, titulo: 'Uno editado' }));
+    expect(actualizado).toHaveLength(2);
+    expect(actualizado.find((r) => r.id === 11)?.titulo).toBe('Uno editado');
+    expect(actualizado.find((r) => r.id === 12)?.titulo).toBe('Dos');
+  });
+
+  it('inserta cuando el id no está en la lista', () => {
+    const lista = [record({ id: 11 })];
+    const actualizado = aplicarGuardado(lista, record({ id: 99, titulo: 'Nuevo' }));
+    expect(actualizado.map((r) => r.id).sort()).toEqual([11, 99]);
+  });
+
+  it('reordena con ordenarRecords (vigentes primero)', () => {
+    const lista = [record({ id: 11, vigente: false })];
+    const actualizado = aplicarGuardado(lista, record({ id: 12, vigente: true }));
+    expect(actualizado.map((r) => r.id)).toEqual([12, 11]);
+  });
+});
+
+describe('aplicarBorrado', () => {
+  it('saca la fila por id', () => {
+    const lista = [record({ id: 11 }), record({ id: 12 })];
+    expect(aplicarBorrado(lista, 11).map((r) => r.id)).toEqual([12]);
+  });
+
+  it('no falla si el id ya no está (borrado concurrente)', () => {
+    const lista = [record({ id: 11 })];
+    expect(aplicarBorrado(lista, 99)).toEqual(lista);
+  });
+});
+
+describe('aplicarRecordsDeMiembro — T-002-D01: respuesta tardía no contamina otro miembro', () => {
+  it('actualizar los records de A no toca los de B en la lista de miembros', () => {
+    const recordA = record({ id: 11, miembro_id: 1, vigente: true });
+    const recordB = record({ id: 21, miembro_id: 2, vigente: true });
+    const miembros = [miembro({ id: 1, records: [recordA] }), miembro({ id: 2, records: [recordB] })];
+
+    const filaA = record({ id: 11, miembro_id: 1, vigente: false });
+    const actualizados = aplicarRecordsDeMiembro(miembros, 1, (records) =>
+      aplicarGuardado(records, filaA),
+    );
+
+    expect(actualizados.find((m) => m.id === 1)?.records).toEqual([filaA]);
+    expect(actualizados.find((m) => m.id === 2)?.records).toEqual([recordB]);
+  });
+
+  it('el modal abierto de B no cambia cuando llega la respuesta de A (misma lógica que MiembrosAdmin)', () => {
+    const recordB = record({ id: 21, miembro_id: 2, vigente: true });
+    const abiertoB = miembro({ id: 2, records: [recordB] });
+    const filaA = record({ id: 11, miembro_id: 1, vigente: false });
+
+    const miembroIdDeLaRespuesta = 1;
+    const actualizar = (records: RecordDeportivo[]) => aplicarGuardado(records, filaA);
+    const resultado =
+      abiertoB.id === miembroIdDeLaRespuesta
+        ? { ...abiertoB, records: actualizar(abiertoB.records ?? []) }
+        : abiertoB;
+
+    expect(resultado).toBe(abiertoB);
+    expect(resultado.records).toEqual([recordB]);
+  });
+});
+
+describe('aplicarGuardado / aplicarBorrado — T-002-D02: acciones rápidas concurrentes no se pisan', () => {
+  const inicial = [
+    record({ id: 11, miembro_id: 1, vigente: true }),
+    record({ id: 12, miembro_id: 1, vigente: true }),
+  ];
+
+  it('dos "marcar superado" en cualquier orden dejan ambas filas aplicadas', () => {
+    const r11Superado = { ...inicial[0], vigente: false };
+    const r12Superado = { ...inicial[1], vigente: false };
+
+    const ordenAB = aplicarGuardado(aplicarGuardado(inicial, r11Superado), r12Superado);
+    const ordenBA = aplicarGuardado(aplicarGuardado(inicial, r12Superado), r11Superado);
+
+    for (const resultado of [ordenAB, ordenBA]) {
+      expect(resultado).toHaveLength(2);
+      expect(resultado.find((r) => r.id === 11)?.vigente).toBe(false);
+      expect(resultado.find((r) => r.id === 12)?.vigente).toBe(false);
+    }
+  });
+
+  it('borrar una fila y actualizar otra durante la espera: la borrada no reaparece', () => {
+    const trasBorrado = aplicarBorrado(inicial, 11);
+    const r12Superado = { ...inicial[1], vigente: false };
+    const resultado = aplicarGuardado(trasBorrado, r12Superado);
+
+    expect(resultado.map((r) => r.id)).toEqual([12]);
+    expect(resultado.find((r) => r.id === 12)?.vigente).toBe(false);
+  });
+
+  it('actualizar y luego borrar la misma fila: queda borrada, sin importar el orden de llegada', () => {
+    const r11Superado = { ...inicial[0], vigente: false };
+    const resultado = aplicarBorrado(aplicarGuardado(inicial, r11Superado), 11);
+    expect(resultado.map((r) => r.id)).toEqual([12]);
   });
 });
