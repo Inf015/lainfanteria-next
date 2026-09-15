@@ -3,8 +3,8 @@
 | Campo | Valor |
 | ----- | ----- |
 | Rama | `oliver132123/records-schema` |
-| Worktree | `<ruta absoluta>` |
-| Base | `origin/main` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema` |
+| Base | `oliver132123/integracion-records` |
 | Tipo | feat |
 | Migración | **Sí** — `0013_records.sql` |
 | Ronda | 1 |
