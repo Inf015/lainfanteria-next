@@ -15,13 +15,21 @@
 ## 1. Por qué
 
 El equipo tiene récords y hoy no hay dónde guardarlos: `logros` guarda puestos,
-no récords. Hay dos tipos:
+no récords. Un récord es un **título** con cifras **opcionales**:
 
-- **Marca**: una cifra — 9.874 s en 1/4 de milla, 238 km/h en un roll race.
-- **Hito**: sin cifra — «Primer dominicano en correr el Race of Champions»,
-  «Piloto más joven en ganar el campeonato nacional».
+| Ejemplo | Tiempo | Velocidad |
+| ------- | ------ | --------- |
+| 1/4 de milla · Street Modified — **9.874 s @ 142.5 mph** | ✓ | ✓ |
+| 1/8 de milla — **6.120 s** | ✓ | — |
+| Roll Race 60-200 — **198 mph** | — | ✓ |
+| «Primer dominicano en correr el Race of Champions» (un **hito**) | — | — |
 
-Y dos dueños: un **miembro** del equipo, o **el equipo/taller** como tal.
+Algunos cuentan como **récord nacional** y otros no, también entre los hitos: eso
+lo decide el **alcance**, que es opcional. Solo suman los nacionales vigentes.
+
+Un récord es de un **miembro** o **del equipo** (`miembro_id` nulo). Del equipo
+todavía no hay ninguno y su presentación es T-004, pero la tabla los admite desde
+ahora: agregarlo después costaría otra migración.
 
 Esta tarea crea la base de datos y la capa de lectura. El panel (T-002) y la
 presentación (T-003) se apoyan en lo que dejes acá, así que el contrato de tipos
@@ -33,10 +41,11 @@ y de `lib/records.ts` tiene que quedar exacto.
 - Migración `supabase/migrations/0013_records.sql`: tabla, enums, índices, RLS, políticas, grants
 - Tipos en `lib/types.ts`
 - Funciones puras de presentación en `lib/records.ts`
-- `lib/datos.ts`: `getMiembros()` y `getMiembro()` traen los récords del miembro; `getRecordsEquipo()` nueva
+- `lib/datos.ts`: `getMiembros()` y `getMiembro()` traen los récords del miembro
 - Pruebas unitarias y de seguridad
 
 **Fuera (no tocar aunque parezca relacionado):**
+- Consulta de récords del equipo (`getRecordsEquipo`) — es T-004
 - Panel de administración (es T-002) — incluida la consulta de `app/(admin)/(panel)/admin/miembros/page.tsx`
 - Cualquier componente o CSS del sitio (es T-003)
 - Agregar `logros` a las pruebas de seguridad (hallazgo anotado en la épica)
@@ -66,12 +75,12 @@ no está, **pará y escalá** (el número 0013 depende de eso).
 | ------- | ---- | ----------- |
 | `id` | `bigint generated always as identity` | PK |
 | `miembro_id` | `bigint` | **nula** = récord del equipo; FK `miembros(id) on delete cascade` |
-| `tipo` | enum `tipo_record` (`'marca'`, `'hito'`) | `not null default 'marca'` |
-| `titulo` | `text` | `not null`, no vacío ni solo espacios. Marca: la disciplina («1/4 de milla»). Hito: el texto completo («Primer dominicano en correr el Race of Champions») |
+| `titulo` | `text` | `not null`, no vacío ni solo espacios. Con cifras: la disciplina («1/4 de milla»). Sin cifras: el hito completo |
 | `categoria` | `text` | nula — «Street Modified», «Pro» |
-| `valor` | `numeric(8,3)` | nula; si no es nula, `> 0` |
-| `unidad` | enum `unidad_record` (`'segundos'`, `'km_h'`, `'mph'`) | nula |
-| `alcance` | enum `alcance_record` (`'nacional'`, `'pista'`, `'evento'`) | `not null default 'nacional'` |
+| `tiempo_s` | `numeric(8,3)` | nula; si no es nula, `> 0` |
+| `velocidad` | `numeric(6,2)` | nula; si no es nula, `> 0` |
+| `unidad_velocidad` | enum `unidad_velocidad` (`'mph'`, `'km_h'`) | nula |
+| `alcance` | enum `alcance_record` (`'nacional'`, `'pista'`, `'evento'`) | **nula, sin default** = no suma como récord nacional ni de pista ni de evento |
 | `auto` | `text` | nula — texto libre, **no** FK a `autos` (inventario en venta) |
 | `lugar` | `text` | nula |
 | `anio` | `integer` | nula, mismos CHECK que `logros` (1950–2100) |
@@ -80,66 +89,74 @@ no está, **pará y escalá** (el número 0013 depende de eso).
 | `fuente_url` | `text` | nula, o empieza con `http://` / `https://` (CHECK, sin distinguir mayúsculas) |
 | `creado_en` | `timestamptz` | `not null default now()` |
 
-**CHECK de coherencia por tipo** (nombrado, p. ej. `records_coherencia_tipo`):
-- `marca` ⇒ `valor` **y** `unidad` no nulos
-- `hito` ⇒ `valor` **y** `unidad` nulos (un hito con cifra es una marca mal cargada)
+**CHECK nombrado** `records_velocidad_con_unidad`: `velocidad` y `unidad_velocidad`
+son las dos nulas o las dos no nulas (una velocidad sin unidad no se puede mostrar).
 
-- **CA-1** — Dado el esquema anterior, cuando se aplica la migración en una base con 0001–0012, entonces se crea sin error y todos los CHECK existen **en la base** (no solo en el panel), incluido el de coherencia.
+`alcance` va **sin default** a propósito: si la base pusiera `'nacional'` por
+defecto, un hito cargado sin pensar sumaría como récord nacional. Documentalo en
+el `comment on column`.
+
+- **CA-1** — Dado el esquema anterior, cuando se aplica la migración en una base con 0001–0012, entonces se crea sin error y todos los CHECK existen **en la base** (no solo en el panel).
 - **CA-2** — Dado `anon`, cuando lee `records`, entonces obtiene los récords **del equipo** (`miembro_id is null`) y los de miembros con `activo = true`; **nunca** los de un miembro inactivo.
 - **CA-3** — Dado `anon`, cuando intenta `insert`, `update` (con payload real y filtro) o `delete` (con filtro) sobre `records`, entonces la base responde **`42501`**.
 - **CA-4** — Dado un usuario autenticado que está en `admins`, entonces puede leer todo y escribir (`es_admin()` en `using` y `with check`); sin `GRANT` las políticas no llegan a evaluarse — copiá el bloque de grants de 0011.
 - **CA-5** — Dado un miembro borrado, entonces sus récords se borran en cascada; los del equipo no se tocan.
-- **CA-6** — Índices: por `miembro_id`, y uno parcial `where miembro_id is null` para la consulta del equipo.
+- **CA-6** — Índices: por `miembro_id`, y uno parcial `where miembro_id is null` (lo usará T-004).
 
 ### Tipos (`lib/types.ts`)
 
-- **CA-7** — Existen `TipoRecord`, `UnidadRecord`, `AlcanceRecord` y la interfaz **`RecordDeportivo`** con las columnas de la tabla (`miembro_id: number | null`, `valor: number | null`, `unidad: UnidadRecord | null`). ⚠️ **No la llames `Record`**: pisa el tipo global `Record<K, V>` de TypeScript, que ya se usa en el repo. `Miembro` gana `records: RecordDeportivo[]` con un JSDoc como el de `palmares`.
+- **CA-7** — Existen `UnidadVelocidad`, `AlcanceRecord` y la interfaz **`RecordDeportivo`** con las columnas de la tabla (`miembro_id: number | null`, `tiempo_s: number | null`, `velocidad: number | null`, `unidad_velocidad: UnidadVelocidad | null`, `alcance: AlcanceRecord | null`). ⚠️ **No la llames `Record`**: pisa el tipo global `Record<K, V>` de TypeScript, que ya se usa en el repo. `Miembro` gana `records: RecordDeportivo[]` con un JSDoc como el de `palmares`.
 
 ### Presentación (`lib/records.ts`, funciones puras)
 
-Contrato exacto — T-002 y T-003 lo consumen:
+Contrato exacto — T-002, T-003 y T-004 lo consumen:
 
 ```ts
 export const NOMBRE_ALCANCE: Record<AlcanceRecord, string>;
 // { nacional: 'Récord nacional', pista: 'Récord de pista', evento: 'Récord de evento' }
 
-export const SIMBOLO_UNIDAD: Record<UnidadRecord, string>;
-// { segundos: 's', km_h: 'km/h', mph: 'mph' }
+export const SIMBOLO_VELOCIDAD: Record<UnidadVelocidad, string>;
+// { mph: 'mph', km_h: 'km/h' }
 
-export type MarcaDeportiva = RecordDeportivo & { tipo: 'marca'; valor: number; unidad: UnidadRecord };
-export function esMarca(r: RecordDeportivo): r is MarcaDeportiva;
+type Cifras = Pick<RecordDeportivo, 'tiempo_s' | 'velocidad' | 'unidad_velocidad'>;
 
-export function formatearMarca(valor: number | string, unidad: UnidadRecord): string;
+export function formatearTiempo(valor: number | string | null): string | null;
+export function formatearVelocidad(valor: number | string | null, unidad: UnidadVelocidad | null): string | null;
+export function formatearMarca(r: Cifras): string | null;
+export function tieneCifras(r: Cifras): boolean;
+export function etiquetaRecord(r: Cifras & Pick<RecordDeportivo, 'alcance'>): string;
 export function ordenarRecords(records: RecordDeportivo[]): RecordDeportivo[];
 export function recordsVigentes(records: RecordDeportivo[]): RecordDeportivo[];
 export function recordsNacionalesVigentes(records: RecordDeportivo[]): RecordDeportivo[];
 ```
 
-- **CA-8** — `formatearMarca`:
-  - `segundos` → siempre 3 decimales: `(9.874,'segundos')` → `'9.874 s'`; `(10,'segundos')` → `'10.000 s'`
-  - `km_h` / `mph` → hasta 2 decimales, sin ceros sobrantes: `(238,'km_h')` → `'238 km/h'`; `(241.5,'mph')` → `'241.5 mph'`; `(199.999,'km_h')` → `'200 km/h'`
+- **CA-8** — Formateo:
+  - `formatearTiempo` → siempre 3 decimales: `9.874` → `'9.874 s'`; `10` → `'10.000 s'`
+  - `formatearVelocidad` → hasta 2 decimales, sin ceros sobrantes: `(142.5,'mph')` → `'142.5 mph'`; `(238,'km_h')` → `'238 km/h'`; `(199.999,'mph')` → `'200 mph'`
   - Separador decimal **punto**, sin separador de miles (así se leen las marcas en el automovilismo local)
-  - Acepta el valor como string (`'9.874'`), porque PostgREST puede serializar `numeric` como texto
-  - Valor no numérico o ≤ 0 → `'—'` (no revienta el render)
+  - Aceptan el valor como string (`'9.874'`), porque PostgREST puede serializar `numeric` como texto
+  - Valor nulo, no numérico o ≤ 0 → `null`. Velocidad sin unidad → `null`.
+  - `formatearMarca` → las dos: `'9.874 s @ 142.5 mph'`; una sola: esa; ninguna válida: `null`
 - **CA-9** — La fecha del récord reutiliza `fechaLogro` de `lib/palmares.ts`: cambiá su parámetro a `Pick<Logro, 'anio' | 'mes'>` (compatible con todos los usos actuales). No dupliques la lista de meses.
-- **CA-10** — `esMarca` es `true` solo si `tipo === 'marca'` **y** `valor` y `unidad` no son nulos (defensa ante datos inconsistentes: con `tipo: 'marca'` y `valor: null` devuelve `false`).
-- **CA-11** — `ordenarRecords` no muta la entrada y ordena por, en este orden: vigentes antes que superados → alcance `nacional` > `pista` > `evento` → `anio` desc (sin año al final) → `mes` desc (sin mes al final) → `id` desc. El `tipo` **no** influye: marcas e hitos se mezclan.
-- **CA-12** — `recordsVigentes` devuelve solo `vigente = true`; `recordsNacionalesVigentes`, solo `vigente = true` **y** `alcance = 'nacional'`, marcas **e** hitos. Ambas conservan el orden recibido.
+- **CA-10** — `tieneCifras` es `true` si `formatearMarca` no es `null` (es decir, si hay al menos una cifra **mostrable**; un tiempo `0` o una velocidad sin unidad no cuentan). Un récord sin cifras es un **hito**.
+- **CA-11** — `etiquetaRecord`: con alcance → `NOMBRE_ALCANCE[alcance]`; sin alcance y con cifras → `'Récord'`; sin alcance y sin cifras → `'Hito'`.
+- **CA-12** — `ordenarRecords` no muta la entrada y ordena por, en este orden: vigentes antes que superados → alcance `nacional` > `pista` > `evento` > sin alcance → `anio` desc (sin año al final) → `mes` desc (sin mes al final) → `id` desc.
+- **CA-13** — `recordsVigentes` devuelve solo `vigente = true`; `recordsNacionalesVigentes`, solo `vigente = true` **y** `alcance = 'nacional'`, tengan cifras o no. Ambas conservan el orden recibido.
 
 ### Lectura (`lib/datos.ts`)
 
-- **CA-13** — `COLUMNAS_MIEMBRO` agrega `records(*)`, y `getMiembros()`/`getMiembro()` devuelven `records` pasados por `ordenarRecords` (`[]` si viene nulo), igual que hoy con `palmares`. `palmares` sigue exactamente igual.
-- **CA-14** — `getRecordsEquipo(): Promise<RecordDeportivo[]>` devuelve los récords con `miembro_id is null`, pasados por `ordenarRecords`, con `consultar()` y respaldo `[]`.
+- **CA-14** — `COLUMNAS_MIEMBRO` agrega `records(*)`, y `getMiembros()`/`getMiembro()` devuelven `records` pasados por `ordenarRecords` (`[]` si viene nulo), igual que hoy con `palmares`. `palmares` sigue exactamente igual.
 
 ## 5. Pruebas requeridas
 
 - [ ] **Unidad** `tests/unidad/records.test.ts` (estilo de `formato.test.ts`):
-  - `formatearMarca`: cada unidad; límites `0.001`, `10`, `99999.999`, `199.999` (→ `'200 km/h'`); string; `0`, negativo, `NaN`, `'abc'` → `'—'`
-  - `esMarca`: marca completa, hito, marca con `valor` nulo, marca con `unidad` nula
-  - `ordenarRecords`: tabla de decisión vigente × alcance × fecha, con al menos un caso por nivel de desempate; marcas e hitos mezclados; sin año al final; la entrada no se muta
-  - `recordsVigentes` / `recordsNacionalesVigentes`: vacío; nacional superado queda afuera; pista vigente queda afuera de la nacional; **un hito nacional vigente cuenta**
+  - `formatearTiempo` / `formatearVelocidad`: cada unidad; límites `0.001`, `10`, `99999.999`, `199.999`; string; `null`, `0`, negativo, `NaN`, `'abc'` → `null`; velocidad sin unidad → `null`
+  - `formatearMarca`: tabla de decisión tiempo {válido, nulo, inválido} × velocidad {válida, nula, inválida, sin unidad}
+  - `tieneCifras` y `etiquetaRecord`: las tres ramas de CA-11, más un hito con alcance nacional (→ `'Récord nacional'`)
+  - `ordenarRecords`: tabla de decisión vigente × alcance (incluido sin alcance) × fecha, con al menos un caso por nivel de desempate; sin año al final; la entrada no se muta
+  - `recordsVigentes` / `recordsNacionalesVigentes`: vacío; nacional superado queda afuera; pista vigente queda afuera; **hito nacional vigente cuenta**; **hito sin alcance no cuenta**
   - `fechaLogro` sigue pasando sus tests existentes
-- [ ] **Seguridad** `tests/seguridad/rls.test.ts`: agregá `records` a `TABLAS`, con un `PAYLOAD` realista (`tipo: 'hito'`, `titulo`; sin cuerpo vacío) y su `FILTRO` (`id=gt.0`). Tiene que quedar cubierto: lectura 200, insert/update/delete → `42501`, y el chequeo de «no quedó ningún intruso».
+- [ ] **Seguridad** `tests/seguridad/rls.test.ts`: agregá `records` a `TABLAS`, con un `PAYLOAD` realista (`titulo`; sin cuerpo vacío) y su `FILTRO` (`id=gt.0`). Tiene que quedar cubierto: lectura 200, insert/update/delete → `42501`, y el chequeo de «no quedó ningún intruso».
   - ⚠️ Estas pruebas van contra **producción**, donde la tabla no existe hasta el `db push`. **No las corras vos.** Las corre el PM contra Supabase local (ver sección 8).
 - [ ] Nada de humo: no hay rutas nuevas.
 
@@ -154,7 +171,7 @@ No aplica en ronda 1.
 - [ ] `npm run lint` limpio
 - [ ] `npm test` verde
 - [ ] `npm run build` pasa (verifica que el cambio de tipos no rompió ninguna página)
-- [ ] Commits convencionales, archivos stageados por nombre, en la rama correcta. Sugerencia de corte: `feat(db): tabla records` · `feat(records): tipos y presentación` · `feat(equipo): los miembros y el equipo traen sus récords` · `test(seguridad): records cerrada a anon`
+- [ ] Commits convencionales, archivos stageados por nombre, en la rama correcta. Sugerencia de corte: `feat(db): tabla records` · `feat(records): tipos y presentación` · `feat(equipo): los miembros traen sus récords` · `test(seguridad): records cerrada a anon`
 - [ ] Working tree limpio (`git status --short` vacío)
 - [ ] `entrega-dev.md` escrita en esta carpeta y commiteada, con la sección *Migraciones* diciendo **REQUIERE db push ANTES del merge** y cómo revertir (`drop table records; drop type ...`)
 - [ ] Sin push, sin PR, sin `db push`, sin SQL contra el Supabase remoto
@@ -183,15 +200,17 @@ CA-1, CA-2 y CA-5 necesitan datos y escrituras reales, así que se comprueban
 ```bash
 psql "<DB URL local>" <<'SQL'
 insert into miembros (nombre, slug, activo) values ('Activo', 'activo', true), ('Inactivo', 'inactivo', false);
-insert into records (miembro_id, tipo, titulo, valor, unidad)
-  select id, 'marca', '1/4 de milla', 9.874, 'segundos' from miembros where slug in ('activo', 'inactivo');
-insert into records (tipo, titulo) values ('hito', 'Récord del equipo');
+insert into records (miembro_id, titulo, tiempo_s, velocidad, unidad_velocidad, alcance)
+  select id, '1/4 de milla', 9.874, 142.5, 'mph', 'nacional' from miembros where slug in ('activo', 'inactivo');
+insert into records (titulo) values ('Hito del equipo');          -- sin alcance: válido
 -- Deben fallar por CHECK:
-insert into records (tipo, titulo) values ('marca', 'marca sin cifra');
-insert into records (tipo, titulo, valor, unidad) values ('hito', 'hito con cifra', 1, 'segundos');
-insert into records (tipo, titulo) values ('hito', '   ');
-insert into records (tipo, titulo, fuente_url) values ('hito', 'x', 'javascript:alert(1)');
+insert into records (titulo, velocidad) values ('velocidad sin unidad', 142.5);
+insert into records (titulo, unidad_velocidad) values ('unidad sin velocidad', 'mph');
+insert into records (titulo, tiempo_s) values ('tiempo cero', 0);
+insert into records (titulo) values ('   ');
+insert into records (titulo, fuente_url) values ('x', 'javascript:alert(1)');
 SQL
+psql "<DB URL local>" -c "select alcance from records where titulo = 'Hito del equipo';"   # espera NULL, no 'nacional'
 curl -s "http://127.0.0.1:54321/rest/v1/records?select=titulo,miembro_id" \
   -H "apikey: <anon local>"               # espera: el del Activo y el del equipo, NO el del Inactivo
 psql "<DB URL local>" -c "delete from miembros where slug = 'activo'; select count(*) from records;"  # espera 2

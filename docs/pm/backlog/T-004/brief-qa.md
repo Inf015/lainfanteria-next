@@ -1,4 +1,4 @@
-# QA T-001 — Tabla de récords, tipos y lectura pública — ronda N
+# QA T-004 — Récords del equipo: panel y «Sobre nosotros» — ronda N
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -21,58 +21,36 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Campo | Valor |
 | ----- | ----- |
 | Worktree | `<ruta absoluta>` |
-| Rama | `oliver132123/records-schema` |
+| Rama | `oliver132123/records-equipo` |
 | Base | `<origin/main o rama base>` |
 | Diff | `git diff <base>...HEAD` |
-| Base de prueba | `docs/pm/tareas/T-001/brief-dev.md` (criterios CA-*) |
-| Entrega del dev | `docs/pm/tareas/T-001/entrega-dev.md` |
-| Gate del PM | `docs/pm/tareas/T-001/gate-rN.txt` |
+| Base de prueba | `docs/pm/tareas/T-004/brief-dev.md` (criterios CA-*) |
+| Entrega del dev | `docs/pm/tareas/T-004/entrega-dev.md` |
+| Gate del PM | `docs/pm/tareas/T-004/gate-rN.txt` |
 | Ronda anterior | ninguna en ronda 1; en ronda N, `reporte-qa-r(N-1).md` |
 
-## Foco específico de T-001
+## Foco específico de T-004
 
-Esta tarea es la base de otras tres (T-002, T-003, T-004) y lleva **migración**:
-un error acá se propaga o llega a producción como dato roto. Prioridad de revisión:
+Reutiliza piezas de T-001..T-003 para un dueño distinto (el equipo). El riesgo
+principal es **mezclar** récords del equipo con los de un miembro.
 
-1. **RLS y permisos de `records`** — compará línea por línea con el bloque de
-   `logros` en `0011_logros_estructurados.sql`: `enable row level security`, las
-   tres políticas, `using` **y** `with check` con `es_admin()`, grants a `anon`
-   (solo select) y `authenticated`. Una política `for all` sin `to authenticated`
-   o un `grant insert` a `anon` es **S1**.
-2. **Lectura pública con `miembro_id` nulo** — la política de `anon` tiene que
-   dejar ver los del equipo **y** los de miembros activos, y **ninguno** de un
-   miembro inactivo. Trampa de SQL con `NULL`: `exists (… where m.id =
-   miembro_id)` es falso cuando `miembro_id` es nulo; una condición como
-   `not exists (… inactivo)` expone de más. Exponer récords de un inactivo es **S2**.
-3. **`alcance` sin default** — si la migración le pone `default 'nacional'`, un
-   hito cargado sin alcance suma como récord nacional: **S2** (contradice una
-   decisión explícita de Oliver, ver la épica).
-4. **CHECKs en la base, no solo en TypeScript** — velocidad y unidad juntas
-   (probá las dos mitades), `tiempo_s > 0`, `velocidad > 0`, título no vacío *ni
-   solo espacios*, mes sin año, rango de año, `fuente_url` http(s) sin distinguir
-   mayúsculas. Buscá cómo se cuela `' '`, `'HTTPS://'`, `'javascript:'`,
-   `' https://'` (espacio inicial).
-5. **Riesgo de deploy** — `COLUMNAS_MIEMBRO` con `records(*)` hace fallar toda la
-   consulta si la tabla no existe, y `consultar()` devuelve `[]` en silencio:
-   `/equipo` vacío. Verificá que `entrega-dev.md` diga **REQUIERE db push ANTES
-   del merge**. Si no lo dice: defecto S2/P1 de documentación.
-6. **Contrato de `lib/records.ts`** — nombres y firmas **exactos** a los del
-   brief (T-002, T-003 y T-004 los importan). Cualquier diferencia es S2/P1.
-7. **Formateo** — tabla de decisión tiempo {válido, nulo, `0`, `'abc'`} ×
-   velocidad {válida, nula, sin unidad, `-1`} sobre `formatearMarca`; límites y
-   punto flotante en `formatearTiempo`/`formatearVelocidad`: `199.999`, `0.001`,
-   `'9.874'`, `NaN`, `Infinity`, `-0`, `''`, `1.0005`. ¿`tieneCifras` es
-   coherente con `formatearMarca` en **todos** esos casos (CA-10)?
-8. **`etiquetaRecord`** — las tres ramas, y que un hito con alcance nacional diga
-   «Récord nacional», no «Hito».
-9. **`ordenarRecords`** — ¿muta la entrada? ¿`null` en `anio` y en `alcance`
-   queda al final en ambos lados del comparador?
-10. **Nombre del tipo** — `Record` a secas pisaría el global de TypeScript.
-11. **`fechaLogro`** — el cambio de firma no puede romper `GaleriaTrofeos`,
-    `MiembroCard` ni `PalmaresModal` (buscá todos los usos).
-12. **Pruebas de seguridad** — ¿payload realista? ¿exigen `42501`
-    específicamente? ¿el filtro evita el `400` de PostgREST? (ver `contexto.md`).
-    Tu sandbox no tiene red: dejá su ejecución en *Pruebas a ejecutar por el PM*.
+1. **Filtro de nulos** — `getRecordsEquipo` y la consulta del panel tienen que
+   usar `.is('miembro_id', null)`. `.eq('miembro_id', null)` no matchea nada en
+   PostgREST: el bloque saldría siempre vacío (S2).
+2. **Separación equipo ↔ miembro** — insertar desde el modal del equipo ¿manda
+   `miembro_id: null`? Abrir el modal de un miembro y después el del equipo (y
+   al revés): ¿queda la lista, el formulario o el título del anterior? ¿Un récord
+   del equipo aparece en algún miembro o suma en alguna tarjeta?
+3. **Regresión de T-002** — el cambio de `RecordsModal` a `miembro: Miembro |
+   null` no puede romper el flujo por miembro: revisá cada uso de `miembro.` en el
+   modal (un `miembro.id` o `miembro.nombre` sin guarda revienta con `null`).
+4. **`/nosotros` idéntica sin datos (CA-5)** y resiliente si la consulta falla
+   (CA-6): ¿las dos consultas van en paralelo y cada una con su respaldo?
+5. **Ubicación (CA-4)** — después de los números y antes de «Valores».
+6. **Alcance** — no toca la migración, `lib/records.ts` ni `lib/records-form.ts`,
+   ni muestra récords del equipo en `/equipo` o la home. Si lo hace: S2/P2.
+7. **Evidencia** — si la entrega marca CA visuales o de panel sin entorno local,
+   es defecto de proceso (S3/P2).
 
 ## Qué hacer
 
@@ -89,7 +67,7 @@ un error acá se propaga o llega a producción como dato roto. Prioridad de revi
 4. **Ejecución.** Tu sandbox es read-only y sin red: `npx vitest run` falla con
    `EPERM` y no hay acceso a Supabase. El PM ya corrió el gate (typegen, tsc,
    lint, `npm test`) justo antes de lanzarte y dejó la salida en
-   `docs/pm/tareas/T-001/gate-rN.txt` — usala como evidencia de ejecución y
+   `docs/pm/tareas/T-004/gate-rN.txt` — usala como evidencia de ejecución y
    verificá que corresponda al `HEAD` actual (el archivo lo registra).
    `npx tsc --noEmit` sí podés re-correrlo. Lo que no se pueda ejecutar va a
    *Pruebas a ejecutar por el PM*; no lo des por aprobado.
@@ -143,7 +121,7 @@ un error acá se propaga o llega a producción como dato roto. Prioridad de revi
 ## Formato del reporte (tu respuesta final, en markdown, en español)
 
 ```markdown
-# Reporte QA T-001 — ronda N
+# Reporte QA T-004 — ronda N
 
 **Veredicto:** FAIL | PASS-WITH-RESERVATIONS | PASS
 **Resumen:** <2-3 líneas>
@@ -163,7 +141,7 @@ un error acá se propaga o llega a producción como dato roto. Prioridad de revi
 | -- | ------ | --------- |
 
 ## Defectos
-### T-001-D01 — <título>
+### T-004-D01 — <título>
 - **Severidad / Prioridad:** S? / P?
 - **Área:** <auth | db | storage | ui | testware | ...>
 - **Ubicación:** `archivo:línea`
@@ -181,4 +159,4 @@ un error acá se propaga o llega a producción como dato roto. Prioridad de revi
 - `<comando>` — qué debería verse y por qué no pude correrlo
 ```
 
-Numeración: `T-001-D01`, `T-001-D02`… continuando entre rondas (no reiniciar).
+Numeración: `T-004-D01`, `T-004-D02`… continuando entre rondas (no reiniciar).

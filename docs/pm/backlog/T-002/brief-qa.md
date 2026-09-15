@@ -1,4 +1,4 @@
-# QA T-002 — Récords en el panel: alta, edición y baja — ronda N
+# QA T-002 — Récords de los miembros en el panel — ronda N
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -33,36 +33,38 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 
 Panel de administración, cliente de navegador escribiendo en la base. La RLS ya
 protege contra no-admins (T-001); acá importa que el admin **no pueda romper
-datos por error** y que la UI no mienta sobre lo que quedó en la base.
+datos por error**, que **no infle** el contador de récords nacionales sin querer,
+y que la UI no mienta sobre lo que quedó en la base.
 
-1. **Validación (`lib/records-form.ts`)** — particiones y límites de CA-5/CA-7:
-   `'9,874'`, `'9.874'`, `'1.234,5'`, `'1e3'`, `'0x10'`, `'  '`, `'.5'`, `'5.'`,
-   `'99999.999'`, `'100000'`, `'0.0001'`, `'-0'`, año `'2024.5'`, `'1949'`.
-   Ojo con `Number('')` = `0`, `Number(' ')` = `0` y `parseFloat('9abc')` = `9`.
-2. **Marca ↔ hito (tabla de decisión)** — tipo {marca, hito} × valor {vacío,
-   válido, basura} × unidad {vacía, cargada} × auto {vacío, cargado}. Para cada
-   combinación: ¿`validarRecord` da lo que dice el brief? ¿`aFilaRecord` cumple
-   el CHECK de coherencia de la base (hito ⇒ valor, unidad y auto `null`)? Un
-   hito que llega a la base con `valor` es un error de guardado garantizado.
-3. **URL de fuente** — `javascript:`, `JAVASCRIPT:`, `' javascript:'`, `data:`,
-   `//evil.com`, `https:` sin host. La base tiene CHECK, pero el mensaje tiene que
-   salir antes.
-4. **Equipo vs miembro** — ¿el modal del equipo inserta con `miembro_id: null`?
-   ¿La consulta del equipo usa `.is('miembro_id', null)`? ¿Un récord cargado en un
-   lado aparece en el otro (CA-14)? Abrir el modal del equipo después del de un
-   miembro: ¿quedan datos del miembro en el formulario o en la lista?
+1. **Alcance obligatorio** — `''` (sin elegir) tiene que bloquear; `'ninguno'`
+   tiene que guardar `null`. Al **editar** un récord con alcance nulo, ¿el select
+   muestra «Ninguno» o vuelve a «sin elegir» y bloquea guardar sin tocar nada?
+   Si queda preseleccionado «Nacional» en un alta: **S2**.
+2. **Tiempo y velocidad opcionales (tabla de decisión)** — tiempo {vacío,
+   válido, basura} × velocidad {vacía, válida, basura} × unidad {mph, km/h}. Para
+   cada caso: ¿`validarRecord` da lo que dice el brief? ¿`aFilaRecord` cumple el
+   CHECK de la base (velocidad vacía ⇒ unidad `null`)? Una fila con unidad y sin
+   velocidad es un error de guardado garantizado.
+3. **Números** — `'9,874'`, `'9.874'`, `'1.234,5'`, `'1e3'`, `'0x10'`, `'  '`,
+   `'.5'`, `'5.'`, `'99999.999'`, `'100000'`, `'0.0001'`, `'-0'`, velocidad
+   `'9999.99'`/`'10000'`/`'0.001'`, año `'2024.5'`, `'1949'`. Ojo con
+   `Number('')` = `0`, `Number(' ')` = `0` y `parseFloat('9abc')` = `9`: un campo
+   con espacios no puede pasar como `0` ni como vacío válido si tiene basura.
+4. **URL de fuente** — `javascript:`, `JAVASCRIPT:`, `' javascript:'`, `data:`,
+   `//evil.com`, `https:` sin host.
 5. **Transiciones de estado del modal** — cerrado → lista → alta → guardando →
    (ok | error) → lista; editar A y después abrir alta: ¿el formulario queda con
-   datos de A? Cambiar el tipo a mitad de edición. Cerrar mientras guarda.
-6. **Doble envío (CA-10)** — ¿el botón se deshabilita **antes** del `await`? ¿Hay
+   datos de A? Cambiar de miembro con el modal abierto. Cerrar mientras guarda.
+6. **Doble envío (CA-8)** — ¿el botón se deshabilita **antes** del `await`? ¿Hay
    otro camino de envío (Enter en un input) que lo esquive?
 7. **Consistencia UI ↔ base** — tras un error, ¿la lista local queda como antes?
    En «Marcar superado», ¿se actualiza el estado solo después de la respuesta
    (o revierte si falla)? Tras editar, ¿la fila local se reemplaza con lo que
-   devolvió la base (`.select().single()`) o con lo que se mandó?
+   devolvió la base (`.select().single()`) o con lo que se mandó? ¿La píldora
+   «SUMA» se recalcula al cambiar vigente o alcance?
 8. **Alcance** — el diff **no** puede tocar `app/(sitio)/`, `lib/records.ts`,
-   `lib/types.ts` ni `lib/datos.ts`. Si los toca: S2/P1 (rompe el paralelismo
-   con T-003).
+   `lib/types.ts` ni `lib/datos.ts`, ni agregar UI de récords del equipo (T-004).
+   Si lo hace: S2/P1 (rompe el paralelismo con T-003).
 9. **Evidencia manual** — si la entrega marca como hechos CA de interfaz sin
    haber levantado el entorno local, es defecto de proceso (S3/P2).
 

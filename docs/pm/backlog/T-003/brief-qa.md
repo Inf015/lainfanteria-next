@@ -1,4 +1,4 @@
-# QA T-003 — Récords en el sitio: página del piloto, tarjeta y equipo — ronda N
+# QA T-003 — Récords en la página del piloto y en la tarjeta del equipo — ronda N
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -33,41 +33,46 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 
 Sitio público, estático-revalidado. Lo que se equivoque acá lo ve todo el mundo.
 
-1. **Tabla de decisión de visibilidad** — combiná tipo {marca, hito} × estado
-   {vigente, superado} × alcance {nacional, pista/evento} × {con/sin fuente} ×
-   {con/sin auto, lugar, fecha, categoría}, y dueño {miembro, equipo}. Para cada
-   caso: ¿qué bloque aparece?, ¿el historial?, ¿la tarjeta muestra el
-   distintivo?, ¿la cifra de la cabecera cuenta bien?, ¿queda una línea vacía o
-   un ` · ` colgando?, ¿un hito muestra por error una cifra `'—'`?
-2. **«Idéntica a la de hoy» (CA-6, CA-11, CA-12)** — sin récords, ni la ficha ni
-   la tarjeta ni `/equipo` pueden cambiar un nodo. Revisá que no quede un
-   `<section>` vacío, un contenedor con margen, o un `0` renderizado por
-   `{records.length && …}`.
-3. **Uso de `esMarca`** — ¿la ficha decide marca/hito con el type guard o
-   mirando solo `tipo`? Con datos inconsistentes (`tipo: 'marca'`, `valor: null`)
-   no puede renderizar `'null s'` ni reventar.
-4. **Enlace de fuente (CA-5)** — solo `http(s)`, `target="_blank"` con
+1. **Tabla de decisión de visibilidad** — cifras {tiempo+velocidad, solo tiempo,
+   solo velocidad, ninguna} × alcance {nacional, pista/evento, ninguno} ×
+   estado {vigente, superado} × {con/sin fuente, auto, lugar, fecha, categoría}.
+   Para cada caso: ¿qué es el elemento principal?, ¿qué etiqueta?, ¿va a
+   «Historial»?, ¿suma en la tarjeta y en la cabecera?, ¿queda una línea vacía,
+   un ` · ` o un `@ ` colgando?, ¿aparece `'null'`, `'—'` o `'NaN'`?
+2. **«Idéntica a la de hoy» (CA-6, CA-11)** — sin récords (o sin nacionales
+   vigentes, para la tarjeta), ni la ficha ni la tarjeta pueden cambiar un nodo.
+   Revisá que no quede un `<section>` vacío, un contenedor con margen, o un `0`
+   renderizado por `{records.length && …}`.
+3. **Contador** — ¿la tarjeta y la cabecera usan `recordsNacionalesVigentes` y no
+   un filtro propio? Un hito **sin alcance** que suma, o un hito **nacional** que
+   no suma, es S2 (contradice la decisión de Oliver).
+4. **Uso de `tieneCifras`** — con datos inconsistentes (velocidad sin unidad,
+   tiempo `0`) la ficha no puede renderizar `'null s'` ni reventar: tiene que
+   caer a la vista de hito.
+5. **Enlace de fuente (CA-5)** — solo `http(s)`, `target="_blank"` con
    `rel="noopener noreferrer"`. Buscá cualquier `href` armado sin ese filtro.
-5. **Pluralización** — cifra «Récord nacional» / «Récords nacionales»; distintivo
-   «RÉCORD NACIONAL» / «2 RÉCORDS NACIONALES». Límites 0, 1, 2. ¿Cuentan los hitos?
-6. **`/equipo` (CA-13)** — ¿las dos consultas van en paralelo? Si
-   `getRecordsEquipo` falla, ¿la grilla de miembros se sigue viendo?
+6. **Pluralización** — cifra «Récord nacional» / «Récords nacionales»; distintivo
+   «RÉCORD NACIONAL» / «2 RÉCORDS NACIONALES». Límites 0, 1, 2.
 7. **Server vs Client** — `Records.tsx` debería ser Server Component. Si lleva
    `'use client'` sin necesidad, es S3; si `MiembroCard` (que es cliente) importa
    algo de servidor, es S2. Nada de `Date.now()`, `toLocaleString` ni zona
    horaria en render (hidratación, ver `contexto.md`).
-8. **Next 16** — `PageProps`, `generateStaticParams`, `next/image` usados como
+8. **Reutilizable para T-004** — ¿`Records` depende de algo propio de un miembro
+   (su nombre, su slug, estilos de `miembro.module.css`)? Si no se puede usar tal
+   cual en `/nosotros`, es S3.
+9. **Next 16** — `PageProps`, `generateStaticParams`, `next/image` usados como
    dice `node_modules/next/dist/docs/`.
-9. **CSS / mobile (CA-3, CA-14)** — no podés ver la página: revisá estáticamente
-   `min-width`, anchos fijos en px, `white-space: nowrap` sin `overflow`,
-   grillas sin `minmax(0, 1fr)`, palabras largas sin `overflow-wrap` en hitos de
-   200 caracteres. Lo no verificable va a *Pruebas a ejecutar por el PM*.
-10. **Accesibilidad** — el distintivo tiene texto real; emoji con `aria-hidden`;
+10. **CSS / mobile (CA-3, CA-12)** — no podés ver la página: revisá
+    estáticamente `min-width`, anchos fijos en px, `white-space: nowrap` sin
+    `overflow`, grillas sin `minmax(0, 1fr)`, palabras largas sin
+    `overflow-wrap` en hitos de 200 caracteres. Lo no verificable va a *Pruebas
+    a ejecutar por el PM*.
+11. **Accesibilidad** — el distintivo tiene texto real; emoji con `aria-hidden`;
     jerarquía de títulos (`h2` del bloque, sin saltos).
-11. **Alcance** — el diff **no** puede tocar `app/(admin)/`, `lib/records.ts`,
-    `lib/types.ts` ni `lib/datos.ts`. Si los toca: S2/P1 (rompe el paralelismo
-    con T-002).
-12. **Evidencia visual** — si la entrega marca CA visuales sin haber levantado
+12. **Alcance** — el diff **no** puede tocar `app/(admin)/`, `app/(sitio)/nosotros/`,
+    `lib/records.ts`, `lib/types.ts` ni `lib/datos.ts`. Si los toca: S2/P1 (rompe
+    el paralelismo con T-002).
+13. **Evidencia visual** — si la entrega marca CA visuales sin haber levantado
     el entorno local con los datos del brief, es defecto de proceso (S3/P2).
 
 ## Qué hacer
