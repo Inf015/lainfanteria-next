@@ -3,7 +3,7 @@
 | Campo | Valor |
 | ----- | ----- |
 | Rama | `oliver132123/records-panel` |
-| Worktree | `<ruta absoluta>` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel` |
 | Base | `oliver132123/records-schema` |
 | Tipo | feat |
 | Migración | No |
@@ -109,7 +109,7 @@ export function aFilaRecord(form: FormRecord, miembroId: number | null): Omit<Re
   - `formDesdeRecord` → `aFilaRecord` devuelve los mismos datos (ida y vuelta) para: tiempo + velocidad nacional, solo tiempo, hito sin alcance, hito nacional
 - [ ] Seguridad: nada nuevo (la RLS de `records` la prueba T-001).
 - [ ] Humo: nada nuevo (`/admin/miembros` ya se prueba sin sesión).
-- [ ] **Verificación manual** (evidencia en la entrega): con `npx supabase start` en tu worktree (aplica las migraciones en local, requiere Docker), `npm run dev` apuntando a la base local, un usuario admin local y un miembro. Recorré: alta con tiempo y velocidad, alta de un hito que suma, alta de un hito que no suma, quitar la velocidad a uno que la tenía, marcar superado, borrar y un error de validación. Describí lo que viste; si no pudiste levantarlo, decilo y **no** lo marques como hecho.
+- [ ] **Verificación manual** (evidencia en la entrega): con el **Supabase local compartido** de la sección 8 y `npm run dev -- -p 3002`, un usuario admin local y un miembro. Recorré: alta con tiempo y velocidad, alta de un hito que suma, alta de un hito que no suma, quitar la velocidad a uno que la tenía, marcar superado, borrar y un error de validación. Describí lo que viste; si no pudiste levantarlo, decilo y **no** lo marques como hecho.
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
@@ -126,3 +126,18 @@ No aplica en ronda 1.
 - [ ] Working tree limpio
 - [ ] `entrega-dev.md` escrita en esta carpeta y commiteada
 - [ ] Sin push, sin PR, sin `db push`, sin tocar `app/(sitio)/` ni `lib/records.ts`
+
+## 8. Entorno local compartido (lo provee el PM — gana sobre cualquier otra instrucción de entorno)
+
+T-002 y T-003 corren **en paralelo** contra **una sola** instancia de Supabase
+local, que ya está levantada con las migraciones 0001–0013 de esta épica.
+
+- **Prohibido** `npx supabase start`, `stop`, `db reset`, `db push` o cualquier `drop`/`truncate`: reiniciarla borra el trabajo del otro dev.
+- Variables y usuarios de prueba: `/private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env` (no lo copies al repo ni lo commitees). Levantá el sitio así:
+  ```bash
+  set -a; source /private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env; set +a
+  npm run dev -- -p 3002      # el 3000 lo ocupa otro proyecto
+  ```
+  Las variables del shell ganan sobre `.env.local`, que apunta a producción: **nunca** corras `npm run dev` sin cargar ese archivo antes.
+- Datos de prueba: todo lo que crees (miembros, slugs, récords) con el prefijo **`t002-`** en `slug` y `titulo`, para no chocar con el otro dev. Si cargás por SQL: `docker exec -i supabase_db_lainfanteria-next psql -U postgres -d postgres` y **solo `insert`/`update`/`delete` de filas con tu prefijo**.
+- Al terminar no borres tus datos: el PM y QA los usan para verificar.

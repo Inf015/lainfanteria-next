@@ -20,9 +20,9 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 
 | Campo | Valor |
 | ----- | ----- |
-| Worktree | `<ruta absoluta>` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel` |
 | Rama | `oliver132123/records-panel` |
-| Base | `<origin/main o rama base>` |
+| Base | `oliver132123/records-schema` |
 | Diff | `git diff <base>...HEAD` |
 | Base de prueba | `docs/pm/tareas/T-002/brief-dev.md` (criterios CA-*) |
 | Entrega del dev | `docs/pm/tareas/T-002/entrega-dev.md` |
