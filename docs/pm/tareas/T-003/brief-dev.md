@@ -61,7 +61,7 @@ Recibe `records: RecordDeportivo[]` y `titulo: string`. Con la lista vacía,
 devuelve `null`.
 
 - **CA-1** — Ficha de un récord vigente **con cifras** (`tieneCifras`):
-  - con tiempo **y** velocidad: el tiempo (`formatearTiempo`) es el elemento principal, la cifra más grande del bloque, y debajo, más chico, `@ ` + `formatearVelocidad`
+  - con tiempo **y** velocidad: el tiempo (`formatearTiempo`) es el elemento principal, la cifra más grande del bloque, y **a continuación en la misma línea**, más chico, `@ ` + `formatearVelocidad` (formato de las marcas de drag: «9.874 s @ 142.5 mph»); si no entra en el ancho, la velocidad pasa a la línea siguiente sin cortarse. *Enmendado el 2026-09-15 por decisión de Oliver tras T-003-D01 (antes decía «debajo»).*
   - con una sola cifra: esa es el elemento principal
   - etiqueta `etiquetaRecord` en mayúsculas (p. ej. «RÉCORD NACIONAL», «RÉCORD»)
   - el título (la disciplina), y ` · categoría` si hay
