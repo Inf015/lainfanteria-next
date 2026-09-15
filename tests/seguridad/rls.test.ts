@@ -26,6 +26,7 @@ const TABLAS = [
   'productos',
   'producto_fotos',
   'noticias',
+  'records',
 ] as const;
 
 function rest(path: string, init: RequestInit = {}) {
@@ -50,6 +51,7 @@ const PAYLOAD: Record<string, Record<string, unknown>> = {
   productos: { nombre: 'intruso', precio: 1 },
   producto_fotos: { url: 'https://ejemplo.invalido/x.jpg' },
   noticias: { titulo: 'intruso', slug: 'intruso-prueba', cuerpo: 'x' },
+  records: { titulo: 'intruso' },
 };
 
 /** Filtro por tabla. Sin filtro, PostgREST corta antes de evaluar permisos. */
@@ -62,6 +64,7 @@ const FILTRO: Record<string, string> = {
   productos: 'id=gt.0',
   producto_fotos: 'id=gt.0',
   noticias: 'id=gt.0',
+  records: 'id=gt.0',
 };
 
 beforeAll(() => {
@@ -144,9 +147,11 @@ describe('los datos siguen intactos después de los intentos', () => {
     const autos = await (await rest('autos?select=marca&marca=eq.intruso')).json();
     const miembros = await (await rest('miembros?select=nombre&nombre=eq.intruso')).json();
     const productos = await (await rest('productos?select=nombre&nombre=eq.intruso')).json();
+    const records = await (await rest('records?select=titulo&titulo=eq.intruso')).json();
     expect(autos).toHaveLength(0);
     expect(miembros).toHaveLength(0);
     expect(productos).toHaveLength(0);
+    expect(records).toHaveLength(0);
   });
 });
 
