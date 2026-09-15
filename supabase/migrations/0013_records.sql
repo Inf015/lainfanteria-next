@@ -55,11 +55,17 @@ create table records (
     creado_en        timestamptz not null default now(),
 
     -- Un título en blanco deja una ficha vacía en la página: se corta en la
-    -- base y no solo en el panel.
-    constraint records_titulo_no_vacio     check (btrim(titulo) <> ''),
-    -- Un tiempo o una velocidad en cero no es una marca, es un dato mal cargado
-    constraint records_tiempo_positivo     check (tiempo_s is null or tiempo_s > 0),
-    constraint records_velocidad_positiva  check (velocidad is null or velocidad > 0),
+    -- base y no solo en el panel. `btrim` no alcanza: solo recorta espacios,
+    -- así que un título de puro tab, salto de línea, CR o espacio duro
+    -- (U+00A0) pasaba igual. `[:space:]` sí cubre esa clase completa.
+    constraint records_titulo_no_vacio     check (titulo ~ '[^[:space:]]'),
+    -- Un tiempo o una velocidad en cero no es una marca, es un dato mal
+    -- cargado. `<> 'NaN'` es necesario aparte de `> 0`: en Postgres NaN es
+    -- mayor que cualquier número, así que `tiempo_s > 0` lo deja pasar.
+    constraint records_tiempo_positivo
+        check (tiempo_s is null or (tiempo_s > 0 and tiempo_s <> 'NaN')),
+    constraint records_velocidad_positiva
+        check (velocidad is null or (velocidad > 0 and velocidad <> 'NaN')),
     -- Una velocidad sin unidad no se puede mostrar, y una unidad sin velocidad
     -- es basura que después alguien interpreta como dato
     constraint records_velocidad_con_unidad
