@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { AlcanceRecord, Miembro, RecordDeportivo, UnidadVelocidad } from '@/lib/types';
 import { etiquetaRecord, formatearMarca, ordenarRecords, SIMBOLO_VELOCIDAD } from '@/lib/records';
@@ -20,6 +20,13 @@ import s from '../../../admin.module.css';
  * Aparte de `PalmaresModal.tsx` a propósito: un récord no es un trofeo con
  * otro nombre (`docs/pm/backlog/EPICA-records.md`), tiene su propia validación
  * (`lib/records-form.ts`) y sus propias acciones (marcar superado/vigente).
+ *
+ * Ronda 2 (T-002-D01): cada guardado/borrado se reporta al padre por
+ * `miembroId` (el dueño real del récord, no el miembro del modal actualmente
+ * abierto) para que la lista global se actualice por id sobre el estado más
+ * reciente; el propio estado del formulario (form/error/guardando) solo se
+ * toca si la respuesta sigue perteneciendo al borrador vigente y el modal
+ * sigue montado.
  */
 
 const MESES = [
@@ -49,10 +56,12 @@ const UNIDADES: UnidadVelocidad[] = ['mph', 'km_h'];
 interface Props {
   miembro: Miembro;
   onCerrar: () => void;
-  onCambio: (records: RecordDeportivo[]) => void;
+  /** El récord ya guardado (alta o edición), y de qué miembro es realmente dueño. */
+  onGuardado: (miembroId: number, fila: RecordDeportivo) => void;
+  onBorrado: (miembroId: number, id: number) => void;
 }
 
-export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
+export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado }: Props) {
   const records = ordenarRecords(miembro.records ?? []);
 
   const [editando, setEditando] = useState<RecordDeportivo | null>(null);
@@ -60,16 +69,48 @@ export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Cada alta/edición nueva (o Cancelar) arranca un "borrador" distinto: una
+  // respuesta que llega después de eso ya no debe tocar form/error/guardando
+  // (T-002-D01-c). `montadoRef` cubre además el caso de cerrar el modal.
+  const borradorRef = useRef(0);
+  const montadoRef = useRef(true);
+  useEffect(
+    () => () => {
+      montadoRef.current = false;
+    },
+    [],
+  );
+
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      errorRef.current.focus();
+    }
+  }, [error]);
+
+  function borradorSigueVigente(id: number) {
+    return montadoRef.current && borradorRef.current === id;
+  }
+
   function abrirNuevo() {
+    borradorRef.current += 1;
     setEditando(null);
     setForm(formVacio());
     setError(null);
   }
 
   function abrirEdicion(r: RecordDeportivo) {
+    borradorRef.current += 1;
     setEditando(r);
     setForm(formDesdeRecord(r));
     setError(null);
+  }
+
+  function cancelar() {
+    borradorRef.current += 1;
+    setForm(null);
+    setEditando(null);
   }
 
   async function guardar(e: React.FormEvent) {
@@ -82,68 +123,101 @@ export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
       return;
     }
 
+    const miBorrador = borradorRef.current;
     setGuardando(true);
     setError(null);
     const db = crearClienteNavegador();
-    const fila = aFilaRecord(form, miembro.id);
 
     if (editando) {
+      // El dueño es el del récord que se edita, nunca el miembro del modal
+      // actualmente abierto: si una respuesta tardía de otro miembro llegó a
+      // reemplazar records acá adentro, guardar igual no debe reasignarlos.
+      const miembroIdDueño = editando.miembro_id;
+      if (miembroIdDueño === null) {
+        if (borradorSigueVigente(miBorrador)) {
+          setError('Este récord no tiene miembro asociado.');
+          setGuardando(false);
+        }
+        return;
+      }
+      const fila = aFilaRecord(form, miembroIdDueño);
       const { data, error: err } = await db
         .from('records')
         .update(fila)
         .eq('id', editando.id)
+        .eq('miembro_id', miembroIdDueño)
         .select('*')
         .single();
       if (err) {
-        setError(err.message);
-        setGuardando(false);
+        if (borradorSigueVigente(miBorrador)) {
+          setError(err.message);
+          setGuardando(false);
+        }
         return;
       }
-      onCambio(records.map((r) => (r.id === editando.id ? (data as RecordDeportivo) : r)));
+      onGuardado(miembroIdDueño, data as RecordDeportivo);
     } else {
+      const fila = aFilaRecord(form, miembro.id);
       const { data, error: err } = await db
         .from('records')
         .insert(fila)
         .select('*')
         .single();
       if (err) {
-        setError(err.message);
-        setGuardando(false);
+        if (borradorSigueVigente(miBorrador)) {
+          setError(err.message);
+          setGuardando(false);
+        }
         return;
       }
-      onCambio([...records, data as RecordDeportivo]);
+      onGuardado(miembro.id, data as RecordDeportivo);
     }
 
-    setGuardando(false);
-    setForm(null);
-    setEditando(null);
+    if (borradorSigueVigente(miBorrador)) {
+      setGuardando(false);
+      setForm(null);
+      setEditando(null);
+    }
   }
 
   async function alternarVigente(r: RecordDeportivo) {
+    const miembroIdDueño = r.miembro_id;
+    if (miembroIdDueño === null) return;
+
     const db = crearClienteNavegador();
     const { data, error: err } = await db
       .from('records')
       .update({ vigente: !r.vigente })
       .eq('id', r.id)
+      .eq('miembro_id', miembroIdDueño)
       .select('*')
       .single();
     if (err) {
-      setError(err.message);
+      if (montadoRef.current) setError(err.message);
       return;
     }
-    onCambio(records.map((x) => (x.id === r.id ? (data as RecordDeportivo) : x)));
+    onGuardado(miembroIdDueño, data as RecordDeportivo);
+    if (montadoRef.current) setError(null);
   }
 
   async function borrar(r: RecordDeportivo) {
     if (!confirm(`¿Borrar "${r.titulo}"?`)) return;
 
+    const miembroIdDueño = r.miembro_id;
+    if (miembroIdDueño === null) return;
+
     const db = crearClienteNavegador();
-    const { error: err } = await db.from('records').delete().eq('id', r.id);
+    const { error: err } = await db
+      .from('records')
+      .delete()
+      .eq('id', r.id)
+      .eq('miembro_id', miembroIdDueño);
     if (err) {
-      setError(err.message);
+      if (montadoRef.current) setError(err.message);
       return;
     }
-    onCambio(records.filter((x) => x.id !== r.id));
+    onBorrado(miembroIdDueño, r.id);
+    if (montadoRef.current) setError(null);
   }
 
   return (
@@ -157,10 +231,14 @@ export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
         </div>
 
         <div className={s.modalCuerpo}>
-          {error && <div className={s.error}>{error}</div>}
+          {error && (
+            <div className={s.error} role="alert" tabIndex={-1} ref={errorRef}>
+              {error}
+            </div>
+          )}
 
           {form ? (
-            <form id="form-record" onSubmit={guardar}>
+            <form id="form-record" onSubmit={guardar} noValidate>
               <div className={s.campo}>
                 <label className={s.label}>TÍTULO *</label>
                 <textarea
@@ -319,14 +397,7 @@ export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
               </div>
 
               <div className={s.barraAcciones} style={{ marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  className={s.btnSecundario}
-                  onClick={() => {
-                    setForm(null);
-                    setEditando(null);
-                  }}
-                >
+                <button type="button" className={s.btnSecundario} onClick={cancelar}>
                   Cancelar
                 </button>
                 <button type="submit" className={s.btnNuevo} disabled={guardando}>
@@ -382,7 +453,7 @@ export default function RecordsModal({ miembro, onCerrar, onCambio }: Props) {
                                 </span>
                               )}
                             </td>
-                            <td>{formatearMarca(r) ?? '—'}</td>
+                            <td>{formatearMarca(r)}</td>
                             <td>{fechaLogro(r) || '—'}</td>
                             <td>
                               <span

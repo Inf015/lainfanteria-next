@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
-import type { Miembro } from '@/lib/types';
+import type { Miembro, RecordDeportivo } from '@/lib/types';
 import { aLista, aSlug, slugUnico } from '@/lib/formato';
 import { borrarDelBucket } from '@/lib/storage';
+import { aplicarBorrado, aplicarGuardado, aplicarRecordsDeMiembro } from '@/lib/records-form';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import PalmaresModal from './PalmaresModal';
 import RecordsModal from './RecordsModal';
@@ -204,6 +205,22 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
 
     setMiembros((prev) => prev.filter((x) => x.id !== p.id));
     avisar('Miembro borrado');
+    router.refresh();
+  }
+
+  // Ronda 2 (T-002-D01/D02): siempre por `miembroId` y sobre el estado más
+  // reciente (`prev`/el `m` del updater funcional), nunca sobre un snapshot
+  // capturado antes del await en RecordsModal. Así una respuesta tardía de un
+  // miembro no pisa los records del que esté abierto en ese momento, y dos
+  // acciones rápidas concurrentes no se restauran una a la otra.
+  function actualizarRecordsDeMiembro(
+    miembroId: number,
+    actualizar: (records: RecordDeportivo[]) => RecordDeportivo[],
+  ) {
+    setMiembros((prev) => aplicarRecordsDeMiembro(prev, miembroId, actualizar));
+    setRecordsDe((m) =>
+      m && m.id === miembroId ? { ...m, records: actualizar(m.records ?? []) } : m,
+    );
     router.refresh();
   }
 
@@ -511,13 +528,12 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
         <RecordsModal
           miembro={recordsDe}
           onCerrar={() => setRecordsDe(null)}
-          onCambio={(records) => {
-            setMiembros((prev) =>
-              prev.map((m) => (m.id === recordsDe.id ? { ...m, records } : m)),
-            );
-            setRecordsDe((m) => (m ? { ...m, records } : m));
-            router.refresh();
-          }}
+          onGuardado={(miembroId, fila) =>
+            actualizarRecordsDeMiembro(miembroId, (records) => aplicarGuardado(records, fila))
+          }
+          onBorrado={(miembroId, id) =>
+            actualizarRecordsDeMiembro(miembroId, (records) => aplicarBorrado(records, id))
+          }
         />
       )}
 
