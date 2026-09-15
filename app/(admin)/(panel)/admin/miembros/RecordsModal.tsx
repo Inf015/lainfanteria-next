@@ -12,6 +12,7 @@ import {
   validarRecord,
   type FormRecord,
 } from '@/lib/records-form';
+import { crearSesionFormulario } from './sesion-formulario';
 import s from '../../../admin.module.css';
 
 /**
@@ -27,6 +28,11 @@ import s from '../../../admin.module.css';
  * reciente; el propio estado del formulario (form/error/guardando) solo se
  * toca si la respuesta sigue perteneciendo al borrador vigente y el modal
  * sigue montado.
+ *
+ * Ronda 3 (T-002-D06/D07): ese "¿sigue vigente?" y la guarda de doble envío
+ * viven en `sesion-formulario.ts`, aparte de los refs de React, porque un
+ * `useRef` + cleanup ingenuo queda en `false` para siempre después del doble
+ * montaje de React StrictMode (dev) — ver el docstring de ese archivo.
  */
 
 const MESES = [
@@ -71,15 +77,18 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
 
   // Cada alta/edición nueva (o Cancelar) arranca un "borrador" distinto: una
   // respuesta que llega después de eso ya no debe tocar form/error/guardando
-  // (T-002-D01-c). `montadoRef` cubre además el caso de cerrar el modal.
-  const borradorRef = useRef(0);
-  const montadoRef = useRef(true);
-  useEffect(
-    () => () => {
-      montadoRef.current = false;
-    },
-    [],
-  );
+  // (T-002-D01-c). La sesión también cubre el caso de cerrar el modal
+  // (`estaMontado`/`esVigente`) y el candado síncrono de doble envío
+  // (T-002-D07): ver `sesion-formulario.ts`.
+  const [sesion] = useState(() => crearSesionFormulario());
+
+  useEffect(() => {
+    // `montar()` corre en cada pasada del efecto, incluida la segunda del
+    // doble montaje de React StrictMode (dev): así el componente realmente
+    // montado siempre termina con `montado = true` (T-002-D06).
+    sesion.montar();
+    return () => sesion.desmontar();
+  }, [sesion]);
 
   const errorRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -89,94 +98,99 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
     }
   }, [error]);
 
-  function borradorSigueVigente(id: number) {
-    return montadoRef.current && borradorRef.current === id;
-  }
-
   function abrirNuevo() {
-    borradorRef.current += 1;
+    sesion.nuevoBorrador();
     setEditando(null);
     setForm(formVacio());
     setError(null);
   }
 
   function abrirEdicion(r: RecordDeportivo) {
-    borradorRef.current += 1;
+    sesion.nuevoBorrador();
     setEditando(r);
     setForm(formDesdeRecord(r));
     setError(null);
   }
 
   function cancelar() {
-    borradorRef.current += 1;
+    sesion.nuevoBorrador();
     setForm(null);
     setEditando(null);
   }
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
-    if (!form || guardando) return;
+    if (!form) return;
+    // Candado síncrono (T-002-D07): a diferencia del estado `guardando`, que
+    // recién cambia en el siguiente render, esto bloquea un segundo envío ya
+    // en el mismo tick (doble clic, Enter repetido).
+    if (!sesion.iniciarEnvio()) return;
 
-    const mensaje = validarRecord(form);
-    if (mensaje) {
-      setError(mensaje);
-      return;
-    }
-
-    const miBorrador = borradorRef.current;
-    setGuardando(true);
-    setError(null);
-    const db = crearClienteNavegador();
-
-    if (editando) {
-      // El dueño es el del récord que se edita, nunca el miembro del modal
-      // actualmente abierto: si una respuesta tardía de otro miembro llegó a
-      // reemplazar records acá adentro, guardar igual no debe reasignarlos.
-      const miembroIdDueño = editando.miembro_id;
-      if (miembroIdDueño === null) {
-        if (borradorSigueVigente(miBorrador)) {
-          setError('Este récord no tiene miembro asociado.');
-          setGuardando(false);
-        }
+    try {
+      const mensaje = validarRecord(form);
+      if (mensaje) {
+        setError(mensaje);
         return;
       }
-      const fila = aFilaRecord(form, miembroIdDueño);
-      const { data, error: err } = await db
-        .from('records')
-        .update(fila)
-        .eq('id', editando.id)
-        .eq('miembro_id', miembroIdDueño)
-        .select('*')
-        .single();
-      if (err) {
-        if (borradorSigueVigente(miBorrador)) {
-          setError(err.message);
-          setGuardando(false);
-        }
-        return;
-      }
-      onGuardado(miembroIdDueño, data as RecordDeportivo);
-    } else {
-      const fila = aFilaRecord(form, miembro.id);
-      const { data, error: err } = await db
-        .from('records')
-        .insert(fila)
-        .select('*')
-        .single();
-      if (err) {
-        if (borradorSigueVigente(miBorrador)) {
-          setError(err.message);
-          setGuardando(false);
-        }
-        return;
-      }
-      onGuardado(miembro.id, data as RecordDeportivo);
-    }
 
-    if (borradorSigueVigente(miBorrador)) {
-      setGuardando(false);
-      setForm(null);
-      setEditando(null);
+      const miBorrador = sesion.borradorActual();
+      setGuardando(true);
+      setError(null);
+      const db = crearClienteNavegador();
+
+      if (editando) {
+        // El dueño es el del récord que se edita, nunca el miembro del modal
+        // actualmente abierto: si una respuesta tardía de otro miembro llegó
+        // a reemplazar records acá adentro, guardar igual no debe
+        // reasignarlos.
+        const miembroIdDueño = editando.miembro_id;
+        if (miembroIdDueño === null) {
+          if (sesion.esVigente(miBorrador)) {
+            setError('Este récord no tiene miembro asociado.');
+            setGuardando(false);
+          }
+          return;
+        }
+        const fila = aFilaRecord(form, miembroIdDueño);
+        const { data, error: err } = await db
+          .from('records')
+          .update(fila)
+          .eq('id', editando.id)
+          .eq('miembro_id', miembroIdDueño)
+          .select('*')
+          .single();
+        if (err) {
+          if (sesion.esVigente(miBorrador)) {
+            setError(err.message);
+            setGuardando(false);
+          }
+          return;
+        }
+        onGuardado(miembroIdDueño, data as RecordDeportivo);
+      } else {
+        const fila = aFilaRecord(form, miembro.id);
+        const { data, error: err } = await db
+          .from('records')
+          .insert(fila)
+          .select('*')
+          .single();
+        if (err) {
+          if (sesion.esVigente(miBorrador)) {
+            setError(err.message);
+            setGuardando(false);
+          }
+          return;
+        }
+        onGuardado(miembro.id, data as RecordDeportivo);
+      }
+
+      if (sesion.esVigente(miBorrador)) {
+        setGuardando(false);
+        setForm(null);
+        setEditando(null);
+      }
+    } finally {
+      sesion.terminarEnvio();
     }
   }
 
@@ -193,11 +207,11 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
       .select('*')
       .single();
     if (err) {
-      if (montadoRef.current) setError(err.message);
+      if (sesion.estaMontado()) setError(err.message);
       return;
     }
     onGuardado(miembroIdDueño, data as RecordDeportivo);
-    if (montadoRef.current) setError(null);
+    if (sesion.estaMontado()) setError(null);
   }
 
   async function borrar(r: RecordDeportivo) {
@@ -213,11 +227,11 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
       .eq('id', r.id)
       .eq('miembro_id', miembroIdDueño);
     if (err) {
-      if (montadoRef.current) setError(err.message);
+      if (sesion.estaMontado()) setError(err.message);
       return;
     }
     onBorrado(miembroIdDueño, r.id);
-    if (montadoRef.current) setError(null);
+    if (sesion.estaMontado()) setError(null);
   }
 
   return (
