@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Miembro } from '@/lib/types';
 import { ICONO_POSICION, contexto, fechaLogro, totalTrofeos } from '@/lib/palmares';
+import { recordsNacionalesVigentes } from '@/lib/records';
+import { textoDistintivoNacional } from '../_componentes/records-texto';
 import s from './equipo.module.css';
 
 /** Cuántos logros destacados caben en la tarjeta sin descuadrar la grilla. */
@@ -31,6 +33,7 @@ export default function MiembroCard({ miembro }: { miembro: Miembro }) {
   const destacados = miembro.palmares
     .filter((l) => l.destacado)
     .slice(0, DESTACADOS_EN_TARJETA);
+  const nacionales = recordsNacionalesVigentes(miembro.records).length;
   const ruta = `/equipo/${miembro.slug}`;
 
   return (
@@ -57,6 +60,12 @@ export default function MiembroCard({ miembro }: { miembro: Miembro }) {
 
         {/* El número de carrera solo aplica a pilotos */}
         {miembro.numero && <span className={s.pilotNumber}>#{miembro.numero}</span>}
+
+        {nacionales > 0 && (
+          <span className={s.distintivoRecord}>
+            <span aria-hidden="true">🏁</span> {textoDistintivoNacional(nacionales)}
+          </span>
+        )}
       </Link>
 
       <div className={s.pilotInfo}>
