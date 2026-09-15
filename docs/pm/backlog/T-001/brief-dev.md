@@ -68,8 +68,10 @@ y de `lib/records.ts` tiene que quedar exacto.
 
 Seguí el estilo de `0011_logros_estructurados.sql`: comentarios que explican el
 **por qué** de cada decisión y `comment on column` en lo no obvio. Antes de
-escribirla confirmá que `0012_foto_principal_atomica.sql` ya está en `main`; si
-no está, **pará y escalá** (el número 0013 depende de eso).
+escribirla confirmá que `0012_foto_principal_atomica.sql` está en **tu base**
+(`git log --oneline -- supabase/migrations/0012_foto_principal_atomica.sql`); si
+no está, **pará y escalá** (el número 0013 depende de eso). La base puede ser una
+rama de integración que apila PRs todavía abiertos: es esperado, no lo corrijas.
 
 | Columna | Tipo | Restricción |
 | ------- | ---- | ----------- |
