@@ -58,6 +58,47 @@ export interface Logro {
   creado_en: string;
 }
 
+/** Unidad de la velocidad de un récord. Se muestra como `mph` o `km/h`. */
+export type UnidadVelocidad = 'mph' | 'km_h';
+
+/**
+ * De qué es el récord. Solo `nacional` (y vigente) suma como récord nacional.
+ * Nulo en la base = no suma en ningún alcance, p. ej. un hito suelto.
+ */
+export type AlcanceRecord = 'nacional' | 'pista' | 'evento';
+
+/**
+ * Un récord: la marca (tiempo, velocidad o las dos) o, sin cifras, un hito.
+ * No se llama `Record` para no pisar el tipo global `Record<K, V>`.
+ * Refleja supabase/migrations/0013_records.sql.
+ */
+export interface RecordDeportivo {
+  id: number;
+  /** Nulo = récord del equipo, no de un miembro. */
+  miembro_id: number | null;
+  /** Con cifras, la disciplina («1/4 de milla»). Sin cifras, la frase del hito. */
+  titulo: string;
+  /** «Street Modified», «Pro»… */
+  categoria: string | null;
+  /** Segundos, 3 decimales. PostgREST puede serializar `numeric` como texto: formatear con `lib/records`. */
+  tiempo_s: number | null;
+  /** Hasta 2 decimales. Siempre con `unidad_velocidad` (CHECK en la base). */
+  velocidad: number | null;
+  unidad_velocidad: UnidadVelocidad | null;
+  alcance: AlcanceRecord | null;
+  /** Texto libre: el auto del récord casi nunca está en el inventario en venta. */
+  auto: string | null;
+  lugar: string | null;
+  anio: number | null;
+  /** 1-12. Nunca sin año. */
+  mes: number | null;
+  /** Falso cuando la marca fue superada. */
+  vigente: boolean;
+  /** Prueba del récord (video, acta). Solo http(s). */
+  fuente_url: string | null;
+  creado_en: string;
+}
+
 export interface Miembro {
   id: number;
   nombre: string;
@@ -83,6 +124,12 @@ export interface Miembro {
    * tabla `logros` reemplazó en la migración 0011.
    */
   palmares: Logro[];
+  /**
+   * Sus récords, ya ordenados con `ordenarRecords` (vigentes y nacionales
+   * primero). Tabla aparte de `logros` desde la migración 0013: un récord se
+   * muestra por su cifra o su frase, no por un puesto.
+   */
+  records: RecordDeportivo[];
   orden: number;
   activo: boolean;
   creado_en: string;
