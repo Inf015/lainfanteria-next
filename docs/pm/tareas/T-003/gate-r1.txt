@@ -1,0 +1,136 @@
+# Gate PM — T-003 ronda 1
+fecha : 2026-09-15 11:16:56 -0400
+rama  : oliver132123/records-sitio
+HEAD  : e5cd3ad468606cd0aa61914f44f1cefa0ccf54c7
+base  : oliver132123/records-schema (merge-base 3ad328e)
+
+## Commits
+e5cd3ad docs(pm): entrega-dev T-003 ronda 1
+d9eb8d4 feat(equipo): distintivo RÉCORD NACIONAL en la tarjeta del equipo
+b22a7e8 feat(equipo): bloque Récords y cifra de récords nacionales en /equipo/<slug>
+d301290 test(equipo): pruebas unitarias de records-texto
+9a19ad5 feat(equipo): componente Records reutilizable (fichas vigentes + historial)
+db9e1b4 docs(pm): brief T-003 (sale del backlog, entorno local compartido)
+
+## Archivos
+ app/(sitio)/_componentes/Records.tsx           | 108 ++++++++++++++++
+ app/(sitio)/_componentes/records-texto.ts      |  28 +++++
+ app/(sitio)/_componentes/records.module.css    | 168 +++++++++++++++++++++++++
+ app/(sitio)/equipo/MiembroCard.tsx             |   9 ++
+ app/(sitio)/equipo/[slug]/page.tsx             |   6 +
+ app/(sitio)/equipo/equipo.module.css           |  15 +++
+ docs/pm/{backlog => tareas}/T-003/brief-dev.md |  19 ++-
+ docs/pm/{backlog => tareas}/T-003/brief-qa.md  |   4 +-
+ docs/pm/tareas/T-003/entrega-dev.md            | 164 ++++++++++++++++++++++++
+ tests/unidad/records-texto.test.ts             |  57 +++++++++
+ 10 files changed, 574 insertions(+), 4 deletions(-)
+
+## Fuera de alcance (app/(admin), app/(sitio)/nosotros, lib/records.ts, lib/types.ts, lib/datos.ts, supabase) — vacío = OK
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-sitio
+
+
+ Test Files  8 passed (8)
+      Tests  135 passed (135)
+   Start at  11:17:01
+   Duration  273ms (transform 209ms, setup 0ms, import 353ms, tests 55ms, environment 1ms)
+
+→ OK
+
+## build
+$ npm run build
+
+> lainfanteria-next@0.1.0 build
+> next build
+
+▲ Next.js 16.3.1 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 15ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 424ms
+  Running TypeScript ...
+  Finished TypeScript in 2.3s ...
+  Collecting page data using 7 workers ...
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (0/13) ...
+  Generating static pages using 7 workers (3/13) 
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (6/13) 
+  Generating static pages using 7 workers (9/13) 
+✓ Generating static pages using 7 workers (13/13) in 714ms
+  Finalizing page optimization ...
+
+Route (app)            Revalidate  Expire
+┌ ○ /                          1m      1y
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/ajustes
+├ ƒ /admin/autos
+├ ƒ /admin/login
+├ ƒ /admin/miembros
+├ ƒ /admin/noticias
+├ ƒ /admin/productos
+├ ƒ /admin/secciones
+├ ƒ /admin/sin-acceso
+├ ○ /apple-icon.png
+├ ○ /autos                     1m      1y
+├ ○ /equipo                    1m      1y
+├ ● /equipo/[slug]
+├ ○ /icon.png
+├ ○ /merch                     1m      1y
+├ ○ /nosotros                  1m      1y
+├ ○ /noticias                  1m      1y
+├ ƒ /noticias/[slug]
+├ ○ /servicios                 1m      1y
+└ ○ /videos                    1m      1y
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+→ OK

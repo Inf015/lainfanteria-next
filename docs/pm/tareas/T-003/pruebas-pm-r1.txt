@@ -1,0 +1,26 @@
+# Verificación visual a cargo del PM — T-003 ronda 1
+fecha: 2026-09-15 11:21:36 -0400
+HEAD: e5cd3ad468606cd0aa61914f44f1cefa0ccf54c7
+Motivo: la entrega dejó CA-3 y CA-12 sin confirmación visual (el navegador del dev falló).
+Entorno: `next dev -p 3013` en este worktree con local-dev.env (Supabase LOCAL compartido, CHECKs de la 0013 ronda 3); navegador integrado de Orca en http://localhost:3013; viewports 1280x900, 730x837 y 400x860 (set viewport). Consola: 0 errores/advertencias.
+
+Datos (prefijo t003-): A = nacional vigente tiempo+velocidad con fuente, nacional vigente km/h, hito nacional vigente de ~230 caracteres, hito vigente sin alcance, superado con cifra, hito superado · B = récord de pista vigente con cifra + hito sin alcance · C = sin récords · D = nacional vigente con cifra.
+
+| Verificación | CA | Resultado |
+| ------------ | -- | --------- |
+| /equipo/t003-miembro-a a 1280: ficha con «9.874 s» grande y «@ 142.5 mph» más chico, etiqueta RÉCORD NACIONAL, «t003-1/4 de milla · Pro Modified», «auto · lugar», «Mayo 2024», «Ver fuente ↗» | CA-1 | OK |
+| Ficha km/h «320.5 km/h» sin línea de auto/lugar (no hay datos) y sin separadores colgando | CA-1 | OK |
+| Hito nacional largo: frase como elemento principal, sin cortes, etiqueta RÉCORD NACIONAL; hito sin alcance con etiqueta HITO | CA-2 | OK |
+| Grilla: 3 columnas a 1280 (289px c/u), altura pareja por fila; 1 columna a 730 y 400 | CA-3 | OK |
+| «Historial» debajo con SUPERADO: «6.500 s · t003-1/8 de milla · 2019» y «t003-Récord de la pista local (superado)» | CA-4 | OK |
+| Cabecera: cifra «3 · Récords nacionales» (A no tiene trofeos, así que no se pudo ver el orden respecto de «Trofeos») | CA-8 | OK (parcial) |
+| /equipo/t003-miembro-c: h2 solo «Biografía», sin bloque Récords | CA-6 | OK |
+| /equipo/t003-miembro-b: bloque con RÉCORD DE PISTA e HITO; sin cifra de nacionales | CA-7, CA-8 | OK |
+| /equipo a 1280 y 400: A «🏁 3 RÉCORDS NACIONALES», D y «T002 Piloto Prueba» «🏁 RÉCORD NACIONAL», B y C sin distintivo | CA-10, CA-11 | OK |
+| 400 px: scrollWidth = 400 en /equipo/t003-miembro-a y en /equipo; distintivos dentro de la tarjeta (x 41–224) | CA-12 | OK |
+| Bloque «Récords» es h2 igual que «Biografía» | CA-14 | OK |
+
+No verificado por el PM: CA-5 contra una URL no http(s) (la base ya lo impide; revisar estáticamente), CA-9 (sección apagada → 404), CA-13 (hidratación más allá de la consola limpia en dev).
+
+## Hallazgo fuera de alcance (preexistente, no introducido por T-003)
+- En las tarjetas de /equipo sin foto, la inicial del placeholder se ve con un subrayado azul de enlace (text-decoration del <Link> que envuelve la foto). Aparece también en tarjetas sin distintivo; T-003 no tocó el placeholder.
