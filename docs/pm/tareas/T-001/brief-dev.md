@@ -7,7 +7,7 @@
 | Base | `oliver132123/integracion-records` |
 | Tipo | feat |
 | Migración | **Sí** — `0013_records.sql` |
-| Ronda | 1 |
+| Ronda | 2 — ver `reporte-qa-r1.md` |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero** y después
 `docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
@@ -164,7 +164,13 @@ export function recordsNacionalesVigentes(records: RecordDeportivo[]): RecordDep
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
-No aplica en ronda 1.
+**Ronda 2** — de `reporte-qa-r1.md` (veredicto PASS-WITH-RESERVATIONS). Solo esto; nada más del reporte.
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-001-D01 | S3/P3 | `tests/unidad/records.test.ts:86-126` no persiste la tabla de decisión completa de `formatearMarca` que pide la sección 5 | Test parametrizado (`it.each`) con las **12 celdas** tiempo {válido `9.874`, nulo, inválido `0`} × velocidad {válida `142.5` mph, nula, inválida `-1` con unidad `mph`, sin unidad `142.5`/`null`}, con el string o `null` esperado **literal** en cada fila, y en la misma fila la aserción de `tieneCifras` coherente. Incluye explícitamente velocidad negativa **con** unidad válida. |
+
+Fuera de esta ronda (anotado por QA como pregunta, no defecto): redondeo de empates decimales y valores submínimos (`0.001 mph`). No los cambies ni les agregues tests: el PM los define antes de T-002.
 
 ## 7. Definición de hecho
 
