@@ -1,58 +1,88 @@
-# Entrega T-002 — ronda 2 (fix de `reporte-qa-r1.md`)
+# Entrega T-002 — ronda 3 (última permitida, fix de `pruebas-pm-r2.txt`)
 
 **Estado:** LISTA PARA QA
 
-Corrige los 5 defectos de `reporte-qa-r1.md` (veredicto FAIL) siguiendo
-`brief-dev.md` sección 6. No se tocó nada fuera de eso: `lib/records.ts`,
-`lib/types.ts`, `lib/datos.ts`, `app/(sitio)/`, `PalmaresModal.tsx` y
-`page.tsx` quedan intactos.
+Corrige T-002-D06 (N1) y T-002-D07 (N2), los dos hallazgos nuevos del PM en
+`pruebas-pm-r2.txt`. D01–D05 quedaron confirmados como corregidos en
+interfaz esa misma ronda y **no se tocaron**: corrí sus tests (siguen en
+verde) y no cambié su comportamiento — solo se movió el mecanismo interno
+que los sostenía (ver «Causa raíz» abajo). `next.config.ts` no se tocó:
+`reactStrictMode` sigue activo tal como estaba.
+
+## Causa raíz de D06 — confirmada
+
+Hipótesis del PM (`brief-dev.md` sección 6, ronda 3): `montadoRef` queda en
+`false` para siempre tras el doble montaje de React StrictMode.
+
+**Confirmada.** El código de ronda 2 era:
+
+```ts
+const montadoRef = useRef(true);
+useEffect(() => () => { montadoRef.current = false; }, []);
+```
+
+`useEffect(setup, [])` con `setup` vacío (solo devuelve el cleanup) hace que,
+bajo StrictMode en desarrollo, React corra: `setup1` (no hace nada) →
+`cleanup1` (`montadoRef.current = false`) → `setup2` (tampoco hace nada). El
+componente queda realmente montado, pero nada volvió a poner
+`montadoRef.current` en `true` después del `cleanup1`: se queda en `false`
+para siempre. Con eso, `borradorSigueVigente()` (que dependía de
+`montadoRef.current`) era siempre falso después del primer alta o edición
+exitosa, así que el `if (borradorSigueVigente(miBorrador)) { setGuardando(false); setForm(null); setEditando(null); }`
+final de `guardar()` nunca se ejecutaba: el modal quedaba en «Guardando…»
+para siempre aunque el `insert`/`update` ya había confirmado en la base
+(coincide exactamente con la evidencia del PM: `POST` en `201`, fila en la
+base, botón trabado). Las acciones rápidas «funcionaban» porque su camino de
+éxito no pasaba por ese mismo chequeo.
+
+Lo reproduje sin navegador con un test que hace exactamente esa secuencia
+(`montar(); desmontar(); montar();`) sobre la sesión nueva y comprueba que,
+al contrario que el código viejo, el borrador vigente sigue vigente después
+(`tests/unidad/sesion-formulario.test.ts`, ver tabla abajo).
 
 ## Defecto → cambio → test
 
 | Defecto | Cambio | Test |
 | --- | --- | --- |
-| **T-002-D01** (S1/P1) — respuesta tardía de A contamina el modal de B y permite reasignar el récord al editar | (a) `RecordsModal` ya no arma la lista completa ni la manda por `onCambio`: reporta `onGuardado(miembroId, fila)` / `onBorrado(miembroId, id)` con el **dueño real** del récord (`editando.miembro_id` al editar, no `miembro.id` del modal abierto). `MiembrosAdmin.tsx:216-225` aplica el cambio por `miembroId` sobre el estado más reciente (`setMiembros`/`setRecordsDe` funcionales) y solo toca `recordsDe` si `m.id === miembroId`. (b) El `UPDATE`/`DELETE` filtran además por `.eq('miembro_id', …)` con el dueño real (`RecordsModal.tsx:144-150`, `:188-194`, `:210-214`), así que aunque el modal tuviera datos contaminados, la base rechaza reasignar. (c) `borradorRef`/`montadoRef` (`RecordsModal.tsx:75-94`) hacen que una respuesta que llega después de Cancelar, abrir otro borrador o cerrar el modal **no** toque `form`/`error`/`guardando` de la sesión actual — sí sigue actualizando la lista global (correcto: el guardado en base es real). | `tests/unidad/records-form.test.ts` describe `aplicarRecordsDeMiembro — T-002-D01…` (2 tests): actualizar los records de A no toca los de B en la lista de miembros, y el modal abierto de B no cambia cuando llega la respuesta de A. La parte (b) (filtro `.eq('miembro_id', …)` contra la base real) y (c) (no tocar form/error de un borrador viejo) son de integración/UI — no mockeable como función pura; quedan en la lista de verificación del PM (`brief-dev.md` sección 6, prueba 1). |
-| **T-002-D02** (S2/P1) — dos acciones rápidas capturan el mismo snapshot y la última respuesta restaura el estado viejo de la otra fila | Se extrajo la lógica de listas a funciones puras en `lib/records-form.ts`: `aplicarGuardado(lista, fila)` (reemplaza por id o inserta, reordena con `ordenarRecords`, `:174-183`) y `aplicarBorrado(lista, id)` (`:186-188`). `RecordsModal` ya no arma el array; solo llama `onGuardado`/`onBorrado`. `MiembrosAdmin.tsx:216-225` las aplica dentro del `setState` funcional, es decir sobre el estado más reciente en el momento en que cada respuesta llega, nunca sobre un snapshot capturado antes del `await`. Errores de acciones rápidas se limpian tras un éxito (`RecordsModal.tsx:200`, `:220`). | `tests/unidad/records-form.test.ts` describe `aplicarGuardado` (3 tests: reemplaza por id, inserta si no existe, reordena), `aplicarBorrado` (2 tests) y `aplicarGuardado / aplicarBorrado — T-002-D02…` (3 tests): dos "marcar superado" en cualquier orden dejan ambas filas aplicadas, borrar una fila y actualizar otra durante la espera (la borrada no reaparece), actualizar y luego borrar la misma fila. |
-| **T-002-D03** (S3/P2) — el mensaje de error queda fuera de la vista al enviar desde abajo | El contenedor de error tiene `role="alert"`, `tabIndex={-1}` y un `ref`; un `useEffect` sobre `error` hace `scrollIntoView({ behavior: 'smooth', block: 'center' })` y `focus()` cuando aparece. Vale tanto para el error de `validarRecord` (CA-4) como el de Supabase (CA-9), porque ambos pasan por el mismo `setError`. | `RecordsModal.tsx:84-90`, `:234-238`. Es comportamiento de scroll/foco en el DOM real — no una función pura; queda en la verificación de interfaz del PM (`brief-dev.md` sección 6, prueba 6, a 730×837). |
-| **T-002-D04** (S3/P2) — `type="number" min/max` dispara la validación nativa del navegador antes de `validarRecord`, mostrando el mensaje del navegador en vez del contrato en español | `noValidate` en el `<form id="form-record">` (`RecordsModal.tsx:241`). Se mantienen `min`/`max`/`type="number"` en el campo Año como pista visual (spinners, teclado numérico), pero ya no bloquean el submit: `validarRecord` es quien decide y quien manda el mensaje. | Sin test unitario nuevo: `validarRecord` para año 1949/2101/2024.5 ya estaba cubierto (`describe('validarRecord — mes y año')`); lo que cambia es que ahora ese mensaje se ve en el navegador en vez del nativo, que es una verificación de interfaz (`brief-dev.md` sección 6, prueba 6). |
-| **T-002-D05** (S4/P3) — un hito (sin cifras) muestra «—» en la columna Marca en vez de nada | Se sacó el `?? '—'`: la celda renderiza directamente `formatearMarca(r)`, que es `null` en un hito y React no imprime nada. | Sin test nuevo: `formatearMarca` ya está probado en `tests/unidad/records.test.ts` (T-001, no tocado) — devuelve `null` sin cifras. El cambio es puramente de JSX (`RecordsModal.tsx:456`), verificable a simple vista por el PM. |
+| **T-002-D06** (S2/P1, N1) — el alta/edición exitosa deja el modal en «Guardando…» para siempre en `next dev` (StrictMode) | Se reemplazó el par `useRef(true)` + cleanup-solo por una sesión aparte de React: `app/(admin)/(panel)/admin/miembros/sesion-formulario.ts` (nuevo), con `montar()`/`desmontar()` como funciones explícitas. El `useEffect` de `RecordsModal.tsx:85-91` llama `sesion.montar()` en el cuerpo del efecto (no solo en el cleanup), así que la **segunda** pasada de StrictMode también pone `montado = true`; solo un `desmontar()` real, sin `montar()` después, lo deja en `false`. `borradorRef`/`montadoRef` y `borradorSigueVigente()` desaparecieron de `RecordsModal.tsx`; ahora se usa `sesion.esVigente(miBorrador)` (`:148`, `:163`, `:178`, `:187`) y `sesion.estaMontado()` en las acciones rápidas (`:210`, `:214`, `:230`, `:234`). | `tests/unidad/sesion-formulario.test.ts` describe `T-002-D06…` (4 tests): `montar→desmontar→montar` (StrictMode) deja vigente el borrador actual; un desmontaje real después de eso lo deja no vigente; antes del primer `montar()` nada está vigente; un borrador viejo deja de estar vigente cuando se abre uno nuevo (Cancelar/nueva edición — mismo comportamiento que D01-c de ronda 2, ahora sobre el nuevo módulo). |
+| **T-002-D07** (S3/P2, N2) — dos envíos en el mismo tick (antes del re-render) insertan dos filas porque la guardia usaba el estado `guardando` | `guardar()` ahora arranca con `if (!sesion.iniciarEnvio()) return;` (`RecordsModal.tsx:127`) — un candado síncrono con una variable cerrada en `sesion-formulario.ts` (no un estado de React, que recién cambia en el siguiente render). El resto de `guardar()` quedó envuelto en `try { … } finally { sesion.terminarEnvio(); }` (`:129`, `:192-194`) para soltar el candado en cualquier salida (validación inválida, error de la base, o éxito), y así un envío legítimo posterior no quede bloqueado. El estado `guardando`/`disabled` del botón no cambió: sigue siendo la señal visual; el candado nuevo es la garantía real. | `tests/unidad/sesion-formulario.test.ts` describe `T-002-D07…` (3 tests): dos `iniciarEnvio()` seguidos — solo el primero toma el candado; tras `terminarEnvio()` un envío nuevo sí puede empezar; `terminarEnvio()` sin un `iniciarEnvio()` previo no rompe el candado siguiente (caso defensivo). |
 
-## Refactor de soporte (no es un defecto propio, pero lo pide la sección 6)
+## Por qué un archivo aparte y no un hook de React
 
-`RecordsModal` cambió su contrato con el padre: antes mandaba la lista
-completa reconstruida (`onCambio: (records) => void`, la causa raíz de D01 y
-D02); ahora manda solo el delta con el dueño (`onGuardado(miembroId, fila)` /
-`onBorrado(miembroId, id)`, `RecordsModal.tsx:56-62`) y es
-`MiembrosAdmin`/`lib/records-form.ts` quien decide, por id y sobre el estado
-más reciente, a qué miembro y a qué modal abierto aplicarlo
-(`aplicarRecordsDeMiembro`, `lib/records-form.ts:195-199`;
-`MiembrosAdmin.tsx:216-225`).
+El brief ofrecía la opción de un `.ts` nuevo junto al modal para "el hook o
+guard". Elegí una función-fábrica simple (`crearSesionFormulario()`) que
+devuelve un objeto con métodos, **sin usar hooks de React adentro**, a
+propósito: así se prueba con `vitest` en el entorno `node` de
+`tests/unidad/` (el mismo que ya usa `records-form.test.ts`), sin renderizar
+componentes, sin `jsdom` ni `@testing-library/react` — que hubiera requerido
+agregar dependencias nuevas y tocar `vitest.config.mts`, fuera de los
+archivos permitidos esta ronda. `RecordsModal.tsx` conecta esa sesión a su
+ciclo de vida con un único `useEffect` (`montar`/`desmontar`) y un
+`useState(() => crearSesionFormulario())` para mantener la misma instancia
+entre renders — no `useRef` con inicialización perezosa: el lint del repo
+(`react-hooks/refs`, de `eslint-config-next` 16) prohíbe leer `ref.current`
+durante el render, incluido el patrón `if (!ref.current) ref.current = …`.
 
 ## Archivos tocados
 
-- `lib/records-form.ts` — agrega `aplicarGuardado`, `aplicarBorrado`,
-  `aplicarRecordsDeMiembro` (funciones puras, importan `ordenarRecords` de
-  `lib/records.ts` para reordenar — no se modificó ese archivo, solo se
-  importa lo que ya exportaba).
-- `app/(admin)/(panel)/admin/miembros/RecordsModal.tsx` — contrato
-  `onGuardado`/`onBorrado` con dueño explícito, filtro `.eq('miembro_id', …)`
-  en update/delete, `borradorRef`/`montadoRef`, error con `role="alert"` +
-  scroll/foco, `noValidate`, celda Marca sin `'—'`.
-- `app/(admin)/(panel)/admin/miembros/MiembrosAdmin.tsx` — reemplaza
-  `onCambio` por `onGuardado`/`onBorrado` conectados a
-  `actualizarRecordsDeMiembro`, que aplica por id sobre el estado más
-  reciente.
-- `tests/unidad/records-form.test.ts` — 10 tests nuevos (helper `miembro()` +
-  los 4 `describe` de arriba).
+- `app/(admin)/(panel)/admin/miembros/sesion-formulario.ts` (nuevo) —
+  `crearSesionFormulario()`: `montar`/`desmontar`, `nuevoBorrador`/
+  `borradorActual`/`esVigente` (D06/D01-c), `estaMontado` (D02, acciones
+  rápidas), `iniciarEnvio`/`terminarEnvio` (D07).
+- `app/(admin)/(panel)/admin/miembros/RecordsModal.tsx` — usa la sesión en
+  vez de `borradorRef`/`montadoRef`; `guardar()` con el candado síncrono y
+  `try/finally`.
+- `tests/unidad/sesion-formulario.test.ts` (nuevo) — 7 tests (D06 + D07).
 
-No se tocó `page.tsx`: su `select` ya traía `records(*)` desde la ronda 1 y
-ningún defecto de esta ronda lo requería.
+No se tocó `MiembrosAdmin.tsx`: el contrato `onGuardado`/`onBorrado` de
+ronda 2 no cambió, ni hacía falta para D06/D07. Tampoco `lib/records-form.ts`,
+`lib/records.ts`, `lib/types.ts`, `lib/datos.ts`, `app/(sitio)/` ni
+`next.config.ts`.
 
 ## Commits de esta ronda
 
-Ver `git log` en la rama — un commit por defecto/grupo relacionado más el de
-tests, conventional commits en español, cada uno con los archivos stageados
-por nombre.
+Ver `git log` en la rama — conventional commits en español, archivos
+stageados por nombre.
 
 ## Verificación (salida real)
 
@@ -67,38 +97,38 @@ $ npm run lint
 (sin salida = sin errores)
 
 $ npm test
- Test Files  8 passed (8)
-      Tests  187 passed (187)
+ Test Files  9 passed (9)
+      Tests  194 passed (194)
 
 $ npm run build
-✓ Compiled successfully in 639ms
+✓ Compiled successfully in 562ms
   Running TypeScript ...
-  Finished TypeScript in 1424ms ...
+  Finished TypeScript in 1375ms ...
 [supabase] "miembros activos" falló: { code: 'PGRST200', ... }
 ✓ Generating static pages using 7 workers (13/13)
 ```
 
-El `PGRST200` es el mismo esperado de ronda 1 (build corre contra Supabase de
-**producción**, sin la migración 0013 aplicada todavía; no es de esta
-tarea).
+`npm run build` corrió completo sin que el sistema lo cortara por memoria.
+El `PGRST200` es el mismo esperado de rondas anteriores (build contra
+Supabase de **producción**, sin la migración 0013 aplicada todavía; no es de
+esta tarea).
 
 ## Qué verifiqué en local y qué no
 
 **Verificado esta ronda:** los 5 checks de arriba (typegen, tsc, lint,
-187/187 tests, build), incluidos los 10 tests nuevos que cubren exactamente
-los escenarios D01 (respuesta de A no contamina el modal/lista de B) y D02
-(dos respuestas en ambos órdenes, y borrado + actualización concurrente de
-otra fila) sobre las funciones puras `aplicarGuardado`/`aplicarBorrado`/
-`aplicarRecordsDeMiembro`.
+194/194 tests, build). Los 7 tests nuevos reproducen, sin navegador ni
+mocks de base, la secuencia exacta que dispara N1 (StrictMode: montar →
+desmontar → montar) y la carrera de N2 (dos envíos antes de que el primero
+resuelva). También corrí los 187 tests previos (D01–D05, `validarRecord`,
+`aFilaRecord`, `aplicarGuardado`/`aplicarBorrado`/`aplicarRecordsDeMiembro`)
+tal cual estaban, sin tocarlos, y siguen en verde.
 
 **No verificado por mí esta ronda:** no levanté `npm run dev` ni toqué el
-Supabase local compartido. `brief-dev.md` sección 6 es explícito en que la
-verificación de interfaz (D01-b/c, D03, D04, CA-8/9/12 con carreras reales)
-la hace el PM con las 10 pruebas listadas en `reporte-qa-r1.md` sección
-"Pruebas a ejecutar por el PM", y que la lógica de listas debe probarse con
-funciones puras sin mockear la base — que es lo que entrego. No repetí la
-verificación manual con `curl` de ronda 1 porque ningún defecto de esta ronda
-toca el `insert`/`select` básico ya confirmado entonces.
+Supabase local compartido — no hacía falta reabrir sesión ni recrear el
+trigger de demora del PM. `brief-dev.md` sección 6 (Ronda 3) pide
+explícitamente verificar la hipótesis "sin navegador" con un test del
+guard/hook, que es lo que entrego; la repetición en interfaz (alta real en
+`next dev`, doble clic humano, Enter repetido) la hace el PM.
 
 ## Migraciones
 
