@@ -7,7 +7,7 @@
 | Base | `oliver132123/records-schema` |
 | Tipo | feat |
 | Migración | No |
-| Ronda | 1 |
+| Ronda | 2 — ver `reporte-qa-r1.md` (FAIL) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero** y después
 `docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
@@ -113,7 +113,19 @@ export function aFilaRecord(form: FormRecord, miembroId: number | null): Omit<Re
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
-No aplica en ronda 1.
+**Ronda 2** — de `reporte-qa-r1.md` (veredicto FAIL). Leé cada defecto completo en el reporte (pasos, evidencia y sugerencia).
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-002-D01 | S1/P1 | Una respuesta tardía de A, llegada con el modal de B abierto, reemplaza la lista de B; al editar ahí, `aFilaRecord(form, miembro.id)` reasigna el récord de A a B | (a) Toda actualización de estado se aplica **por id de miembro** sobre el estado más reciente: `setMiembros(ms => ms.map(m => m.id === miembroId ? … : m))` y el modal abierto solo se toca si `recordsDe?.id === miembroId`. (b) **Editar nunca cambia el dueño**: el UPDATE usa el `miembro_id` del récord editado (no el del modal) y filtra `.eq('id', …).eq('miembro_id', …)`. (c) Una respuesta que llega después de cerrar el modal o de cambiar de borrador **no toca** el formulario ni el error del modal actual (riesgo `setForm(null)` tras Cancelar, sección Riesgos del reporte). |
+| T-002-D02 | S2/P1 | Dos acciones rápidas capturan el mismo array `records` y la última respuesta restaura el estado viejo de la otra fila | Cada respuesta se aplica **por id de récord** sobre el estado más reciente (setState funcional), nunca reconstruyendo la lista desde un snapshot capturado. Alta, edición, superado/vigente y borrado. Tras una acción exitosa se limpia el error anterior de acciones rápidas. |
+| T-002-D03 | S3/P2 | El mensaje de validación/error queda fuera de la vista al enviar desde abajo | Al fallar la validación o la base, el mensaje queda visible sin desplazarse a mano: p. ej. `role="alert"` + `scrollIntoView` del mensaje (o mostrarlo junto a los botones). Vale para CA-4 y CA-9. |
+| T-002-D04 | S3/P2 | `type="number" min/max` dispara la validación nativa del navegador antes de `validarRecord` | `noValidate` en el formulario (o equivalente) para que **siempre** se vean los mensajes en español del contrato. No pierdas `required` visual si lo usás como pista, pero la validación la hace `validarRecord`. |
+| T-002-D05 | S4/P3 | Un hito muestra «—» en la columna Marca | Celda vacía cuando `formatearMarca` es null, como dice CA-2. |
+
+**Pruebas nuevas obligatorias (regresión):** extraé la lógica de actualización de listas a funciones puras en `lib/records-form.ts` (p. ej. `aplicarGuardado(lista, fila)` que reemplaza o inserta por id y reordena con `ordenarRecords`, `aplicarBorrado(lista, id)`, y la de actualizar un miembro por id dentro de la lista de miembros) y probalas en `tests/unidad/records-form.test.ts` con los escenarios de D01 (respuesta de A aplicada con B abierto: B no cambia) y D02 (dos respuestas en ambos órdenes sobre el mismo estado inicial: ambas quedan; borrado + actualización concurrente: la fila borrada no reaparece). Sin mocks de base: son funciones puras sobre arrays.
+
+Fuera de esta ronda: O-2 (scroll horizontal de tablas) queda como riesgo a verificar por el PM; la gramática `.5`/`5.` y URL sin host no se cambian.
 
 ## 7. Definición de hecho
 
