@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # Crea el worktree, la rama y la carpeta de una tarea con los briefs prellenados.
 #
-#   docs/pm/scripts/nueva-tarea.sh T-012 galeria-autos [--base <ref>] [--sin-npm]
+#   docs/pm/scripts/nueva-tarea.sh T-012 galeria-autos [--base <ref>] [--desde <dir>] [--sin-npm]
+#
+# --desde toma brief-dev.md y brief-qa.md ya escritos (p. ej. docs/pm/backlog/T-012)
+# en vez de las plantillas en blanco. Rama, worktree y base se rellenan igual.
 #
 # WORKTREES_DIR cambia dónde se crea el worktree (por defecto, al lado del repo actual).
 set -euo pipefail
 
-uso() { echo "uso: $0 T-NNN <slug-en-kebab> [--base <ref>] [--sin-npm]" >&2; exit 2; }
+uso() { echo "uso: $0 T-NNN <slug-en-kebab> [--base <ref>] [--desde <dir>] [--sin-npm]" >&2; exit 2; }
 
 [[ $# -ge 2 ]] || uso
 ID=$1; SLUG=$2; shift 2
-BASE=origin/main; NPM=1
+BASE=origin/main; NPM=1; DESDE=
 while [[ $# -gt 0 ]]; do
   case $1 in
     --base) BASE=${2:?falta la ref de --base}; shift 2 ;;
+    --desde) DESDE=${2:?falta el directorio de --desde}; shift 2 ;;
     --sin-npm) NPM=0; shift ;;
     *) uso ;;
   esac
@@ -26,6 +30,15 @@ RAIZ=$(git rev-parse --show-toplevel)
 RAMA="oliver132123/$SLUG"
 WT="${WORKTREES_DIR:-$(dirname "$RAIZ")}/lainfanteria-next-$SLUG"
 DIR_TAREA="docs/pm/tareas/$ID"
+
+if [[ -n $DESDE ]]; then
+  DESDE=$(cd "$DESDE" && pwd -P)
+  for f in brief-dev.md brief-qa.md; do
+    [[ -f $DESDE/$f ]] || { echo "falta $DESDE/$f" >&2; exit 1; }
+  done
+  grep -q "^# $ID " "$DESDE/brief-dev.md" \
+    || { echo "$DESDE/brief-dev.md no es de $ID (el título debe empezar con '# $ID ')" >&2; exit 1; }
+fi
 
 [[ $BASE == origin/* ]] && git -C "$RAIZ" fetch --quiet origin
 
@@ -48,7 +61,7 @@ mkdir -p "$WT/$DIR_TAREA"
 # Las plantillas salen de la base, no del checkout actual: así la tarea usa la
 # misma versión del proceso que va a ver el dev.
 rellenar() {
-  git -C "$RAIZ" show "$BASE:docs/pm/plantillas/$1" | sed \
+  if [[ -n $DESDE ]]; then cat "$DESDE/$1"; else git -C "$RAIZ" show "$BASE:docs/pm/plantillas/$1"; fi | sed \
     -e "s|T-NNN|$ID|g" \
     -e "s|oliver132123/<slug>|$RAMA|g" \
     -e "s|\`<ruta absoluta>\`|\`$WT\`|g" \
