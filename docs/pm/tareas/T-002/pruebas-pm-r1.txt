@@ -1,0 +1,24 @@
+# Pruebas de interfaz a cargo del PM — T-002 ronda 1
+fecha: 2026-09-15 11:13:55 -0400
+HEAD: 82befdad3d6b9f6d63af0d31431a53d67702e85f
+Motivo: la entrega declaró como NO HECHO el recorrido clic a clic (el navegador del dev no llegaba a localhost).
+Entorno: `next dev -p 3012` en este worktree con local-dev.env (Supabase LOCAL compartido); navegador integrado de Orca en http://localhost:3012, ventana 730x837; sesión admin2@local.test. Miembro de prueba: «T002 Piloto Prueba».
+
+| Paso | CA | Resultado |
+| ---- | -- | --------- |
+| Login local y /admin/miembros cargan; consola sin errores (solo HMR/Fast Refresh) | — | OK |
+| Botón «Récords» en cada fila de la tabla de miembros | CA-1 | OK |
+| Abrir modal: título «Récords de T002 Piloto Prueba»; vigente nacional con píldora SUMA primero, hito nacional superado sin SUMA | CA-1, CA-2 | OK (captura revisada) |
+| «+ Agregar récord»: campos título, tiempo, velocidad+unidad (mph por defecto), alcance sin preselección («— elegí —», deshabilitada), categoría, auto, lugar, año, mes, fuente, vigente marcado | Formulario | OK |
+| Guardar con alcance sin elegir → «Elegí el alcance: si no suma como récord nacional, elegí Ninguno.»; no se inserta nada; el formulario conserva lo escrito | CA-4 | OK (ver observación O-1) |
+| Alcance «Ninguno — no suma», tiempo «6,12» → en base tiempo_s=6.120, alcance NULL, vigente=true; aparece en la lista como «Récord», sin SUMA, en su posición ordenada, sin recargar | CA-5, CA-6, CA-7 | OK |
+| «Marcar superado» sobre el nacional → SUMA desaparece, pasa debajo de los vigentes, base vigente=f; «Marcar vigente» lo restituye | CA-10 | OK |
+| «Borrar»: confirm con texto «¿Borrar "t002-UI 1/8 de milla"?»; al aceptar, la fila se borra en base y sale de la lista, el modal sigue abierto | CA-11 | OK (el navegador integrado rechaza los confirm nativos: la rama «aceptar» se probó reemplazando window.confirm por una función que registra el texto y devuelve true; la rama «cancelar» quedó probada con el rechazo automático: la fila no se borró) |
+| Cerrar y reabrir el modal sin recargar muestra el estado actualizado | CA-12 | OK |
+| Galería de trofeos sigue abriendo su modal | CA-13 | OK (parcial: solo apertura) |
+
+No probado por el PM: doble clic en Guardar (CA-8), error devuelto por la base con el mensaje en el modal (CA-9), editar un récord con alcance nulo mostrando «Ninguno» (CA-7, última frase).
+
+## Observaciones de experiencia de uso (para evaluación de QA; no son defectos confirmados)
+- O-1: el mensaje de validación se renderiza arriba del formulario; con el botón «Agregar» abajo y el formulario desplazado, quedó fuera de la vista (y = -80 px). Quien carga aprieta «Agregar», no ve nada y no sabe por qué no se guardó.
+- O-2: con ventana de ~730 px, el botón «Récords» de la tabla de miembros queda a la derecha del borde (x=741) y solo se alcanza con scroll horizontal del contenedor; dentro del modal, la columna de acciones (Editar/Borrar) queda cortada a la derecha. Un clic en esa zona cae sobre el fondo y cierra el modal.
