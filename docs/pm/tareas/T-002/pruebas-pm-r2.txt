@@ -1,0 +1,30 @@
+# Pruebas de interfaz a cargo del PM — T-002 ronda 2
+fecha: 2026-09-15 16:39:58 -0400
+HEAD: 7ee3d9dc4a252df1070273b0eb58c62f6fc72411
+Entorno: `next dev -p 3012` (desarrollo) con local-dev.env contra Supabase LOCAL compartido; navegador integrado de Orca; ventana 730x837; sesión admin2@local.test.
+Demora real sin mocks: trigger temporal BEFORE INSERT/UPDATE/DELETE en records con pg_sleep(6) solo para títulos 't002-lento%' (creado y BORRADO al terminar). Segundo miembro de prueba: «t002-pm Miembro B».
+Las acciones se dispararon con element.click() desde el navegador (para poder controlar los tiempos de las carreras).
+
+## Confirmación de defectos de la ronda 1
+| ID | Resultado | Evidencia |
+| -- | --------- | --------- |
+| D01 | FIXED | Abrir A, «Marcar superado» en t002-lento uno (6 s), cerrar, abrir B. B antes y 8 s después: "Todavía no tiene récords", 0 filas. Base: t002-lento uno sigue en «T002 Piloto Prueba», vigente=false. A reabierto: uno SUPERADO. |
+| D02 | FIXED | (a) «Marcar vigente» en uno + «Marcar superado» en dos casi simultáneos: a 14 s UI uno VIGENTE/SUMA, dos SUPERADO; base uno=true, dos=false. (b) Borrar dos + marcar superado uno: a 14 s la UI solo muestra uno SUPERADO; base igual; reabierto igual (la borrada no reaparece). |
+| D03 | FIXED | Enviar desde abajo con alcance sin elegir: «Elegí el alcance: …» con role=alert en y=119 (ventana 837), visible. |
+| D04 | FIXED | Año 1949 con alcance Nacional: «El año tiene que estar entre 1950 y 2100.» en y=119; 0 filas insertadas. |
+| D05 | FIXED | Hito sin cifras: celda Marca vacía. |
+
+## Defectos nuevos encontrados por el PM
+### N1 — El alta de un récord deja el modal trabado en «Guardando…» (regresión de la ronda 2)
+- Reproducible en desarrollo, con y sin demora: recargar /admin/miembros, abrir Récords de «T002 Piloto Prueba», «+ Agregar récord», título + alcance Nacional, Agregar (un clic).
+- Resultado: POST /rest/v1/records → 201 y la fila queda en la base («t002-rapido 1», «t002-lento r1»), pero a 1, 3, 8 y 12 s el botón sigue «Guardando…» deshabilitado y el formulario no se cierra. Envíos posteriores ni siquiera generan pedido de red. En la ronda 1 el alta cerraba el formulario y agregaba la fila a la lista.
+- Hipótesis (no verificada en producción): RecordsModal.tsx:76-81 pone montadoRef.current=false en el cleanup de un useEffect([]) y nunca lo vuelve a true al montar. En desarrollo, React StrictMode (activo por defecto en App Router; reactStrictMode no está configurado) monta→desmonta→monta, así que montadoRef queda en false para siempre: borradorSigueVigente() siempre es false (líneas 137-176) y los setError de las acciones rápidas (196-220) tampoco se ejecutan. Las acciones rápidas «funcionan» porque su camino de éxito no depende de montadoRef.
+### N2 — Doble envío en el mismo tick inserta dos filas (CA-8)
+- Formulario válido, dos clics sincrónicos sobre «Agregar» (b.click(); b.click()) con demora de 6 s: 2 filas «t002-lento doble» con el mismo creado_en, y el formulario quedó en «Guardando…».
+- RecordsModal.tsx:118 protege con el estado `guardando`, que recién cambia en el render siguiente: dos envíos antes de ese render ven guardando=false. No se pudo medir el doble clic humano (80 ms) ni Enter repetido de forma concluyente porque N1 traba el formulario en cada alta.
+
+## Nota sobre la sesión
+Durante las pruebas la sesión se cerró dos veces por un error del script del PM (el selector tomaba el botón «Salir» del encabezado; el log de auth muestra POST /logout a las 20:29 y 20:33). No es un defecto de la aplicación. N2 ocurrió antes del primer logout (20:26:15) con el selector correcto.
+
+## No probado
+CA-9 (error de base visible) y CA-7 edición con alcance nulo en interfaz: bloqueados por N1. O-2 no se repitió.

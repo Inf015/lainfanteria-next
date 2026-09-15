@@ -7,7 +7,7 @@
 | Base | `oliver132123/records-schema` |
 | Tipo | feat |
 | Migración | No |
-| Ronda | 2 — ver `reporte-qa-r1.md` (FAIL) |
+| Ronda | 3 (última) — ver `pruebas-pm-r2.txt` (ronda 2: `reporte-qa-r1.md`) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero** y después
 `docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
@@ -124,6 +124,15 @@ export function aFilaRecord(form: FormRecord, miembroId: number | null): Omit<Re
 | T-002-D05 | S4/P3 | Un hito muestra «—» en la columna Marca | Celda vacía cuando `formatearMarca` es null, como dice CA-2. |
 
 **Pruebas nuevas obligatorias (regresión):** extraé la lógica de actualización de listas a funciones puras en `lib/records-form.ts` (p. ej. `aplicarGuardado(lista, fila)` que reemplaza o inserta por id y reordena con `ordenarRecords`, `aplicarBorrado(lista, id)`, y la de actualizar un miembro por id dentro de la lista de miembros) y probalas en `tests/unidad/records-form.test.ts` con los escenarios de D01 (respuesta de A aplicada con B abierto: B no cambia) y D02 (dos respuestas en ambos órdenes sobre el mismo estado inicial: ambas quedan; borrado + actualización concurrente: la fila borrada no reaparece). Sin mocks de base: son funciones puras sobre arrays.
+
+**Ronda 3 (la última permitida)** — hallazgos del PM en `pruebas-pm-r2.txt`. D01–D05 quedaron confirmados como corregidos en interfaz; no los toques salvo que el fix de N1/N2 lo exija.
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-002-D06 (N1) | S2/P1 | El alta deja el modal en «Guardando…» para siempre aunque la fila se guarda; reproducible en `next dev` | Tras un alta o edición exitosa el formulario se cierra y la fila aparece en la lista; tras un error se ve el mensaje y el botón se rehabilita. Hipótesis del PM (verificala antes de corregir): `montadoRef` nunca vuelve a `true` después del doble montaje de React StrictMode (`RecordsModal.tsx:76-81`). El fix tiene que funcionar **con StrictMode** (no lo desactives) y no reabrir D01. |
+| T-002-D07 (N2) | S3/P2 | Dos envíos antes del re-render insertan dos filas: la guardia usa el estado `guardando` (`RecordsModal.tsx:118`) | Guardia síncrona (p. ej. `useRef`) que impide un segundo envío mientras hay uno en curso, incluido el mismo tick; el botón sigue mostrándose deshabilitado con «Guardando…». |
+
+**Cómo verificar vos (sin navegador):** reproducí N1 con un test que monte el ciclo de vida del efecto: extraé la lógica de «¿esta respuesta todavía debe aplicarse?» a una función o hook pequeño y probá que después de *montar → desmontar → montar* (lo que hace StrictMode) una respuesta del borrador vigente **sí** se aplica, y que tras desmontar de verdad **no**. Para N2, una función pura o un test del guard que demuestre que dos llamadas seguidas antes de resolver la primera solo disparan una escritura. La verificación en interfaz la repite el PM.
 
 Fuera de esta ronda: O-2 (scroll horizontal de tablas) queda como riesgo a verificar por el PM; la gramática `.5`/`5.` y URL sin host no se cambian.
 

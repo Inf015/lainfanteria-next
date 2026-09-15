@@ -1,0 +1,55 @@
+# Gate PM — T-002 ronda 2
+fecha : 2026-09-15 16:21:46 -0400
+rama  : oliver132123/records-panel
+HEAD  : 7ee3d9dc4a252df1070273b0eb58c62f6fc72411
+
+## Commits de la ronda (desde f88dca2, brief de ronda 2)
+7ee3d9d docs(pm): entrega-dev T-002 ronda 2
+03dfd86 test(admin): agrega regresión de récords para D01 y D02
+56e6086 fix(admin): corrige D01-D05 del modal de récords (ronda 2)
+dbc5cc5 fix(admin): agrega funciones puras para aplicar guardado/borrado de récords por id
+
+## Archivos
+ .../(panel)/admin/miembros/MiembrosAdmin.tsx       |  32 ++-
+ .../(panel)/admin/miembros/RecordsModal.tsx        | 129 ++++++++++---
+ docs/pm/tareas/T-002/entrega-dev.md                | 214 ++++++++-------------
+ lib/records-form.ts                                |  45 ++++-
+ tests/unidad/records-form.test.ts                  | 129 ++++++++++++-
+ 5 files changed, 375 insertions(+), 174 deletions(-)
+
+## Fuera de alcance (lib/records.ts, lib/types.ts, lib/datos.ts, app/(sitio), supabase) — vacío = OK
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel
+
+
+ Test Files  8 passed (8)
+      Tests  187 passed (187)
+   Start at  16:21:53
+   Duration  331ms (transform 408ms, setup 0ms, import 566ms, tests 87ms, environment 0ms)
+
+→ OK
