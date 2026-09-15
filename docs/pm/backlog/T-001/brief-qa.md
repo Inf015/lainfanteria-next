@@ -39,28 +39,39 @@ acá se propaga o llega a producción como dato roto. Prioridad de revisión:
    tres políticas, `using` **y** `with check` con `es_admin()`, grants a `anon`
    (solo select) y `authenticated`. Una política `for all` sin `to authenticated`
    o un `grant insert` a `anon` es **S1**.
-2. **CHECKs en la base, no solo en TypeScript** — `valor > 0`, disciplina no vacía
-   *ni solo espacios*, mes sin año, rango de año, `fuente_url` http(s) sin
-   distinguir mayúsculas. Buscá cómo se cuela `' '`, `'HTTPS://'`, `'javascript:'`,
-   `' https://'` (espacio inicial).
-3. **Riesgo de deploy** — `COLUMNAS_MIEMBRO` con `records(*)` hace fallar toda la
+2. **Lectura pública con `miembro_id` nulo** — la política de `anon` tiene que
+   dejar ver los del equipo **y** los de miembros activos, y **ninguno** de un
+   miembro inactivo. Buscá la trampa de SQL con `NULL`: `exists (… where m.id =
+   miembro_id)` es falso cuando `miembro_id` es nulo, y `miembro_id is null or …`
+   bien escrito lo resuelve; una condición como `not exists (… inactivo)` expone
+   de más. Exponer récords de un inactivo es **S2**.
+3. **CHECKs en la base, no solo en TypeScript** — coherencia por tipo (marca ⇒
+   valor y unidad; hito ⇒ ninguno de los dos; ¿qué pasa con valor sin unidad?),
+   `valor > 0`, título no vacío *ni solo espacios*, mes sin año, rango de año,
+   `fuente_url` http(s) sin distinguir mayúsculas. Buscá cómo se cuela `' '`,
+   `'HTTPS://'`, `'javascript:'`, `' https://'` (espacio inicial).
+4. **Riesgo de deploy** — `COLUMNAS_MIEMBRO` con `records(*)` hace fallar toda la
    consulta si la tabla no existe, y `consultar()` devuelve `[]` en silencio:
    `/equipo` vacío. Verificá que `entrega-dev.md` diga **REQUIERE db push ANTES
    del merge**. Si no lo dice: defecto S2/P1 de documentación.
-4. **Contrato de `lib/records.ts`** — nombres y firmas **exactos** a los del
-   brief (T-002 y T-003 los importan). Cualquier diferencia es S2/P1.
-5. **`formatearMarca`** — valores límite y redondeo de punto flotante: `199.999`,
-   `0.001`, `'9.874'` como string, `NaN`, `Infinity`, `-0`, `''`. ¿Qué pasa con
-   `toFixed` sobre números como `1.0005`? Si el resultado difiere del esperado
-   según la regla del brief, es defecto.
-6. **`ordenarRecords`** — ¿muta la entrada? ¿Es estable el desempate por `id`?
-   ¿`null` en `anio` queda al final en ambos lados del comparador?
-7. **Nombre del tipo** — `Record` a secas pisaría el global de TypeScript.
-8. **`fechaLogro`** — el cambio de firma no puede romper `GaleriaTrofeos`,
-   `MiembroCard` ni `PalmaresModal` (buscá todos los usos).
-9. **Pruebas de seguridad** — ¿el payload es realista? ¿exigen `42501`
-   específicamente? ¿el filtro evita el `400` de PostgREST? (ver `contexto.md`).
-   Tu sandbox no tiene red: dejá su ejecución en *Pruebas a ejecutar por el PM*.
+5. **Contrato de `lib/records.ts`** — nombres y firmas **exactos** a los del
+   brief, incluido el type guard `esMarca` (T-002 y T-003 los importan).
+   Cualquier diferencia es S2/P1.
+6. **`esMarca`** — ¿narrowing real (`r is MarcaDeportiva`)? ¿Devuelve `false` con
+   `tipo: 'marca'` y `valor: null`?
+7. **`formatearMarca`** — valores límite y punto flotante: `199.999`, `0.001`,
+   `'9.874'` como string, `NaN`, `Infinity`, `-0`, `''`, `1.0005`. Si el
+   resultado difiere de la regla del brief, es defecto.
+8. **`ordenarRecords`** — ¿muta la entrada? ¿`null` en `anio` queda al final en
+   ambos lados del comparador? ¿El `tipo` influye (no debería)?
+9. **`getRecordsEquipo`** — ¿filtra con `.is('miembro_id', null)` y no con
+   `.eq(…, null)`, que en PostgREST no matchea nada?
+10. **Nombre del tipo** — `Record` a secas pisaría el global de TypeScript.
+11. **`fechaLogro`** — el cambio de firma no puede romper `GaleriaTrofeos`,
+    `MiembroCard` ni `PalmaresModal` (buscá todos los usos).
+12. **Pruebas de seguridad** — ¿payload realista? ¿exigen `42501`
+    específicamente? ¿el filtro evita el `400` de PostgREST? (ver `contexto.md`).
+    Tu sandbox no tiene red: dejá su ejecución en *Pruebas a ejecutar por el PM*.
 
 ## Qué hacer
 

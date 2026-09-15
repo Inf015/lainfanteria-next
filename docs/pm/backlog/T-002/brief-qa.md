@@ -35,28 +35,35 @@ Panel de administración, cliente de navegador escribiendo en la base. La RLS ya
 protege contra no-admins (T-001); acá importa que el admin **no pueda romper
 datos por error** y que la UI no mienta sobre lo que quedó en la base.
 
-1. **Validación (`lib/records-form.ts`)** — particiones y límites del CA-4/CA-5:
+1. **Validación (`lib/records-form.ts`)** — particiones y límites de CA-5/CA-7:
    `'9,874'`, `'9.874'`, `'1.234,5'`, `'1e3'`, `'0x10'`, `'  '`, `'.5'`, `'5.'`,
    `'99999.999'`, `'100000'`, `'0.0001'`, `'-0'`, año `'2024.5'`, `'1949'`.
    Ojo con `Number('')` = `0`, `Number(' ')` = `0` y `parseFloat('9abc')` = `9`.
-2. **URL de fuente** — `javascript:`, `JAVASCRIPT:`, `' javascript:'`, `data:`,
+2. **Marca ↔ hito (tabla de decisión)** — tipo {marca, hito} × valor {vacío,
+   válido, basura} × unidad {vacía, cargada} × auto {vacío, cargado}. Para cada
+   combinación: ¿`validarRecord` da lo que dice el brief? ¿`aFilaRecord` cumple
+   el CHECK de coherencia de la base (hito ⇒ valor, unidad y auto `null`)? Un
+   hito que llega a la base con `valor` es un error de guardado garantizado.
+3. **URL de fuente** — `javascript:`, `JAVASCRIPT:`, `' javascript:'`, `data:`,
    `//evil.com`, `https:` sin host. La base tiene CHECK, pero el mensaje tiene que
    salir antes.
-3. **Transiciones de estado del modal** — cerrado → lista → alta → guardando →
+4. **Equipo vs miembro** — ¿el modal del equipo inserta con `miembro_id: null`?
+   ¿La consulta del equipo usa `.is('miembro_id', null)`? ¿Un récord cargado en un
+   lado aparece en el otro (CA-14)? Abrir el modal del equipo después del de un
+   miembro: ¿quedan datos del miembro en el formulario o en la lista?
+5. **Transiciones de estado del modal** — cerrado → lista → alta → guardando →
    (ok | error) → lista; editar A y después abrir alta: ¿el formulario queda con
-   datos de A? Cambiar de miembro con el modal abierto. Cerrar mientras guarda.
-4. **Doble envío (CA-8)** — ¿el botón se deshabilita **antes** del `await`? ¿Hay
+   datos de A? Cambiar el tipo a mitad de edición. Cerrar mientras guarda.
+6. **Doble envío (CA-10)** — ¿el botón se deshabilita **antes** del `await`? ¿Hay
    otro camino de envío (Enter en un input) que lo esquive?
-5. **Consistencia UI ↔ base** — tras un error, ¿la lista local queda como antes?
+7. **Consistencia UI ↔ base** — tras un error, ¿la lista local queda como antes?
    En «Marcar superado», ¿se actualiza el estado solo después de la respuesta
    (o revierte si falla)? Tras editar, ¿la fila local se reemplaza con lo que
    devolvió la base (`.select().single()`) o con lo que se mandó?
-6. **Estado compartido (CA-12)** — `MiembrosAdmin` recibe los cambios; al
-   reabrir el modal, ¿se ven? ¿La columna de trofeos y la Galería siguen igual?
-7. **Alcance** — el diff **no** puede tocar `app/(sitio)/`, `lib/records.ts`,
+8. **Alcance** — el diff **no** puede tocar `app/(sitio)/`, `lib/records.ts`,
    `lib/types.ts` ni `lib/datos.ts`. Si los toca: S2/P1 (rompe el paralelismo
    con T-003).
-8. **Evidencia manual** — si la entrega marca como hechos CA de interfaz sin
+9. **Evidencia manual** — si la entrega marca como hechos CA de interfaz sin
    haber levantado el entorno local, es defecto de proceso (S3/P2).
 
 ## Qué hacer

@@ -10,4 +10,4 @@ Lo actualiza solo el PM. Una fila por tarea; el detalle vive en
 | -- | ------ | ---- | ------ | ----- | ------------ | --------- | ---------- | -- | ----- |
 | T-001 | Tabla de récords, tipos y lectura pública | `oliver132123/records-schema` | BLOQUEADA | — | — | **0013** | PR #1, PR #2 (+0012 aplicada), kit PM | — | Épica récords. NO-GO de deploy hasta `db push` |
 | T-002 | Récords en el panel | `oliver132123/records-panel` | BLOQUEADA | — | — | No | T-001 | — | Paralela a T-003 |
-| T-003 | Récords en la página del piloto y la tarjeta | `oliver132123/records-sitio` | BLOQUEADA | — | — | No | T-001 | — | Paralela a T-002 |
+| T-003 | Récords en el sitio: piloto, tarjeta y equipo | `oliver132123/records-sitio` | BLOQUEADA | — | — | No | T-001 | — | Paralela a T-002 |
