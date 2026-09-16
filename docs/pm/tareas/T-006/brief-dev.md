@@ -7,7 +7,7 @@
 | Base | `origin/Inf015/oliver132123-carrusel-equipo` |
 | Tipo | test |
 | Migración | No |
-| Ronda | 1 |
+| Ronda | 2 — defectos de `reporte-qa-r1.md` |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
 este brief.
@@ -99,7 +99,35 @@ el puntero encima y con el foco dentro. Se corrigieron leyendo el código.
 - [ ] `npm test` no debe intentar correr la suite de navegador (son comandos
       distintos; que Vitest no levante los `.spec.ts` de Playwright ni al revés).
 
-## 6. Notas técnicas
+## 6. Defectos a corregir (ronda 2)
+
+De `docs/pm/tareas/T-006/reporte-qa-r1.md` (veredicto **FAIL**). Corregí solo
+estos. Cada fix lleva su prueba o su evidencia de que ahora sí detecta el
+problema.
+
+| ID | Sev / Pri | Resumen | Esperado |
+| -- | --------- | ------- | -------- |
+| T-006-D01 | S2 / P1 | El `test.skip` es tan ancho que un carrusel roto —botón que no renderiza, hidratación que falla, etiqueta cambiada— sale como "seis pruebas omitidas" y nadie se entera | Distinguir la ausencia legítima de datos (sección apagada, sin pilotos, equipo que entra sin desbordar) de un fallo de renderizado. Medir el desborde y, si lo hay, **exigir** los controles |
+| T-006-D02 | S2 / P1 | `reuseExistingServer: !process.env.CI` puede enganchar cualquier servidor que esté en el 3015 y probar otra cosa sin compilar HEAD | No reutilizar servidores tampoco en local; ante un puerto ocupado, fallar con un mensaje claro |
+| T-006-D03 | S2 / P1 | CA-4 y CA-5 pausan **antes** de que haya un paso en curso: cubren "no empieza otro", no "se detiene el que va". Quitar el efecto que cancela la animación (`CarruselEquipo.tsx:119`) no haría fallar ninguna prueba | Demostrar movimiento, entrar con puntero o foco **durante los 450 ms** de la animación, y comprobar que el scroll queda donde estaba. Es el defecto T-005-D02, hoy sin cobertura |
+| T-006-D04 | S2 / P2 | CA-5 mete el foco con `.focus()`, que también funciona sobre un elemento fuera del orden de tabulación | Entrar con `page.keyboard.press('Tab')`, como quien navega con teclado |
+| T-006-D05 | S3 / P2 | `"@playwright/test": "^1.63.0"` — el checklist pide versión fijada | Versión exacta, coherente con el lock |
+
+### Cómo comprobar que cada fix sirve
+
+Para D01 y D03, no alcanza con escribir la prueba: hay que **demostrar que
+falla sin el arreglo**, igual que hiciste con CA-8.
+
+- **D01** — rompé el carrusel a propósito (por ejemplo, cambiá el `aria-label`
+  del botón siguiente en `CarruselEquipo.tsx`) y mostrá que la suite **falla**
+  en vez de omitir. Revertí después.
+- **D03** — quitá el efecto de `CarruselEquipo.tsx:119-127` que corta la
+  animación al pausar, y mostrá que la prueba nueva **falla**. Revertí después.
+
+Pegá las dos salidas reales en la entrega, en una sección "Sensibilidad de las
+pruebas nuevas".
+
+## 7. Notas técnicas
 
 - **Sin esperar 5 segundos reales por paso.** Playwright tiene
   `page.clock` para controlar el tiempo del navegador: instalá el reloj falso
@@ -122,7 +150,7 @@ el puntero encima y con el foco dentro. Se corrigieron leyendo el código.
 - **No fijes la versión del navegador en el repo.** `npx playwright install
   chromium` lo baja donde Playwright lo guarda, fuera del proyecto.
 
-## 7. Definición de hecho
+## 8. Definición de hecho
 
 - [ ] Todos los CA cumplidos, cada uno con su test o evidencia
 - [ ] CA-8 demostrado con salida real del fallo, y el cambio revertido
