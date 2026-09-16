@@ -1,0 +1,120 @@
+# Gate PM — T-001 ronda 3
+fecha : 2026-09-15 11:15:06 -0400
+rama  : oliver132123/records-schema
+HEAD  : 3e54d8b51c4d5eeedca964af106250b12af96e31
+base  : oliver132123/integracion-records (40d5978)
+
+## Commits desde el cierre de la ronda 2 (19a5931)
+3e54d8b docs(pm): entrega-dev T-001 ronda 3 (T-001-D02, D03)
+bf2b20d fix(db): CHECKs de records rechazan título en blanco y NaN (T-001-D02, D03)
+b8e14ea docs(pm): brief T-001 ronda 3 (D02 título blanco, D03 NaN)
+
+## Archivos cambiados
+ docs/pm/tareas/T-001/brief-dev.md    |  11 ++-
+ docs/pm/tareas/T-001/entrega-dev.md  | 139 +++++++++++++++++++++--------------
+ supabase/migrations/0013_records.sql |  16 ++--
+ 3 files changed, 103 insertions(+), 63 deletions(-)
+
+## Diff de la migración
+diff --git a/supabase/migrations/0013_records.sql b/supabase/migrations/0013_records.sql
+index bd31bd2..6c07cbc 100644
+--- a/supabase/migrations/0013_records.sql
++++ b/supabase/migrations/0013_records.sql
+@@ -55,11 +55,17 @@ create table records (
+     creado_en        timestamptz not null default now(),
+ 
+     -- Un título en blanco deja una ficha vacía en la página: se corta en la
+-    -- base y no solo en el panel.
+-    constraint records_titulo_no_vacio     check (btrim(titulo) <> ''),
+-    -- Un tiempo o una velocidad en cero no es una marca, es un dato mal cargado
+-    constraint records_tiempo_positivo     check (tiempo_s is null or tiempo_s > 0),
+-    constraint records_velocidad_positiva  check (velocidad is null or velocidad > 0),
++    -- base y no solo en el panel. `btrim` no alcanza: solo recorta espacios,
++    -- así que un título de puro tab, salto de línea, CR o espacio duro
++    -- (U+00A0) pasaba igual. `[:space:]` sí cubre esa clase completa.
++    constraint records_titulo_no_vacio     check (titulo ~ '[^[:space:]]'),
++    -- Un tiempo o una velocidad en cero no es una marca, es un dato mal
++    -- cargado. `<> 'NaN'` es necesario aparte de `> 0`: en Postgres NaN es
++    -- mayor que cualquier número, así que `tiempo_s > 0` lo deja pasar.
++    constraint records_tiempo_positivo
++        check (tiempo_s is null or (tiempo_s > 0 and tiempo_s <> 'NaN')),
++    constraint records_velocidad_positiva
++        check (velocidad is null or (velocidad > 0 and velocidad <> 'NaN')),
+     -- Una velocidad sin unidad no se puede mostrar, y una unidad sin velocidad
+     -- es basura que después alguien interpreta como dato
+     constraint records_velocidad_con_unidad
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema
+
+
+ Test Files  7 passed (7)
+      Tests  135 passed (135)
+   Start at  11:15:11
+   Duration  206ms (transform 267ms, setup 0ms, import 384ms, tests 60ms, environment 0ms)
+
+→ OK
+
+## Aplicación completa de 0013 (HEAD) en esquema temporal dentro de una transacción con ROLLBACK (base local compartida intacta)
+tabla creada en gate_t001
+records_anio_razonable: CHECK (((anio IS NULL) OR ((anio >= 1950) AND (anio <= 2100))))
+records_fuente_url_http: CHECK (((fuente_url IS NULL) OR (fuente_url ~* '^https?://'::text)))
+records_mes_con_anio: CHECK (((mes IS NULL) OR (anio IS NOT NULL)))
+records_mes_valido: CHECK (((mes IS NULL) OR ((mes >= 1) AND (mes <= 12))))
+records_tiempo_positivo: CHECK (((tiempo_s IS NULL) OR ((tiempo_s > (0)::numeric) AND (tiempo_s <> 'NaN'::numeric))))
+records_titulo_no_vacio: CHECK ((titulo ~ '[^[:space:]]'::text))
+records_velocidad_con_unidad: CHECK (((velocidad IS NULL) = (unidad_velocidad IS NULL)))
+records_velocidad_positiva: CHECK (((velocidad IS NULL) OR ((velocidad > (0)::numeric) AND (velocidad <> 'NaN'::numeric))))
+
+## Base local compartida: CHECKs actualizados a la versión de HEAD (ALTER; valida filas existentes de T-002/T-003)
+BEGIN
+ALTER TABLE
+ALTER TABLE
+COMMIT
+filas existentes: 11
+
+## Bordes (cada INSERT en BEGIN … ROLLBACK)
+titulo tab                           → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo salto de línea                → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo CR                            → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo NBSP                          → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo espacios                      → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo vacío                         → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio"
+titulo ' x '                         → INSERT 0 1
+titulo tab+texto                     → INSERT 0 1
+tiempo NaN                           → ERROR:  23514: new row for relation "records" violates check constraint "records_tiempo_positivo"
+velocidad NaN                        → ERROR:  23514: new row for relation "records" violates check constraint "records_velocidad_positiva"
+tiempo 0.001                         → INSERT 0 1
+tiempo 0                             → ERROR:  23514: new row for relation "records" violates check constraint "records_tiempo_positivo"
+velocidad 0.01                       → INSERT 0 1
+velocidad -1                         → ERROR:  23514: new row for relation "records" violates check constraint "records_velocidad_positiva"
+tiempo 9.874 + velocidad 142.5 mph   → INSERT 0 1
+filas t001-borde que quedaron: 0
+
+## test:seguridad contra Supabase local compartido (CHECKs de HEAD)
+ Test Files  1 passed (1)
+      Tests  49 passed (49)

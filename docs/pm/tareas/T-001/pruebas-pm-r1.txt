@@ -1,0 +1,46 @@
+# Pruebas a cargo del PM — T-001 ronda 1 (pedidas por reporte-qa-r1.md)
+fecha: 2026-09-15 10:51:49 -0400
+HEAD código: 457e9f2ed1233c018110df21a01cf236de3101cc
+Entorno: Supabase LOCAL (0001..0013 de HEAD, permisos por defecto como producción, registro público apagado). Usuarios locales admin2@local.test (en admins) y noadmin@local.test. Tokens y claves no se registran.
+
+== OK: migraciones de HEAD aplicadas
+crear admin2: 200
+crear noadmin: 200
+INSERT 0 1
+tokens: admin=771 chars, noadmin=772 chars
+
+## CA-4 dinámico: CRUD con JWT de admin
+POST:   [{"id":1,"miembro_id":1,"titulo":"1/4 de milla","categoria":null,"tiempo_s":9.874,"velocidad":142.50,"unidad_velocidad":"mph","alcance":"nacional","auto":null,"lugar":null,"anio":null,"mes":null,"vigente":true,"fuente_ur
+POST equipo: [{"id":2,"miembro_id":null,"titulo":"Hito del equipo","categoria":null,"tiempo_s":null,"velocidad":null,"unidad_velocidad":null,"alcance":null,"auto":null,"luga
+POST inactivo: [{"id":3,"miembro_id":2,"titulo":"Récord de inactivo","categoria":null,"tiempo_s":null,"velocidad":null,"unidad_velocida
+PATCH:  [{"id":1,"miembro_id":1,"titulo":"1/4 de milla","categoria":null,"tiempo_s":9.874,"velocidad":142.50,"unidad_velocidad":"mph","alcance":"nacional","auto":null,"
+persistido vigente=f
+GET admin ve todo (incluido inactivo): [{"titulo":"1/4 de milla"},  {"titulo":"Hito del equipo"},  {"titulo":"Récord de inactivo"}]  → HTTP 200
+
+## Usuario autenticado NO admin
+POST:   {"code":"42501","details":null,"hint":null,"message":"new row violates row-level security policy for table \"records\""}  → HTTP 403
+PATCH:  []  → HTTP 200
+DELETE: []  → HTTP 200
+persistencia tras intentos no-admin: titulo=1/4 de milla, intrusos=0
+GET no-admin: [{"titulo":"1/4 de milla"},  {"titulo":"Hito del equipo"}]  → HTTP 200
+
+## Transición activo → inactivo → activo (lectura anon)
+activo:   [{"titulo":"1/4 de milla"},  {"titulo":"Hito del equipo"}]  → HTTP 200
+inactivo: [{"titulo":"Hito del equipo"}]  → HTTP 200
+activo:   [{"titulo":"1/4 de milla"},  {"titulo":"Hito del equipo"}]  → HTTP 200
+
+## Admin: DELETE
+DELETE: [{"id":1,"miembro_id":1,"titulo":"1/4 de milla","categoria":null,"tiempo_s":9.874,"velocidad":142.50,"unidad_velocidad":
+quedan con ese id: 0
+
+## CA-14: consulta real de getMiembros (select de COLUMNAS_MIEMBRO) como anon
+select = id, nombre, slug, numero, roles, biografia, foto_url, foto_public_id, instagram_url, youtube_url, trofeos_total, orden, activo, creado_en, palmares:logros(*), records(*)
+piloto-uno | palmares: 0 | records (orden de la base, sin ordenar): ['Viejo', 'Pista', 'Nacional']
+build local exit=0
+PGRST200 en build local: 0
+errores de consulta en build local: 0
+piloto-uno.html
+piloto-uno.meta
+piloto-uno.rsc
+piloto-uno.segments
+/equipo prerender contiene 'Piloto Uno': 2

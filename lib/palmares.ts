@@ -39,8 +39,12 @@ const MESES = [
   'Diciembre',
 ];
 
-/** "Julio 2025", "2025", o vacío cuando el logro se cargó sin fecha. */
-export function fechaLogro(logro: Logro): string {
+/**
+ * "Julio 2025", "2025", o vacío sin fecha. `Pick` y no `Logro` porque un
+ * récord (`lib/records.ts`) tiene el mismo año y mes sueltos, y no duplica
+ * esta lista de meses.
+ */
+export function fechaLogro(logro: Pick<Logro, 'anio' | 'mes'>): string {
   if (!logro.anio) return '';
   const mes = logro.mes ? MESES[logro.mes - 1] : null;
   return mes ? `${mes} ${logro.anio}` : String(logro.anio);

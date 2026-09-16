@@ -1,0 +1,33 @@
+# Pruebas a cargo del PM — T-001 ronda 2 (bordes SQL pedidos en reporte-qa-r1/r2)
+fecha: 2026-09-15 11:04:20 -0400
+código de migración: 2bd856b (sin cambios desde la ronda 1)
+Entorno: Supabase LOCAL compartido; cada INSERT dentro de BEGIN … ROLLBACK (no deja filas).
+
+anio 1949              → ERROR:  23514: new row for relation "records" violates check constraint "records_anio_razonable" 
+anio 1950              → INSERT 0 1 
+anio 2100              → INSERT 0 1 
+anio 2101              → ERROR:  23514: new row for relation "records" violates check constraint "records_anio_razonable" 
+mes 0                  → ERROR:  23514: new row for relation "records" violates check constraint "records_mes_valido" 
+mes 1                  → INSERT 0 1 
+mes 12                 → INSERT 0 1 
+mes 13                 → ERROR:  23514: new row for relation "records" violates check constraint "records_mes_valido" 
+mes sin año            → ERROR:  23514: new row for relation "records" violates check constraint "records_mes_con_anio" 
+titulo vacío           → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio" 
+titulo espacios        → ERROR:  23514: new row for relation "records" violates check constraint "records_titulo_no_vacio" 
+titulo tabulación      → INSERT 0 1 
+titulo salto de línea  → INSERT 0 1 
+tiempo NaN             → INSERT 0 1 
+velocidad NaN          → INSERT 0 1 
+tiempo cero            → ERROR:  23514: new row for relation "records" violates check constraint "records_tiempo_positivo" 
+tiempo negativo        → ERROR:  23514: new row for relation "records" violates check constraint "records_tiempo_positivo" 
+tiempo 99999.999       → INSERT 0 1 
+tiempo 100000          → ERROR:  22003: numeric field overflow 
+url HTTPS              → INSERT 0 1 
+url javascript         → ERROR:  23514: new row for relation "records" violates check constraint "records_fuente_url_http" 
+url espacio inicial    → ERROR:  23514: new row for relation "records" violates check constraint "records_fuente_url_http" 
+filas t001-borde que quedaron: 0
+
+## Hallazgos
+- Título con solo tabulación o salto de línea: ACEPTADO (btrim sin conjunto de caracteres recorta solo espacios).
+- tiempo_s / velocidad = 'NaN': ACEPTADO (en Postgres NaN es mayor que cualquier número, así que '> 0' pasa).
+- No probado: getMiembros()/getMiembro() ejecutadas con fixtures (la consulta real y el build local ya constan en pruebas-pm-r1.txt; el orden y el fallback están cubiertos por unidad).

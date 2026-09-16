@@ -1,0 +1,199 @@
+# Gate PM — T-001 ronda 1
+fecha : 2026-09-15 10:15:35 -0400
+rama  : oliver132123/records-schema
+HEAD  : 0c3169377c4e7ccdf0e8c6da46b2cbf2a213a2be
+base  : oliver132123/integracion-records (40d5978)
+
+## Commits
+0c31693 docs(pm): entrega-dev T-001 ronda 1
+758e3e1 test(seguridad): records cerrada a anon
+4d70bbf feat(equipo): los miembros traen sus récords (CA-14)
+a74c1a4 feat(records): funciones puras de presentación (CA-8..13)
+eb8b0f2 feat(records): tipos del récord deportivo (CA-7)
+2bd856b feat(db): tabla records
+4124e82 docs(pm): brief T-001 (sale del backlog)
+
+## Archivos
+ docs/pm/{backlog => tareas}/T-001/brief-dev.md |   4 +-
+ docs/pm/{backlog => tareas}/T-001/brief-qa.md  |   4 +-
+ docs/pm/tareas/T-001/entrega-dev.md            | 147 ++++++++++++++
+ lib/datos.ts                                   |  24 ++-
+ lib/palmares.ts                                |   8 +-
+ lib/records.ts                                 | 112 ++++++++++
+ lib/types.ts                                   |  47 +++++
+ supabase/migrations/0013_records.sql           | 138 +++++++++++++
+ tests/seguridad/rls.test.ts                    |   5 +
+ tests/unidad/palmares.test.ts                  |   1 +
+ tests/unidad/records.test.ts                   | 270 +++++++++++++++++++++++++
+ 11 files changed, 748 insertions(+), 12 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema
+
+
+ Test Files  7 passed (7)
+      Tests  129 passed (129)
+   Start at  10:15:40
+   Duration  201ms (transform 300ms, setup 0ms, import 380ms, tests 58ms, environment 1ms)
+
+→ OK
+
+## build
+$ npm run build
+
+> lainfanteria-next@0.1.0 build
+> next build
+
+▲ Next.js 16.3.1 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 17ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 478ms
+  Running TypeScript ...
+  Finished TypeScript in 1766ms ...
+  Collecting page data using 7 workers ...
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (0/13) ...
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (3/13) 
+  Generating static pages using 7 workers (6/13) 
+  Generating static pages using 7 workers (9/13) 
+✓ Generating static pages using 7 workers (13/13) in 918ms
+  Finalizing page optimization ...
+
+Route (app)            Revalidate  Expire
+┌ ○ /                          1m      1y
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/ajustes
+├ ƒ /admin/autos
+├ ƒ /admin/login
+├ ƒ /admin/miembros
+├ ƒ /admin/noticias
+├ ƒ /admin/productos
+├ ƒ /admin/secciones
+├ ƒ /admin/sin-acceso
+├ ○ /apple-icon.png
+├ ○ /autos                     1m      1y
+├ ○ /equipo                    1m      1y
+├ ● /equipo/[slug]
+├ ○ /icon.png
+├ ○ /merch                     1m      1y
+├ ○ /nosotros                  1m      1y
+├ ○ /noticias                  1m      1y
+├ ƒ /noticias/[slug]
+├ ○ /servicios                 1m      1y
+└ ○ /videos                    1m      1y
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+→ OK
+
+## Supabase local: migraciones 0001..0013 de HEAD
+(base local reiniciada; permisos por defecto de anon/authenticated revocados y registro público apagado, como en producción; admin de prueba admin@local.test)
+== reset de la base local (supabase db reset con carpeta de migraciones vacía)
+== permisos por defecto como en producción (sin grants automáticos a anon/authenticated)
+== admin de prueba (solo local)
+== 0001_esquema_inicial.sql
+== 0002_grants_lectura_publica.sql
+== 0003_ajustes_contacto.sql
+== 0004_whatsapp_real.sql
+== 0005_storage_fotos.sql
+== 0006_admins_y_escritura.sql
+== 0007_promover_admin.sql
+== 0008_datos_contacto_reales.sql
+== 0009_miembros_con_roles.sql
+== 0010_seccion_videos.sql
+== 0011_logros_estructurados.sql
+== 0012_foto_principal_atomica.sql
+== 0013_records.sql
+== OK: migraciones de HEAD aplicadas
+
+## test:seguridad contra Supabase local
+$ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon local> npm run test:seguridad
+ Test Files  1 passed (1)
+      Tests  49 passed (49)
+
+## CA-1 / CA-2 / CA-5 con datos reales (local)
+INSERT 0 2
+INSERT 0 2
+INSERT 0 1
+alcance del hito sin alcance = NULL
+-- deben fallar por CHECK (CA-1):
+  [insert into records (titulo, velocidad) values ('velocidad sin unidad', 142.5)] → violates check constraint "records_velocidad_con_unidad"
+  [insert into records (titulo, unidad_velocidad) values ('unidad sin velocidad', 'mph')] → violates check constraint "records_velocidad_con_unidad"
+  [insert into records (titulo, tiempo_s) values ('tiempo cero', 0)] → violates check constraint "records_tiempo_positivo"
+  [insert into records (titulo, velocidad, unidad_velocidad) values ('velocidad negativa', -1, 'mph')] → violates check constraint "records_velocidad_positiva"
+  [insert into records (titulo) values ('   ')] → violates check constraint "records_titulo_no_vacio"
+  [insert into records (titulo, fuente_url) values ('x', 'javascript:alert(1)')] → violates check constraint "records_fuente_url_http"
+  [insert into records (titulo, fuente_url) values ('x', ' https://ejemplo.com')] → violates check constraint "records_fuente_url_http"
+  [insert into records (titulo, anio, mes) values ('x', null, 5)] → violates check constraint "records_mes_con_anio"
+  [insert into records (titulo, anio) values ('x', 1949)] → violates check constraint "records_anio_razonable"
+-- debe aceptarse (mayúsculas en el esquema):
+aceptado
+-- CA-2: lectura anon (espera el del Activo y los del equipo, NO el del Inactivo):
+[{"titulo":"1/4 de milla","miembro_id":1,"miembros":{"slug": "gate-activo"}}, 
+ {"titulo":"Hito del equipo","miembro_id":null,"miembros":null}, 
+ {"titulo":"x","miembro_id":null,"miembros":null}]
+-- CA-5: borrar el miembro activo borra sus récords y no los del equipo:
+4 récords antes
+DELETE 1
+3 récords después
+2 del equipo intactos
+-- CA-6: índices
+records_equipo_idx: CREATE INDEX records_equipo_idx ON public.records USING btree (id) WHERE (miembro_id IS NULL)
+records_miembro_idx: CREATE INDEX records_miembro_idx ON public.records USING btree (miembro_id)
+records_pkey: CREATE UNIQUE INDEX records_pkey ON public.records USING btree (id)
+-- grants y RLS
+t
+anon:SELECT
+authenticated:DELETE,INSERT,SELECT,UPDATE
+admin escribe [ALL] roles={authenticated}
+admin lee todo [SELECT] roles={authenticated}
+lectura pública de records del equipo y de miembros activos [SELECT] roles={public}

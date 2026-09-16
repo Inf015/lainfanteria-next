@@ -3,11 +3,11 @@
 | Campo | Valor |
 | ----- | ----- |
 | Rama | `oliver132123/records-schema` |
-| Worktree | `<ruta absoluta>` |
-| Base | `origin/main` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema` |
+| Base | `oliver132123/integracion-records` |
 | Tipo | feat |
 | Migración | **Sí** — `0013_records.sql` |
-| Ronda | 1 |
+| Ronda | 3 — ver `pruebas-pm-r2.txt` (ronda 2: `reporte-qa-r1.md`) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero** y después
 `docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
@@ -164,7 +164,22 @@ export function recordsNacionalesVigentes(records: RecordDeportivo[]): RecordDep
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
-No aplica en ronda 1.
+**Ronda 2** — de `reporte-qa-r1.md` (veredicto PASS-WITH-RESERVATIONS). Solo esto; nada más del reporte.
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-001-D01 | S3/P3 | `tests/unidad/records.test.ts:86-126` no persiste la tabla de decisión completa de `formatearMarca` que pide la sección 5 | Test parametrizado (`it.each`) con las **12 celdas** tiempo {válido `9.874`, nulo, inválido `0`} × velocidad {válida `142.5` mph, nula, inválida `-1` con unidad `mph`, sin unidad `142.5`/`null`}, con el string o `null` esperado **literal** en cada fila, y en la misma fila la aserción de `tieneCifras` coherente. Incluye explícitamente velocidad negativa **con** unidad válida. |
+
+**Ronda 3** — hallazgos del PM en `pruebas-pm-r2.txt` (exploración SQL de bordes que pidió QA). La 0013 todavía no está aplicada en producción: se corrige en el mismo archivo, sin migración nueva.
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-001-D02 | S3/P2 | `records_titulo_no_vacio` usa `btrim(titulo)`, que solo recorta espacios: la base acepta un título que es solo `\t`, `\n`, `\r` o espacio duro (U+00A0) | El CHECK exige al menos un carácter no blanco: `titulo ~ '[^[:space:]]'` (en esta base `[:space:]` incluye tab, salto de línea, CR y U+00A0; verificado por el PM). Mismo nombre de constraint. Actualizá el comentario explicando por qué no alcanza `btrim`. |
+| T-001-D03 | S3/P2 | `records_tiempo_positivo` y `records_velocidad_positiva` aceptan `'NaN'`: en Postgres `NaN` es mayor que cualquier número, así que `> 0` pasa | Ambos CHECK excluyen NaN explícitamente: `… is null or (… > 0 and … <> 'NaN')`. Mismos nombres de constraint. Comentario con el porqué. (`Infinity` ya lo rechaza la precisión de la columna: no hace falta tocarlo.) |
+
+Pruebas: son invariantes de base; no hay forma de probarlas en `tests/unidad` ni con `anon` en `tests/seguridad`. **No agregues tests para esto**: el PM las ejecuta contra Supabase local (ya tiene los casos de `pruebas-pm-r2.txt`). En la entrega describí el cambio exacto de cada CHECK.
+
+Fuera de esta ronda (anotado por QA como pregunta, no defecto): redondeo de empates decimales y valores submínimos (`0.001 mph`). No los cambies ni les agregues tests: el PM los define antes de T-002.
 
 ## 7. Definición de hecho
 

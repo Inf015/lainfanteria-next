@@ -1,0 +1,106 @@
+# Gate PM — T-001 ronda 2
+fecha : 2026-09-15 10:58:38 -0400
+rama  : oliver132123/records-schema
+HEAD  : b774c08a9f8b0bbff8ae418426be3af97a370a98
+base  : oliver132123/integracion-records (40d5978)
+
+## Commits desde el cierre de la ronda 1 (3ad328e)
+b774c08 docs(pm): entrega-dev T-001 ronda 2 (T-001-D01)
+55726a6 test(records): matriz completa de formatearMarca (T-001-D01)
+4e5c534 docs(pm): brief T-001 ronda 2 (D01)
+
+## Archivos cambiados desde la ronda 1
+ docs/pm/tareas/T-001/brief-dev.md   |  10 ++-
+ docs/pm/tareas/T-001/entrega-dev.md | 173 +++++++++++++-----------------------
+ tests/unidad/records.test.ts        | 166 ++++++++++++++++++++++++++--------
+ 3 files changed, 198 insertions(+), 151 deletions(-)
+
+## ¿Cambió código, migración o tests de seguridad desde la ronda 1? (vacío = no)
+(la evidencia de base de datos de gate-r1.txt y pruebas-pm-r1.txt sigue aplicando al mismo código)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema
+
+
+ Test Files  7 passed (7)
+      Tests  135 passed (135)
+   Start at  10:58:44
+   Duration  224ms (transform 281ms, setup 0ms, import 392ms, tests 69ms, environment 0ms)
+
+→ OK
+
+## unidad-formatearMarca
+$ npx vitest run tests/unidad/records.test.ts -t formatearMarca --reporter=verbose
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-schema
+
+ ↓ tests/unidad/records.test.ts > formatearTiempo > siempre muestra tres decimales
+ ↓ tests/unidad/records.test.ts > formatearTiempo > respeta los límites de la columna numeric(8,3)
+ ↓ tests/unidad/records.test.ts > formatearTiempo > acepta el valor como string, como puede serializarlo PostgREST
+ ↓ tests/unidad/records.test.ts > formatearTiempo > nulo, cero, negativo, NaN o texto no numérico → null
+ ↓ tests/unidad/records.test.ts > formatearVelocidad > hasta dos decimales, sin ceros sobrantes
+ ↓ tests/unidad/records.test.ts > formatearVelocidad > acepta el valor como string
+ ↓ tests/unidad/records.test.ts > formatearVelocidad > sin unidad → null, tenga o no un valor
+ ↓ tests/unidad/records.test.ts > formatearVelocidad > nulo, cero, negativo, NaN o texto no numérico → null
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'válido (9.874)' × velocidad 'válida (142.5 mph)' → '9.874 s @ 142.5 mph' 1ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'válido (9.874)' × velocidad 'nula' → '9.874 s' 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'válido (9.874)' × velocidad 'inválida (-1 con unidad mph)' → '9.874 s' 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'válido (9.874)' × velocidad 'sin unidad (142.5)' → '9.874 s' 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'nulo' × velocidad 'válida (142.5 mph)' → '142.5 mph' 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'nulo' × velocidad 'nula' → null 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'nulo' × velocidad 'inválida (-1 con unidad mph)' → null 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'nulo' × velocidad 'sin unidad (142.5)' → null 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'inválido (0)' × velocidad 'válida (142.5 mph)' → '142.5 mph' 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'inválido (0)' × velocidad 'nula' → null 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'inválido (0)' × velocidad 'inválida (-1 con unidad mph)' → null 0ms
+ ✓ tests/unidad/records.test.ts > formatearMarca > tiempo 'inválido (0)' × velocidad 'sin unidad (142.5)' → null 0ms
+ ↓ tests/unidad/records.test.ts > tieneCifras y etiquetaRecord > sin alcance y con cifras → "Récord"
+ ↓ tests/unidad/records.test.ts > tieneCifras y etiquetaRecord > sin alcance y sin cifras → "Hito"
+ ↓ tests/unidad/records.test.ts > tieneCifras y etiquetaRecord > con alcance → el nombre del alcance, tenga o no cifras
+ ↓ tests/unidad/records.test.ts > tieneCifras y etiquetaRecord > hito con alcance nacional → "Récord nacional": el alcance manda sobre las cifras
+ ↓ tests/unidad/records.test.ts > NOMBRE_ALCANCE y SIMBOLO_VELOCIDAD > traducen cada valor de los enums de la base
+ ↓ tests/unidad/records.test.ts > ordenarRecords > vigentes antes que superados
+ ↓ tests/unidad/records.test.ts > ordenarRecords > entre vigentes: nacional > pista > evento > sin alcance
+ ↓ tests/unidad/records.test.ts > ordenarRecords > mismo alcance: año más reciente primero, sin año al final
+ ↓ tests/unidad/records.test.ts > ordenarRecords > mismo año: mes más reciente primero, sin mes al final
+ ↓ tests/unidad/records.test.ts > ordenarRecords > mismo alcance, año y mes: id descendente, el cargado más reciente primero
+ ↓ tests/unidad/records.test.ts > ordenarRecords > no muta el arreglo original
+ ↓ tests/unidad/records.test.ts > recordsVigentes > vacío da vacío
+ ↓ tests/unidad/records.test.ts > recordsVigentes > deja afuera los superados y conserva el orden recibido
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > vacío da vacío
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > nacional superado queda afuera
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > pista vigente queda afuera: solo nacional suma
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > hito nacional vigente cuenta
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > hito sin alcance no cuenta
+ ↓ tests/unidad/records.test.ts > recordsNacionalesVigentes > conserva el orden recibido
+
+ Test Files  1 passed (1)
+      Tests  12 passed | 27 skipped (39)
+   Start at  10:58:44
+   Duration  114ms (transform 22ms, setup 0ms, import 32ms, tests 3ms, environment 0ms)
+
+→ OK

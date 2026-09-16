@@ -1,4 +1,5 @@
 import { consultar } from './supabase';
+import { ordenarRecords } from './records';
 import type {
   AutoConFotos,
   ClaveSeccion,
@@ -46,18 +47,19 @@ export async function seccionActiva(clave: ClaveSeccion): Promise<boolean> {
 }
 
 /*
- * Columnas del miembro más su palmarés.
+ * Columnas del miembro más su palmarés y sus récords.
  *
  * Se enumeran en vez de usar `*` por dos razones: `miembros.logros` es la
  * columna vieja de texto que ya no lee nadie y no hace falta traerla, y el
- * embebido tiene que ir con alias porque comparte nombre con ella —`logros(*)`
- * junto a la columna `logros` es ambiguo—.
+ * embebido de logros tiene que ir con alias porque comparte nombre con ella
+ * —`logros(*)` junto a la columna `logros` es ambiguo—. `records` no tiene
+ * ese choque: no hay columna `miembros.records`.
  */
 /* Una sola línea a propósito: partida o concatenada, supabase-js pierde el tipo
    literal del select y deja de inferir la forma de la respuesta. */
 // prettier-ignore
 const COLUMNAS_MIEMBRO =
-  'id, nombre, slug, numero, roles, biografia, foto_url, foto_public_id, instagram_url, youtube_url, trofeos_total, orden, activo, creado_en, palmares:logros(*)' as const;
+  'id, nombre, slug, numero, roles, biografia, foto_url, foto_public_id, instagram_url, youtube_url, trofeos_total, orden, activo, creado_en, palmares:logros(*), records(*)' as const;
 
 /**
  * Ordena un palmarés de lo más reciente a lo más viejo, dejando al final lo que
@@ -89,7 +91,11 @@ export async function getMiembros(): Promise<Miembro[]> {
     [],
   );
 
-  return miembros.map((m) => ({ ...m, palmares: ordenarPalmares(m.palmares ?? []) }));
+  return miembros.map((m) => ({
+    ...m,
+    palmares: ordenarPalmares(m.palmares ?? []),
+    records: ordenarRecords(m.records ?? []),
+  }));
 }
 
 /** Un miembro por su slug, para su página propia. Null si no existe o está inactivo. */
@@ -107,7 +113,13 @@ export async function getMiembro(slug: string): Promise<Miembro | null> {
   );
 
   const miembro = filas[0];
-  return miembro ? { ...miembro, palmares: ordenarPalmares(miembro.palmares ?? []) } : null;
+  return miembro
+    ? {
+        ...miembro,
+        palmares: ordenarPalmares(miembro.palmares ?? []),
+        records: ordenarRecords(miembro.records ?? []),
+      }
+    : null;
 }
 
 /**
