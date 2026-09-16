@@ -1,9 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MS_ANIMACION, indiceActivo, posicionAnimada, proximaPosicion } from '@/lib/carrusel';
+import {
+  RELOJ_NAVEGADOR,
+  animarScroll,
+  indiceActivo,
+  paginas,
+  proximaPosicion,
+  type Pagina,
+} from '@/lib/carrusel';
 import { textoDistintivoNacional } from './records-texto';
 import s from './carrusel-equipo.module.css';
 
@@ -41,50 +48,56 @@ const MS_ENTRE_PASOS = 5000;
  */
 export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[] }) {
   const pistaRef = useRef<HTMLUListElement>(null);
-  const animacionRef = useRef<number | null>(null);
+  /** Corta la animación en curso. `null` si no hay ninguna. */
+  const cortarRef = useRef<(() => void) | null>(null);
   const [indice, setIndice] = useState(0);
-  const [pausado, setPausado] = useState(false);
+  // Puntero y teclado se guardan por separado: con un solo booleano, sacar el
+  // ratón reanudaba la rotación aunque el foco siguiera dentro del carrusel, y
+  // a quien navega con Tab se le movía el enlace de abajo del dedo.
+  const [punteroAdentro, setPunteroAdentro] = useState(false);
+  const [focoAdentro, setFocoAdentro] = useState(false);
   const [desborda, setDesborda] = useState(false);
   const [sinMovimiento, setSinMovimiento] = useState(false);
+  const [paradas, setParadas] = useState<Pagina[]>([]);
   const [fallidas, setFallidas] = useState<number[]>([]);
 
-  /** Dónde arranca cada tarjeta dentro de la pista. */
-  const inicios = useCallback((pista: HTMLUListElement) => {
-    return [...pista.children].map((hijo) => (hijo as HTMLElement).offsetLeft);
+  const pausado = punteroAdentro || focoAdentro;
+  const destinos = useMemo(() => paradas.map((p) => p.destino), [paradas]);
+
+  /** Las paradas alcanzables, medidas sobre el DOM. */
+  const medirParadas = useCallback((pista: HTMLUListElement) => {
+    const inicios = [...pista.children].map((hijo) => (hijo as HTMLElement).offsetLeft);
+    return paginas(inicios, pista.scrollWidth - pista.clientWidth);
   }, []);
 
-  /**
-   * Lleva el scroll hasta `destino`, animándolo cuadro a cuadro.
-   *
-   * No usa `scrollTo({ behavior: 'smooth' })`: el navegador no arranca esa
-   * animación cuando el paso lo dispara el temporizador en vez de un clic, y el
-   * carrusel se quedaba quieto aunque el temporizador corriera bien. Animarlo
-   * acá también deja cancelar el paso anterior si llega otro encima.
-   */
+  const cortar = useCallback(() => {
+    cortarRef.current?.();
+    cortarRef.current = null;
+  }, []);
+
+  /** Lleva el scroll hasta `destino`, animándolo cuadro a cuadro. */
   const mover = useCallback(
     (destino: number) => {
       const pista = pistaRef.current;
       if (!pista) return;
 
-      if (animacionRef.current !== null) cancelAnimationFrame(animacionRef.current);
+      cortar();
 
       if (sinMovimiento) {
         pista.scrollLeft = destino;
         return;
       }
 
-      const desde = pista.scrollLeft;
-      const arranque = performance.now();
-
-      const cuadro = (ahora: number) => {
-        const t = (ahora - arranque) / MS_ANIMACION;
-        pista.scrollLeft = posicionAnimada(desde, destino, t);
-        animacionRef.current = t < 1 ? requestAnimationFrame(cuadro) : null;
-      };
-
-      animacionRef.current = requestAnimationFrame(cuadro);
+      cortarRef.current = animarScroll(
+        (posicion) => {
+          pista.scrollLeft = posicion;
+        },
+        pista.scrollLeft,
+        destino,
+        RELOJ_NAVEGADOR,
+      );
     },
-    [sinMovimiento],
+    [cortar, sinMovimiento],
   );
 
   const paso = useCallback(
@@ -92,18 +105,23 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
       const pista = pistaRef.current;
       if (!pista) return;
       const max = pista.scrollWidth - pista.clientWidth;
-      mover(proximaPosicion(pista.scrollLeft, inicios(pista), max, dir));
+      const destinos = medirParadas(pista).map((p) => p.destino);
+      mover(proximaPosicion(pista.scrollLeft, destinos, max, dir));
     },
-    [inicios, mover],
+    [medirParadas, mover],
   );
 
-  // Si el bloque se va de la pantalla a mitad de un paso, el cuadro siguiente
-  // escribiría sobre un elemento ya desmontado.
+  // Un paso empezado sigue moviendo el scroll aunque se apague la rotación: el
+  // intervalo se limpia, pero el cuadro siguiente ya estaba pedido. Si el
+  // carrusel deja de rotar —por pausa, por movimiento reducido, porque dejó de
+  // desbordar o porque se desmonta— hay que cortar también lo que está en
+  // curso, o se sigue moviendo bajo el ratón.
   useEffect(() => {
-    return () => {
-      if (animacionRef.current !== null) cancelAnimationFrame(animacionRef.current);
-    };
-  }, []);
+    if (!pausado && !sinMovimiento && desborda) return;
+    cortar();
+  }, [pausado, sinMovimiento, desborda, cortar]);
+
+  useEffect(() => cortar, [cortar]);
 
   // El sistema puede pedir menos movimiento (macOS: Reducir movimiento). Ahí el
   // carrusel no rota solo y los saltos son instantáneos; los controles quedan.
@@ -116,18 +134,22 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
   }, []);
 
   // Si todas las tarjetas entran sin scroll no hay carrusel: ni rotación ni
-  // controles. Depende del ancho, así que se vuelve a medir al redimensionar.
+  // controles. Cuántas entran depende del ancho, y de eso dependen también las
+  // paradas, así que las dos cosas se vuelven a medir al redimensionar.
   useEffect(() => {
     const pista = pistaRef.current;
     if (!pista) return;
 
-    const medir = () => setDesborda(pista.scrollWidth - pista.clientWidth > 1);
+    const medir = () => {
+      setDesborda(pista.scrollWidth - pista.clientWidth > 1);
+      setParadas(medirParadas(pista));
+    };
     medir();
 
     const observador = new ResizeObserver(medir);
     observador.observe(pista);
     return () => observador.disconnect();
-  }, [miembros.length]);
+  }, [miembros.length, medirParadas]);
 
   useEffect(() => {
     if (!desborda || pausado || sinMovimiento) return;
@@ -142,15 +164,22 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
       className={s.marco}
       aria-roledescription="carrusel"
       aria-label="Equipo de La Infantería"
-      onMouseEnter={() => setPausado(true)}
-      onMouseLeave={() => setPausado(false)}
-      onFocusCapture={() => setPausado(true)}
-      onBlurCapture={() => setPausado(false)}
+      onMouseEnter={() => setPunteroAdentro(true)}
+      onMouseLeave={() => setPunteroAdentro(false)}
+      onFocusCapture={() => setFocoAdentro(true)}
+      onBlurCapture={(e) => {
+        // `relatedTarget` es adonde va el foco. Si sigue dentro del carrusel
+        // —de un enlace al siguiente— no es una salida y la rotación tiene que
+        // seguir frenada. `null` (se fue a otra ventana) sí cuenta como salida:
+        // al volver, el foco entra de nuevo y vuelve a frenarla.
+        const destino = e.relatedTarget as Node | null;
+        if (!destino || !e.currentTarget.contains(destino)) setFocoAdentro(false);
+      }}
     >
       <ul
         className={s.pista}
         ref={pistaRef}
-        onScroll={(e) => setIndice(indiceActivo(e.currentTarget.scrollLeft, inicios(e.currentTarget)))}
+        onScroll={(e) => setIndice(indiceActivo(e.currentTarget.scrollLeft, destinos))}
       >
         {miembros.map((m) => {
           const ruta = `/equipo/${m.slug}`;
@@ -222,18 +251,19 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
             ‹
           </button>
 
+          {/* Un punto por parada alcanzable, no por tarjeta: cuando entran
+              tres a la vez, las últimas nunca llegan a pegarse al borde y sus
+              puntos apuntarían a una posición imposible, sin poder quedar
+              marcados nunca como el actual. */}
           <div className={s.puntos}>
-            {miembros.map((m, i) => (
+            {paradas.map((parada, i) => (
               <button
                 type="button"
-                key={m.id}
+                key={parada.destino}
                 className={`${s.punto} ${i === indice ? s.puntoActivo : ''}`}
-                aria-label={`Ir a ${m.nombre}`}
+                aria-label={`Ir a ${miembros[parada.tarjeta]?.nombre ?? `la posición ${i + 1}`}`}
                 aria-current={i === indice}
-                onClick={() => {
-                  const pista = pistaRef.current;
-                  if (pista) mover(inicios(pista)[i] ?? 0);
-                }}
+                onClick={() => mover(parada.destino)}
               />
             ))}
           </div>

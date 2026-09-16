@@ -5,8 +5,8 @@ import Link from 'next/link';
 import {
   getAjustes,
   getAutos,
-  getMiembros,
   getNoticias,
+  getPilotos,
   getProductos,
   seccionActiva,
 } from '@/lib/datos';
@@ -109,12 +109,12 @@ export default async function Home() {
   ]);
 
   // Solo se consulta lo que se va a mostrar
-  const [autos, productos, videos, noticias, miembros] = await Promise.all([
+  const [autos, productos, videos, noticias, pilotos] = await Promise.all([
     autosOn ? getAutos() : Promise.resolve([]),
     merchOn ? getProductos(4) : Promise.resolve([]),
     videosOn ? getVideos(ajustes.youtube_channel_id ?? '', 6) : Promise.resolve([]),
     noticiasOn ? getNoticias(6) : Promise.resolve([]),
-    equipoOn ? getMiembros() : Promise.resolve([]),
+    equipoOn ? getPilotos() : Promise.resolve([]),
   ]);
 
   // Solo pilotos en la portada: son los que corren y los que tienen trofeos y
@@ -124,18 +124,16 @@ export default async function Home() {
   // El carrusel es un componente de cliente: lo que reciba viaja en el HTML de
   // la portada. Por eso baja un resumen y no el miembro entero — el palmarés de
   // un piloto son cientos de filas que acá se muestran como un número.
-  const equipo: TarjetaEquipo[] = miembros
-    .filter((m) => m.roles.includes('Piloto'))
-    .map((m) => ({
-      id: m.id,
-      nombre: m.nombre,
-      slug: m.slug,
-      numero: m.numero,
-      foto: m.foto_url,
-      roles: m.roles,
-      trofeos: totalTrofeos(m),
-      recordsNacionales: recordsNacionalesVigentes(m.records).length,
-    }));
+  const equipo: TarjetaEquipo[] = pilotos.map((m) => ({
+    id: m.id,
+    nombre: m.nombre,
+    slug: m.slug,
+    numero: m.numero,
+    foto: m.foto_url,
+    roles: m.roles,
+    trofeos: totalTrofeos(m),
+    recordsNacionales: recordsNacionalesVigentes(m.records).length,
+  }));
 
   // Noticias y videos se mezclan en un solo bloque ordenado por fecha: para
   // quien visita el sitio ambos son "lo último del equipo".

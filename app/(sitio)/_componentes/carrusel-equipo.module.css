@@ -202,13 +202,16 @@
 .puntos {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    /* Con muchas paradas en una pantalla angosta, los puntos bajan a otra
+       línea antes que achicarse: el objetivo táctil no se negocia. */
+    flex-wrap: wrap;
 }
 
-/* El punto se ve chico, pero el botón mide 44px para poder tocarlo con el dedo:
-   el relleno es transparente y el fondo va en el pseudoelemento. */
+/* El punto se ve chico, pero el botón mide 44×44 px para poder tocarlo con el
+   dedo: el relleno es transparente y el color va en el pseudoelemento. */
 .punto {
-    width: 24px;
+    width: 44px;
     height: 44px;
     padding: 0;
     background: none;
