@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indiceActivo, proximaPosicion } from '@/lib/carrusel';
+import { indiceActivo, posicionAnimada, proximaPosicion } from '@/lib/carrusel';
 
 /**
  * Tres tarjetas de 300 px con 20 px de separación, en una ventana de 640 px:
@@ -41,6 +41,31 @@ describe('proximaPosicion', () => {
   it('sin tarjetas o sin desborde se queda en cero', () => {
     expect(proximaPosicion(0, [], 300, 1)).toBe(0);
     expect(proximaPosicion(0, INICIOS, 0, 1)).toBe(0);
+  });
+});
+
+describe('posicionAnimada', () => {
+  it('arranca en el origen y termina exactamente en el destino', () => {
+    expect(posicionAnimada(0, 590, 0)).toBe(0);
+    expect(posicionAnimada(0, 590, 1)).toBe(590);
+  });
+
+  it('avanza más de la mitad a mitad de camino: frena al llegar, no al salir', () => {
+    const mitad = posicionAnimada(0, 590, 0.5);
+    expect(mitad).toBeGreaterThan(295);
+    expect(mitad).toBeLessThan(590);
+  });
+
+  it('nunca se pasa del destino aunque el cuadro llegue tarde', () => {
+    // El último cuadro puede caer después del tiempo previsto (una pestaña que
+    // vuelve del fondo). Sin recortar, el scroll se iría más allá del destino.
+    expect(posicionAnimada(0, 590, 1.8)).toBe(590);
+    expect(posicionAnimada(0, 590, -0.3)).toBe(0);
+  });
+
+  it('funciona hacia atrás', () => {
+    expect(posicionAnimada(590, 0, 1)).toBe(0);
+    expect(posicionAnimada(590, 0, 0.5)).toBeLessThan(295);
   });
 });
 

@@ -46,6 +46,27 @@ export function proximaPosicion(
   return Math.max(anterior ?? 0, 0);
 }
 
+/** Cuánto dura el desplazamiento de un paso. */
+export const MS_ANIMACION = 450;
+
+/**
+ * Dónde está el scroll a mitad de camino entre `desde` y `hasta`, con `t` de 0
+ * a 1.
+ *
+ * El carrusel anima el desplazamiento cuadro a cuadro en vez de pedir
+ * `scrollTo({ behavior: 'smooth' })`: esa animación no arranca cuando el paso
+ * lo dispara un temporizador y no un clic —así quedó el carrusel quieto la
+ * primera vez, aunque el temporizador corría y calculaba bien el destino—.
+ *
+ * La suavidad es un ease-out cúbico: arranca rápido y frena al llegar, que es
+ * como se lee un carrusel que avanza solo.
+ */
+export function posicionAnimada(desde: number, hasta: number, t: number): number {
+  const avance = Math.min(Math.max(t, 0), 1);
+  const suavizado = 1 - (1 - avance) ** 3;
+  return desde + (hasta - desde) * suavizado;
+}
+
 /**
  * Qué tarjeta está al frente: la que arranca más cerca de la posición actual.
  *

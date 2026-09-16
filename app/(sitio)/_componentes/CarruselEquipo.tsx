@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { indiceActivo, proximaPosicion } from '@/lib/carrusel';
+import { MS_ANIMACION, indiceActivo, posicionAnimada, proximaPosicion } from '@/lib/carrusel';
 import { textoDistintivoNacional } from './records-texto';
 import s from './carrusel-equipo.module.css';
 
@@ -41,6 +41,7 @@ const MS_ENTRE_PASOS = 5000;
  */
 export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[] }) {
   const pistaRef = useRef<HTMLUListElement>(null);
+  const animacionRef = useRef<number | null>(null);
   const [indice, setIndice] = useState(0);
   const [pausado, setPausado] = useState(false);
   const [desborda, setDesborda] = useState(false);
@@ -52,11 +53,36 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
     return [...pista.children].map((hijo) => (hijo as HTMLElement).offsetLeft);
   }, []);
 
+  /**
+   * Lleva el scroll hasta `destino`, animándolo cuadro a cuadro.
+   *
+   * No usa `scrollTo({ behavior: 'smooth' })`: el navegador no arranca esa
+   * animación cuando el paso lo dispara el temporizador en vez de un clic, y el
+   * carrusel se quedaba quieto aunque el temporizador corriera bien. Animarlo
+   * acá también deja cancelar el paso anterior si llega otro encima.
+   */
   const mover = useCallback(
     (destino: number) => {
       const pista = pistaRef.current;
       if (!pista) return;
-      pista.scrollTo({ left: destino, behavior: sinMovimiento ? 'auto' : 'smooth' });
+
+      if (animacionRef.current !== null) cancelAnimationFrame(animacionRef.current);
+
+      if (sinMovimiento) {
+        pista.scrollLeft = destino;
+        return;
+      }
+
+      const desde = pista.scrollLeft;
+      const arranque = performance.now();
+
+      const cuadro = (ahora: number) => {
+        const t = (ahora - arranque) / MS_ANIMACION;
+        pista.scrollLeft = posicionAnimada(desde, destino, t);
+        animacionRef.current = t < 1 ? requestAnimationFrame(cuadro) : null;
+      };
+
+      animacionRef.current = requestAnimationFrame(cuadro);
     },
     [sinMovimiento],
   );
@@ -70,6 +96,14 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
     },
     [inicios, mover],
   );
+
+  // Si el bloque se va de la pantalla a mitad de un paso, el cuadro siguiente
+  // escribiría sobre un elemento ya desmontado.
+  useEffect(() => {
+    return () => {
+      if (animacionRef.current !== null) cancelAnimationFrame(animacionRef.current);
+    };
+  }, []);
 
   // El sistema puede pedir menos movimiento (macOS: Reducir movimiento). Ahí el
   // carrusel no rota solo y los saltos son instantáneos; los controles quedan.
