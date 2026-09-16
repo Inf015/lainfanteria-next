@@ -597,6 +597,14 @@
     margin: 0.25rem 0;
 }
 
+/* ─── EQUIPO ─── */
+/* Un tono aparte del de servicios y del de novedades para que el carrusel se
+   lea como bloque propio entre los dos. */
+.team {
+    background-color: var(--color-bg-light);
+    padding: 6rem 2rem;
+}
+
 /* ─── NOTICIAS ─── */
 .news {
     background-color: var(--color-bg-dark);
