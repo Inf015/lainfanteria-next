@@ -1,0 +1,128 @@
+# T-002 — Récords de los miembros en el panel
+
+| Campo | Valor |
+| ----- | ----- |
+| Rama | `oliver132123/records-panel` |
+| Worktree | `<ruta absoluta>` |
+| Base | `oliver132123/records-schema` |
+| Tipo | feat |
+| Migración | No |
+| Ronda | 1 |
+
+**Antes de empezar leé `docs/pm/contexto.md` entero** y después
+`docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
+
+## 1. Por qué
+
+Con la tabla `records` creada (T-001), Oliver necesita cargar los récords de cada
+miembro sin entrar al panel de Supabase. Un récord tiene título y, **opcionales**,
+tiempo y velocidad; sin ninguna cifra es un hito. Quien carga decide si **cuenta**
+como récord nacional (el alcance): hay hitos que cuentan y otros que no.
+
+## 2. Alcance
+
+**Dentro:**
+- Botón **«Récords»** en cada fila de la tabla de miembros del panel
+- Modal `RecordsModal.tsx`: lista + formulario de alta/edición + borrar + marcar superado/vigente
+- Validación del formulario como funciones puras en `lib/records-form.ts`, con tests
+- La consulta del panel trae los récords de cada miembro
+
+**Fuera (no tocar aunque parezca relacionado):**
+- Récords **del equipo** en el panel — es T-004
+- `lib/records.ts`, `lib/types.ts`, `lib/datos.ts` — son de T-001. Si te falta algo ahí, **escalá**; no lo agregues
+- Cualquier archivo de `app/(sitio)/` — es T-003, que corre **en paralelo**
+- `PalmaresModal.tsx` (no se refactoriza para compartir código)
+- Foto del récord, subida a Storage
+- Migraciones
+
+## 3. Archivos probables
+
+- `app/(admin)/(panel)/admin/miembros/page.tsx` — el `select` pasa a `'*, palmares:logros(*), records(*)'`
+- `app/(admin)/(panel)/admin/miembros/MiembrosAdmin.tsx` — botón y estado del modal
+- `app/(admin)/(panel)/admin/miembros/RecordsModal.tsx` (nuevo)
+- `lib/records-form.ts` (nuevo)
+- `tests/unidad/records-form.test.ts` (nuevo)
+
+Tomá `PalmaresModal.tsx` como referencia de estructura, estilos (`admin.module.css`)
+y manejo de errores: el panel tiene que sentirse igual.
+
+## 4. Criterios de aceptación
+
+### Lista
+
+- **CA-1** — Dado un miembro en la tabla del panel, cuando se hace clic en «Récords», entonces se abre un modal titulado con el nombre del miembro y sus récords en el orden de `ordenarRecords` (T-001).
+- **CA-2** — Cada récord de la lista muestra: `formatearMarca` si hay cifras (si no, nada en su lugar), el título, categoría (si hay), `etiquetaRecord`, fecha con `fechaLogro` (si hay) y un indicador **VIGENTE** o **SUPERADO**. Los que **suman** como récord nacional (vigente + alcance nacional) se distinguen a simple vista (p. ej. una píldora «SUMA»).
+- **CA-3** — Sin récords, el modal muestra «Todavía no tiene récords cargados.» y el formulario de alta disponible.
+
+### Formulario
+
+| Campo | Obligatorio | Nota |
+| ----- | ----------- | ---- |
+| Título | ✓ | textarea; ayuda: «La disciplina (1/4 de milla) o el hito completo» |
+| Tiempo (s) | — | |
+| Velocidad | — | con select de unidad al lado: mph (por defecto) / km/h |
+| Alcance | ✓ | select **sin opción preseleccionada**: Nacional / De pista / De evento / Ninguno — no suma. Ayuda: «Solo los nacionales vigentes suman en la tarjeta del piloto» |
+| Categoría, auto, lugar, año, mes, vigente (marcado), fuente (URL) | — | |
+
+`lib/records-form.ts` exporta:
+
+```ts
+export interface FormRecord { /* todos los campos como string/boolean, tal como salen del form; alcance '' = sin elegir, 'ninguno' = sin alcance */ }
+export function formVacio(): FormRecord;
+export function formDesdeRecord(r: RecordDeportivo): FormRecord;
+export function validarRecord(form: FormRecord): string | null; // null = válido; si no, el mensaje a mostrar
+export function aFilaRecord(form: FormRecord, miembroId: number | null): Omit<RecordDeportivo, 'id' | 'creado_en'>;
+```
+
+`miembroId` acepta `null` para que T-004 (récords del equipo) no tenga que cambiar la firma; esta tarea siempre pasa un número.
+
+- **CA-4** — `validarRecord` devuelve un mensaje en español, y el panel lo muestra sin llamar a la base, cuando:
+  - título vacío o solo espacios → «Escribí el título del récord.»
+  - alcance sin elegir → «Elegí el alcance: si no suma como récord nacional, elegí Ninguno.»
+  - tiempo **cargado** y no numérico, ≤ 0, mayor que `99999.999` o con más de 3 decimales → «El tiempo tiene que ser un número mayor que cero, con hasta 3 decimales.»
+  - velocidad **cargada** y no numérica, ≤ 0, mayor que `9999.99` o con más de 2 decimales → «La velocidad tiene que ser un número mayor que cero, con hasta 2 decimales.»
+  - mes sin año → «Si ponés el mes, poné también el año.»
+  - año fuera de 1950–2100 o no entero → «El año tiene que estar entre 1950 y 2100.»
+  - fuente no vacía que no empieza con `http://` o `https://` → «La fuente tiene que ser un enlace http(s).» — en particular `javascript:alert(1)` es inválida
+- **CA-5** — Tiempo y velocidad vacíos son **válidos** (es un hito). Tiempo y velocidad aceptan **coma o punto** como separador decimal (`'9,874'` y `'9.874'` → `9.874`) y espacios alrededor; no aceptan separador de miles (`'1.234,5'` es inválido).
+- **CA-6** — `aFilaRecord` recorta espacios; convierte textos opcionales vacíos a `null`; `anio`/`mes` vacíos a `null`; tiempo y velocidad a `number` o `null`; `alcance: 'ninguno'` → `null`; **velocidad vacía ⇒ `unidad_velocidad: null`** aunque el select tenga mph (si no, el CHECK de la base rechaza la fila).
+- **CA-7** — Dado un formulario válido, cuando se guarda un alta, entonces se inserta en `records` y aparece en la lista en su posición ordenada **sin recargar la página**. Al editar, se actualiza esa fila (`.eq('id', …)`) con lo que devuelve la base y la lista refleja el cambio. Editar un récord con alcance nulo muestra «Ninguno» seleccionado, no «sin elegir».
+- **CA-8** — Mientras se guarda, el botón Guardar está deshabilitado y dice «Guardando…»: un doble clic (o Enter repetido) **no** crea dos filas.
+- **CA-9** — Si Supabase devuelve error (p. ej. un CHECK de la base), el mensaje se muestra en el modal, el formulario conserva lo escrito y el botón vuelve a habilitarse.
+
+### Acciones rápidas
+
+- **CA-10** — Cada récord tiene «Marcar superado» / «Marcar vigente», que cambia solo `vigente` y reordena la lista. Si falla, se muestra el error y el estado visible no cambia.
+- **CA-11** — «Borrar» pide confirmación (`confirm`, como el resto del panel), borra la fila y la saca de la lista. Si se cancela, no pasa nada.
+
+### Integración
+
+- **CA-12** — Los cambios del modal quedan en el estado de `MiembrosAdmin`: al cerrarlo y volver a abrirlo, sin recargar, se ven actualizados, y los de un miembro no aparecen en el de otro.
+- **CA-13** — El resto del panel de miembros (editar, galería de trofeos, borrar miembro) funciona igual que antes.
+
+## 5. Pruebas requeridas
+
+- [ ] **Unidad** `tests/unidad/records-form.test.ts`:
+  - `validarRecord`: particiones válidas e inválidas de cada campo de CA-4; alcance `''` vs `'ninguno'`; límites de año `1949`/`1950`/`2100`/`2101`; tiempo `''`, `0`, `0.001`, `0.0001`, `-1`, `99999.999`, `100000`, `'abc'`; velocidad `''`, `0.01`, `0.001`, `9999.99`, `10000`; URL `https://…`, `HTTP://…`, `ftp://…`, `javascript:…`, vacía
+  - separador decimal: `'9,874'`, `'9.874'`, `' 9.874 '`, `'1.234,5'`
+  - `aFilaRecord`: vacíos → `null`; recorte de espacios; `'ninguno'` → `null`; velocidad vacía con unidad mph → unidad `null`
+  - `formDesdeRecord` → `aFilaRecord` devuelve los mismos datos (ida y vuelta) para: tiempo + velocidad nacional, solo tiempo, hito sin alcance, hito nacional
+- [ ] Seguridad: nada nuevo (la RLS de `records` la prueba T-001).
+- [ ] Humo: nada nuevo (`/admin/miembros` ya se prueba sin sesión).
+- [ ] **Verificación manual** (evidencia en la entrega): con `npx supabase start` en tu worktree (aplica las migraciones en local, requiere Docker), `npm run dev` apuntando a la base local, un usuario admin local y un miembro. Recorré: alta con tiempo y velocidad, alta de un hito que suma, alta de un hito que no suma, quitar la velocidad a uno que la tenía, marcar superado, borrar y un error de validación. Describí lo que viste; si no pudiste levantarlo, decilo y **no** lo marques como hecho.
+
+## 6. Defectos a corregir (solo rondas de fix)
+
+No aplica en ronda 1.
+
+## 7. Definición de hecho
+
+- [ ] Todos los CA cumplidos, cada uno con su test o evidencia
+- [ ] `npx next typegen && npx tsc --noEmit` limpio
+- [ ] `npm run lint` limpio
+- [ ] `npm test` verde
+- [ ] `npm run build` pasa
+- [ ] Commits convencionales (`feat(admin): …`, `test(admin): …`), archivos stageados por nombre, en la rama correcta
+- [ ] Working tree limpio
+- [ ] `entrega-dev.md` escrita en esta carpeta y commiteada
+- [ ] Sin push, sin PR, sin `db push`, sin tocar `app/(sitio)/` ni `lib/records.ts`
