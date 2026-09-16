@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
-import type { Miembro } from '@/lib/types';
+import type { Miembro, RecordDeportivo } from '@/lib/types';
 import { aLista, aSlug, slugUnico } from '@/lib/formato';
 import { borrarDelBucket } from '@/lib/storage';
+import { aplicarBorrado, aplicarGuardado, aplicarRecordsDeMiembro } from '@/lib/records-form';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import PalmaresModal from './PalmaresModal';
+import RecordsModal from './RecordsModal';
 import s from '../../../admin.module.css';
 
 const ROLES_SUGERIDOS = ['Piloto', 'Socio', 'Mecánico'];
@@ -58,6 +60,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
   const [miembros, setMiembros] = useState(inicial);
   const [editando, setEditando] = useState<Miembro | null>(null);
   const [palmaresDe, setPalmaresDe] = useState<Miembro | null>(null);
+  const [recordsDe, setRecordsDe] = useState<Miembro | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState<FormMiembro>(VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -205,6 +208,22 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
     router.refresh();
   }
 
+  // Ronda 2 (T-002-D01/D02): siempre por `miembroId` y sobre el estado más
+  // reciente (`prev`/el `m` del updater funcional), nunca sobre un snapshot
+  // capturado antes del await en RecordsModal. Así una respuesta tardía de un
+  // miembro no pisa los records del que esté abierto en ese momento, y dos
+  // acciones rápidas concurrentes no se restauran una a la otra.
+  function actualizarRecordsDeMiembro(
+    miembroId: number,
+    actualizar: (records: RecordDeportivo[]) => RecordDeportivo[],
+  ) {
+    setMiembros((prev) => aplicarRecordsDeMiembro(prev, miembroId, actualizar));
+    setRecordsDe((m) =>
+      m && m.id === miembroId ? { ...m, records: actualizar(m.records ?? []) } : m,
+    );
+    router.refresh();
+  }
+
   return (
     <>
       <div className={s.encabezado}>
@@ -283,6 +302,12 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
                       onClick={() => setPalmaresDe(p)}
                     >
                       Galería de trofeos
+                    </button>
+                    <button
+                      className={s.btnAccion}
+                      onClick={() => setRecordsDe(p)}
+                    >
+                      Récords
                     </button>
                     <button
                       className={`${s.btnAccion} ${s.btnBorrar}`}
@@ -496,6 +521,19 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
             setPalmaresDe((m) => (m ? { ...m, palmares } : m));
             router.refresh();
           }}
+        />
+      )}
+
+      {recordsDe && (
+        <RecordsModal
+          miembro={recordsDe}
+          onCerrar={() => setRecordsDe(null)}
+          onGuardado={(miembroId, fila) =>
+            actualizarRecordsDeMiembro(miembroId, (records) => aplicarGuardado(records, fila))
+          }
+          onBorrado={(miembroId, id) =>
+            actualizarRecordsDeMiembro(miembroId, (records) => aplicarBorrado(records, id))
+          }
         />
       )}
 

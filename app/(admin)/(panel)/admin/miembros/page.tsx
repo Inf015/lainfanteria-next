@@ -14,7 +14,7 @@ export default async function AdminMiembrosPage() {
   // del mismo nombre que quedó en la tabla (ver 0011).
   const { data } = await db
     .from('miembros')
-    .select('*, palmares:logros(*)')
+    .select('*, palmares:logros(*), records(*)')
     .order('orden')
     .order('id');
   return <MiembrosAdmin inicial={(data ?? []) as Miembro[]} />;

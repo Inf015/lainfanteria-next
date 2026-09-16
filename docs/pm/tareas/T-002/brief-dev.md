@@ -3,11 +3,11 @@
 | Campo | Valor |
 | ----- | ----- |
 | Rama | `oliver132123/records-panel` |
-| Worktree | `<ruta absoluta>` |
+| Worktree | `/Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel` |
 | Base | `oliver132123/records-schema` |
 | Tipo | feat |
 | Migración | No |
-| Ronda | 1 |
+| Ronda | 3 (última) — ver `pruebas-pm-r2.txt` (ronda 2: `reporte-qa-r1.md`) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero** y después
 `docs/pm/backlog/EPICA-records.md`. Sus reglas ganan sobre este brief.
@@ -109,11 +109,32 @@ export function aFilaRecord(form: FormRecord, miembroId: number | null): Omit<Re
   - `formDesdeRecord` → `aFilaRecord` devuelve los mismos datos (ida y vuelta) para: tiempo + velocidad nacional, solo tiempo, hito sin alcance, hito nacional
 - [ ] Seguridad: nada nuevo (la RLS de `records` la prueba T-001).
 - [ ] Humo: nada nuevo (`/admin/miembros` ya se prueba sin sesión).
-- [ ] **Verificación manual** (evidencia en la entrega): con `npx supabase start` en tu worktree (aplica las migraciones en local, requiere Docker), `npm run dev` apuntando a la base local, un usuario admin local y un miembro. Recorré: alta con tiempo y velocidad, alta de un hito que suma, alta de un hito que no suma, quitar la velocidad a uno que la tenía, marcar superado, borrar y un error de validación. Describí lo que viste; si no pudiste levantarlo, decilo y **no** lo marques como hecho.
+- [ ] **Verificación manual** (evidencia en la entrega): con el **Supabase local compartido** de la sección 8 y `npm run dev -- -p 3002`, un usuario admin local y un miembro. Recorré: alta con tiempo y velocidad, alta de un hito que suma, alta de un hito que no suma, quitar la velocidad a uno que la tenía, marcar superado, borrar y un error de validación. Describí lo que viste; si no pudiste levantarlo, decilo y **no** lo marques como hecho.
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
-No aplica en ronda 1.
+**Ronda 2** — de `reporte-qa-r1.md` (veredicto FAIL). Leé cada defecto completo en el reporte (pasos, evidencia y sugerencia).
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-002-D01 | S1/P1 | Una respuesta tardía de A, llegada con el modal de B abierto, reemplaza la lista de B; al editar ahí, `aFilaRecord(form, miembro.id)` reasigna el récord de A a B | (a) Toda actualización de estado se aplica **por id de miembro** sobre el estado más reciente: `setMiembros(ms => ms.map(m => m.id === miembroId ? … : m))` y el modal abierto solo se toca si `recordsDe?.id === miembroId`. (b) **Editar nunca cambia el dueño**: el UPDATE usa el `miembro_id` del récord editado (no el del modal) y filtra `.eq('id', …).eq('miembro_id', …)`. (c) Una respuesta que llega después de cerrar el modal o de cambiar de borrador **no toca** el formulario ni el error del modal actual (riesgo `setForm(null)` tras Cancelar, sección Riesgos del reporte). |
+| T-002-D02 | S2/P1 | Dos acciones rápidas capturan el mismo array `records` y la última respuesta restaura el estado viejo de la otra fila | Cada respuesta se aplica **por id de récord** sobre el estado más reciente (setState funcional), nunca reconstruyendo la lista desde un snapshot capturado. Alta, edición, superado/vigente y borrado. Tras una acción exitosa se limpia el error anterior de acciones rápidas. |
+| T-002-D03 | S3/P2 | El mensaje de validación/error queda fuera de la vista al enviar desde abajo | Al fallar la validación o la base, el mensaje queda visible sin desplazarse a mano: p. ej. `role="alert"` + `scrollIntoView` del mensaje (o mostrarlo junto a los botones). Vale para CA-4 y CA-9. |
+| T-002-D04 | S3/P2 | `type="number" min/max` dispara la validación nativa del navegador antes de `validarRecord` | `noValidate` en el formulario (o equivalente) para que **siempre** se vean los mensajes en español del contrato. No pierdas `required` visual si lo usás como pista, pero la validación la hace `validarRecord`. |
+| T-002-D05 | S4/P3 | Un hito muestra «—» en la columna Marca | Celda vacía cuando `formatearMarca` es null, como dice CA-2. |
+
+**Pruebas nuevas obligatorias (regresión):** extraé la lógica de actualización de listas a funciones puras en `lib/records-form.ts` (p. ej. `aplicarGuardado(lista, fila)` que reemplaza o inserta por id y reordena con `ordenarRecords`, `aplicarBorrado(lista, id)`, y la de actualizar un miembro por id dentro de la lista de miembros) y probalas en `tests/unidad/records-form.test.ts` con los escenarios de D01 (respuesta de A aplicada con B abierto: B no cambia) y D02 (dos respuestas en ambos órdenes sobre el mismo estado inicial: ambas quedan; borrado + actualización concurrente: la fila borrada no reaparece). Sin mocks de base: son funciones puras sobre arrays.
+
+**Ronda 3 (la última permitida)** — hallazgos del PM en `pruebas-pm-r2.txt`. D01–D05 quedaron confirmados como corregidos en interfaz; no los toques salvo que el fix de N1/N2 lo exija.
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-002-D06 (N1) | S2/P1 | El alta deja el modal en «Guardando…» para siempre aunque la fila se guarda; reproducible en `next dev` | Tras un alta o edición exitosa el formulario se cierra y la fila aparece en la lista; tras un error se ve el mensaje y el botón se rehabilita. Hipótesis del PM (verificala antes de corregir): `montadoRef` nunca vuelve a `true` después del doble montaje de React StrictMode (`RecordsModal.tsx:76-81`). El fix tiene que funcionar **con StrictMode** (no lo desactives) y no reabrir D01. |
+| T-002-D07 (N2) | S3/P2 | Dos envíos antes del re-render insertan dos filas: la guardia usa el estado `guardando` (`RecordsModal.tsx:118`) | Guardia síncrona (p. ej. `useRef`) que impide un segundo envío mientras hay uno en curso, incluido el mismo tick; el botón sigue mostrándose deshabilitado con «Guardando…». |
+
+**Cómo verificar vos (sin navegador):** reproducí N1 con un test que monte el ciclo de vida del efecto: extraé la lógica de «¿esta respuesta todavía debe aplicarse?» a una función o hook pequeño y probá que después de *montar → desmontar → montar* (lo que hace StrictMode) una respuesta del borrador vigente **sí** se aplica, y que tras desmontar de verdad **no**. Para N2, una función pura o un test del guard que demuestre que dos llamadas seguidas antes de resolver la primera solo disparan una escritura. La verificación en interfaz la repite el PM.
+
+Fuera de esta ronda: O-2 (scroll horizontal de tablas) queda como riesgo a verificar por el PM; la gramática `.5`/`5.` y URL sin host no se cambian.
 
 ## 7. Definición de hecho
 
@@ -126,3 +147,18 @@ No aplica en ronda 1.
 - [ ] Working tree limpio
 - [ ] `entrega-dev.md` escrita en esta carpeta y commiteada
 - [ ] Sin push, sin PR, sin `db push`, sin tocar `app/(sitio)/` ni `lib/records.ts`
+
+## 8. Entorno local compartido (lo provee el PM — gana sobre cualquier otra instrucción de entorno)
+
+T-002 y T-003 corren **en paralelo** contra **una sola** instancia de Supabase
+local, que ya está levantada con las migraciones 0001–0013 de esta épica.
+
+- **Prohibido** `npx supabase start`, `stop`, `db reset`, `db push` o cualquier `drop`/`truncate`: reiniciarla borra el trabajo del otro dev.
+- Variables y usuarios de prueba: `/private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env` (no lo copies al repo ni lo commitees). Levantá el sitio así:
+  ```bash
+  set -a; source /private/tmp/claude-501/-Users-oliverinfante-orca-workspaces-lainfanteria-next-hippocamp/c344ea39-f52e-43cc-9a51-5bd9d8bac39a/scratchpad/sb-gate/local-dev.env; set +a
+  npm run dev -- -p 3002      # el 3000 lo ocupa otro proyecto
+  ```
+  Las variables del shell ganan sobre `.env.local`, que apunta a producción: **nunca** corras `npm run dev` sin cargar ese archivo antes.
+- Datos de prueba: todo lo que crees (miembros, slugs, récords) con el prefijo **`t002-`** en `slug` y `titulo`, para no chocar con el otro dev. Si cargás por SQL: `docker exec -i supabase_db_lainfanteria-next psql -U postgres -d postgres` y **solo `insert`/`update`/`delete` de filas con tu prefijo**.
+- Al terminar no borres tus datos: el PM y QA los usan para verificar.

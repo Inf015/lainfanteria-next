@@ -1,0 +1,37 @@
+# Pruebas de interfaz a cargo del PM — T-002 ronda 3
+fecha: 2026-09-15 16:52:41 -0400
+HEAD: 07224b1e7a5a1a5b0473b96c78503e861e450020
+Entorno: next dev -p 3012 (StrictMode activo) con local-dev.env contra Supabase LOCAL compartido; navegador integrado de Orca 730x837; sesión admin2@local.test.
+Demora real sin mocks: trigger temporal pg_sleep(6) solo para títulos 't002-lento%' (creado y BORRADO al terminar). Acciones con element.click()/requestSubmit() para controlar tiempos.
+Script: t002-r3-ui.sh (salida literal abajo).
+
+login → "/admin/productos"
+== D06: alta exitosa cierra el formulario y agrega la fila
+alta sin demora, 1 clic ["form"] → a 1 s: "formulario cerrado" · a 3 s: "formulario cerrado" · filas en base: 1 · filas en lista: "1" · url "/admin/miembros"
+alta con demora 6 s, 1 clic ["form"] → a 1 s: "Guardando… disabled=true" · a 9 s: "formulario cerrado" · filas en base: 1 · filas en lista: "1" · url "/admin/miembros"
+== D07 / CA-8: doble envío (demora 6 s)
+dos clics en el mismo tick ["form"] → a 1 s: "Guardando… disabled=true" · a 9 s: "formulario cerrado" · filas en base: 1 · filas en lista: "1" · url "/admin/miembros"
+doble clic humano (80 ms) ["form"] → a 1 s: "Guardando… disabled=true" · a 9 s: "formulario cerrado" · filas en base: 1 · filas en lista: "1" · url "/admin/miembros"
+Enter repetido (2 submits, 40 ms) ["form"] → a 1 s: "Guardando… disabled=true" · a 9 s: "formulario cerrado" · filas en base: 1 · filas en lista: "1" · url "/admin/miembros"
+== CA-7: editar récord con alcance NULL
+select de alcance al abrir la edición: "Ninguno — no suma"
+tras guardar: "formulario cerrado" · base: (consulta del script falló por un error del PM; ver línea «CA-7 base tras guardar»)
+== CA-9: error real de la base al guardar (el récord se borra por fuera mientras se edita)
+tras guardar: "Guardar cambios disabled=false" · errores visibles: "[\"Cannot coerce the result to a single JSON object (y=119, vent=837)\"]" · título en el form: "t002-lento r3 dos"
+== Regresión D01 (A lento → cerrar → abrir B)
+B tras la respuesta de A: "{\"modal\":\"Récords de t002-pm Miembro B\",\"filas\":[],\"vacio\":true,\"errores\":[]}" · base: t002-lento r3 uno vigente=false miembro=4
+== Regresión D02 (dos acciones lentas simultáneas)
+UI: "[\"t002-lento r3 unoRécord nacionalSUMA | 9.100 s | — | VIGENTE\",\"t002-lento r3 altaRécord nacional |  | — | SUPERADO\"]" · base: t002-lento r3 alta=false; t002-lento r3 uno=true
+== Consola
+errores de consola: 0
+FIN
+CA-7 base tras guardar: alcance=NULL categoria=Cat r3 miembro_id=4 (miembro T002 Piloto Prueba)
+
+## Lectura
+- D06 FIXED: alta con y sin demora cierra el formulario y la fila aparece en la lista (1 en base).
+- D07 FIXED: mismo tick, doble clic de 80 ms y Enter repetido: 1 fila en base cada uno, botón «Guardando…» deshabilitado durante el envío, formulario cerrado al terminar.
+- CA-7: la edición de un récord con alcance NULL abre con «Ninguno — no suma»; al guardar sigue NULL, la categoría se actualiza y el dueño no cambia.
+- CA-9: con el récord borrado por fuera durante la edición, el error de la base se ve (role=alert, y=119), el formulario conserva el título y «Guardar cambios» vuelve a habilitarse. Observación: el texto es el mensaje técnico de Supabase en inglés («Cannot coerce the result to a single JSON object»).
+- Regresión D01 y D02: sin cambios, siguen corregidos.
+- Consola: 0 errores.
+- Nota: tras el login la app redirigió a /admin/productos antes de navegar a /admin/miembros; no afecta a esta tarea y no se investigó.

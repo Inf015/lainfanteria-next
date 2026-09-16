@@ -1,0 +1,133 @@
+# Gate PM — T-002 ronda 1
+fecha : 2026-09-15 11:06:46 -0400
+rama  : oliver132123/records-panel
+HEAD  : 82befdad3d6b9f6d63af0d31431a53d67702e85f
+base  : oliver132123/records-schema (bf2b20d)
+
+## Commits
+82befda docs(pm): entrega-dev T-002 ronda 1
+08feb9b feat(admin): conecta el botón Récords en la tabla de miembros
+c17ad5a feat(admin): agrega RecordsModal.tsx con la lista y el alta/edición de récords
+e3dd454 feat(admin): agrega lib/records-form.ts con la validación y conversión del formulario de récords
+bbbe879 docs(pm): brief T-002 (sale del backlog, entorno local compartido)
+
+## Archivos
+ .../(panel)/admin/miembros/MiembrosAdmin.tsx       |  22 ++
+ .../(panel)/admin/miembros/RecordsModal.tsx        | 433 +++++++++++++++++++++
+ app/(admin)/(panel)/admin/miembros/page.tsx        |   2 +-
+ docs/pm/{backlog => tareas}/T-002/brief-dev.md     |  19 +-
+ docs/pm/{backlog => tareas}/T-002/brief-qa.md      |   4 +-
+ docs/pm/tareas/T-002/entrega-dev.md                | 165 ++++++++
+ lib/records-form.ts                                | 160 ++++++++
+ tests/unidad/records-form.test.ts                  | 368 +++++++++++++++++
+ 8 files changed, 1168 insertions(+), 5 deletions(-)
+
+## Fuera de alcance (lib/records.ts, lib/types.ts, lib/datos.ts, app/(sitio)) — vacío = OK
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel
+
+
+ Test Files  8 passed (8)
+      Tests  177 passed (177)
+   Start at  11:06:52
+   Duration  286ms (transform 257ms, setup 0ms, import 386ms, tests 77ms, environment 0ms)
+
+→ OK
+
+## build
+$ npm run build
+
+> lainfanteria-next@0.1.0 build
+> next build
+
+▲ Next.js 16.3.1 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 16ms
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 412ms
+  Running TypeScript ...
+  Finished TypeScript in 1051ms ...
+  Collecting page data using 7 workers ...
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (0/13) ...
+  Generating static pages using 7 workers (3/13) 
+[supabase] "miembros activos" falló: {
+  code: 'PGRST200',
+  details: "Searched for a foreign key relationship between 'miembros' and 'records' in the schema 'public', but no matches were found.",
+  hint: null,
+  message: "Could not find a relationship between 'miembros' and 'records' in the schema cache"
+}
+  Generating static pages using 7 workers (6/13) 
+  Generating static pages using 7 workers (9/13) 
+✓ Generating static pages using 7 workers (13/13) in 560ms
+  Finalizing page optimization ...
+
+Route (app)            Revalidate  Expire
+┌ ○ /                          1m      1y
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/ajustes
+├ ƒ /admin/autos
+├ ƒ /admin/login
+├ ƒ /admin/miembros
+├ ƒ /admin/noticias
+├ ƒ /admin/productos
+├ ƒ /admin/secciones
+├ ƒ /admin/sin-acceso
+├ ○ /apple-icon.png
+├ ○ /autos                     1m      1y
+├ ○ /equipo                    1m      1y
+├ ● /equipo/[slug]
+├ ○ /icon.png
+├ ○ /merch                     1m      1y
+├ ○ /nosotros                  1m      1y
+├ ○ /noticias                  1m      1y
+├ ƒ /noticias/[slug]
+├ ○ /servicios                 1m      1y
+└ ○ /videos                    1m      1y
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+→ OK

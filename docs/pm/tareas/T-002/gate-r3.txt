@@ -1,0 +1,54 @@
+# Gate PM — T-002 ronda 3
+fecha : 2026-09-15 16:46:14 -0400
+rama  : oliver132123/records-panel
+HEAD  : 07224b1e7a5a1a5b0473b96c78503e861e450020
+
+## Commits de la ronda (desde 8c97757)
+07224b1 docs(pm): entrega-dev T-002 ronda 3
+844bf89 test(admin): agrega regresión de sesión de formulario para D06 y D07
+083d5b0 fix(admin): corrige D06 y D07 del modal de récords (ronda 3)
+145d707 fix(admin): agrega la sesión de montaje/envío de RecordsModal
+
+## Archivos
+ .../(panel)/admin/miembros/RecordsModal.tsx        | 166 +++++++++++----------
+ .../(panel)/admin/miembros/sesion-formulario.ts    |  76 ++++++++++
+ docs/pm/tareas/T-002/entrega-dev.md                | 150 +++++++++++--------
+ tests/unidad/sesion-formulario.test.ts             |  68 +++++++++
+ 4 files changed, 324 insertions(+), 136 deletions(-)
+
+## Fuera de alcance (next.config.ts, lib/records.ts, lib/types.ts, lib/datos.ts, app/(sitio), supabase) — vacío = OK
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-panel
+
+
+ Test Files  9 passed (9)
+      Tests  194 passed (194)
+   Start at  16:46:19
+   Duration  256ms (transform 326ms, setup 0ms, import 439ms, tests 75ms, environment 0ms)
+
+→ OK
