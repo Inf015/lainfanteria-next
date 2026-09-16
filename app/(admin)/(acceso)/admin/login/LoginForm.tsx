@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
+import { rutaAdminSegura } from '@/lib/rutas';
 import s from '../../../admin.module.css';
 
 export default function LoginForm() {
@@ -48,7 +49,9 @@ export default function LoginForm() {
       return;
     }
 
-    router.replace(params.get('redirigir') ?? '/admin');
+    // `redirigir` viene de la URL: se valida antes de saltar, o el login sirve
+    // de trampolín a cualquier sitio.
+    router.replace(rutaAdminSegura(params.get('redirigir')));
     router.refresh();
   }
 

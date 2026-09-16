@@ -107,9 +107,9 @@ describe('el panel está protegido', () => {
     '/admin/ajustes',
   ];
 
-  it.each(rutas)('%s redirige al login sin sesión', async () => {
+  it.each(rutas)('%s redirige al login sin sesión', async (ruta) => {
     // redirect: manual para ver el 307 en vez de seguirlo
-    const r = await fetch(`${SITIO}/admin`, { redirect: 'manual' });
+    const r = await fetch(`${SITIO}${ruta}`, { redirect: 'manual' });
     expect([307, 302]).toContain(r.status);
     expect(r.headers.get('location')).toContain('/admin/login');
   });

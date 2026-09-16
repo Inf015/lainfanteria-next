@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Logro, Miembro, PosicionLogro, TipoCompetencia } from '@/lib/types';
 import { contexto, fechaLogro, ICONO_POSICION } from '@/lib/palmares';
+import { borrarDelBucket } from '@/lib/storage';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import s from '../../../admin.module.css';
 
@@ -161,6 +162,11 @@ export default function PalmaresModal({ miembro, onCerrar, onCambio }: Props) {
         setGuardando(false);
         return;
       }
+      // Recién con el update confirmado la foto vieja dejó de estar
+      // referenciada; antes la fila seguía apuntándole.
+      if (editando.foto_url !== fila.foto_url) {
+        await borrarDelBucket(db, editando.foto_url);
+      }
       onCambio(palmares.map((l) => (l.id === editando.id ? (data as Logro) : l)));
     } else {
       const { data, error: err } = await db
@@ -190,6 +196,9 @@ export default function PalmaresModal({ miembro, onCerrar, onCambio }: Props) {
       setError(err.message);
       return;
     }
+    // Sin la fila, la foto del trofeo ya no la nombra nadie.
+    await borrarDelBucket(db, logro.foto_url);
+
     onCambio(palmares.filter((l) => l.id !== logro.id));
   }
 

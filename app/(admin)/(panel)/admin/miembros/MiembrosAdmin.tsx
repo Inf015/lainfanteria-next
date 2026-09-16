@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { Miembro } from '@/lib/types';
-import { aLista, aSlug } from '@/lib/formato';
+import { aLista, aSlug, slugUnico } from '@/lib/formato';
+import { borrarDelBucket } from '@/lib/storage';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import PalmaresModal from './PalmaresModal';
 import s from '../../../admin.module.css';
@@ -99,6 +100,7 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
     setGuardando(true);
     const db = crearClienteNavegador();
 
+    // Sin `slug`: al editar no se toca y al crear se calcula aparte.
     const fila = {
       nombre: form.nombre.trim(),
       roles: form.roles,
@@ -107,8 +109,6 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
       foto_url: form.foto_url,
       instagram_url: form.instagram_url.trim() || null,
       youtube_url: form.youtube_url.trim() || null,
-      // El slug es la URL de su página: se deriva del nombre, como en noticias.
-      slug: aSlug(form.nombre),
       // Vacío es "no lo sé": ahí la página cuenta los trofeos cargados.
       trofeos_total: form.trofeos_total.trim() === '' ? null : Number(form.trofeos_total),
       orden: Number(form.orden) || 0,
@@ -116,24 +116,60 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
     };
 
     if (editando) {
+      // El slug se deja como está: es la URL de su página, /equipo/<slug>, y
+      // recalcularlo al corregir el nombre rompe los enlaces que ya circulan y
+      // lo que Google tiene indexado. Mismo criterio que en noticias.
       const { error: err } = await db.from('miembros').update(fila).eq('id', editando.id);
       if (err) {
         setError(err.message);
         setGuardando(false);
         return;
       }
+      // Recién ahora la foto vieja dejó de estar referenciada: hasta que el
+      // update no confirmó, la fila seguía apuntándole.
+      if (editando.foto_url !== fila.foto_url) {
+        await borrarDelBucket(db, editando.foto_url);
+      }
+
       setMiembros((prev) =>
         prev.map((p) => (p.id === editando.id ? ({ ...p, ...fila } as Miembro) : p)),
       );
       avisar('Miembro actualizado');
     } else {
+      const base = aSlug(form.nombre);
+      if (!base) {
+        setError('El nombre no da un enlace utilizable. Escribilo con letras o números.');
+        setGuardando(false);
+        return;
+      }
+
+      // Dos nombres pueden dar el mismo slug ("José Pérez" y "Jose Perez"), y
+      // la columna es única. Se miran los que ya empiezan igual para elegir el
+      // sufijo, como hizo la migración que numeró los homónimos existentes.
+      const { data: parecidos, error: errSlugs } = await db
+        .from('miembros')
+        .select('slug')
+        .like('slug', `${base}%`);
+
+      if (errSlugs) {
+        setError(`No se pudo verificar el enlace: ${errSlugs.message}`);
+        setGuardando(false);
+        return;
+      }
+
+      const slug = slugUnico(base, (parecidos ?? []).map((m) => m.slug as string));
+
       const { data, error: err } = await db
         .from('miembros')
-        .insert(fila)
+        .insert({ ...fila, slug })
         .select('*')
         .single();
       if (err) {
-        setError(err.message);
+        setError(
+          err.code === '23505'
+            ? 'Ese enlace ya está ocupado. Probá de nuevo.'
+            : err.message,
+        );
         setGuardando(false);
         return;
       }
@@ -161,6 +197,9 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
       avisar(`No se pudo borrar: ${err.message}`);
       return;
     }
+    // Sin la fila, la foto ya no la nombra nadie.
+    await borrarDelBucket(db, p.foto_url);
+
     setMiembros((prev) => prev.filter((x) => x.id !== p.id));
     avisar('Miembro borrado');
     router.refresh();
