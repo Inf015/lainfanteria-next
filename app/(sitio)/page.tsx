@@ -117,19 +117,25 @@ export default async function Home() {
     equipoOn ? getMiembros() : Promise.resolve([]),
   ]);
 
+  // Solo pilotos en la portada: son los que corren y los que tienen trofeos y
+  // récords que mostrar. El equipo completo —socios y técnicos— vive en
+  // /equipo, que es adonde lleva el enlace del bloque.
+  //
   // El carrusel es un componente de cliente: lo que reciba viaja en el HTML de
   // la portada. Por eso baja un resumen y no el miembro entero — el palmarés de
   // un piloto son cientos de filas que acá se muestran como un número.
-  const equipo: TarjetaEquipo[] = miembros.map((m) => ({
-    id: m.id,
-    nombre: m.nombre,
-    slug: m.slug,
-    numero: m.numero,
-    foto: m.foto_url,
-    roles: m.roles,
-    trofeos: totalTrofeos(m),
-    recordsNacionales: recordsNacionalesVigentes(m.records).length,
-  }));
+  const equipo: TarjetaEquipo[] = miembros
+    .filter((m) => m.roles.includes('Piloto'))
+    .map((m) => ({
+      id: m.id,
+      nombre: m.nombre,
+      slug: m.slug,
+      numero: m.numero,
+      foto: m.foto_url,
+      roles: m.roles,
+      trofeos: totalTrofeos(m),
+      recordsNacionales: recordsNacionalesVigentes(m.records).length,
+    }));
 
   // Noticias y videos se mezclan en un solo bloque ordenado por fecha: para
   // quien visita el sitio ambos son "lo último del equipo".
@@ -427,12 +433,12 @@ export default async function Home() {
           <div className={s.sectionContainer}>
             <div className={s.blockHeader}>
               <div>
-                <span className={s.sectionLabel}>EL EQUIPO</span>
+                <span className={s.sectionLabel}>NUESTROS PILOTOS</span>
                 <h2 className={s.sectionTitle}>
-                  Las personas <span className={s.accent}>detrás</span>
+                  Los que corren por <span className={s.accent}>La Infantería</span>
                 </h2>
                 <p className={s.sectionSubtitle}>
-                  Pilotos, socios y técnicos. Trofeos y récords que hablan por ellos.
+                  Trofeos y récords que hablan por ellos.
                 </p>
               </div>
               <Link href="/equipo" className={s.linkWhatsapp}>
