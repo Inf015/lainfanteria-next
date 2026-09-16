@@ -34,8 +34,14 @@ Las migraciones se aplican con el CLI de Supabase, nunca a mano desde el panel:
 npx supabase db push
 ```
 
-Ocho tablas: `secciones`, `ajustes`, `pilotos`, `autos`, `auto_fotos`,
-`productos`, `producto_fotos`, `noticias`.
+Diez tablas: `secciones`, `ajustes`, `miembros`, `logros`, `records`, `autos`,
+`auto_fotos`, `productos`, `producto_fotos`, `noticias`.
+
+`logros` es el palmarés (puestos: campeón, 1.º, 2.º, 3.º) y `records` son las
+marcas y los hitos: un título con tiempo y velocidad **opcionales**; sin
+ninguna cifra es un hito («Primer dominicano en…»). Solo suman como récord
+nacional los de alcance `nacional` que siguen vigentes. Un récord puede no
+tener miembro: ésos son del equipo.
 
 RLS está activo en todas. La anon key **solo lee** lo publicado; no puede
 escribir nada.
@@ -114,3 +120,5 @@ Variables de entorno a cargar en *Project Settings → Environment Variables*:
 - Páginas públicas de Merch y Noticias (sus secciones están apagadas)
 - Datos de contacto reales en `ajustes`
 - Portal de pilotos y sistema de resultados, pospuestos del diseño original
+- Récords del equipo (sin miembro): ya se guardan, falta cargarlos desde el
+  panel y mostrarlos en «Sobre nosotros» — tarea T-004 en `docs/pm/backlog/`
