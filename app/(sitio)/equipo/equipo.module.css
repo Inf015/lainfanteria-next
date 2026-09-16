@@ -106,6 +106,21 @@
     letter-spacing: 1px;
 }
 
+/* Distintivo de récord nacional vigente: mismo tratamiento que pilotNumber,
+   esquina opuesta para no chocar con el número de carrera. */
+.distintivoRecord {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    padding: 0.3rem 0.6rem;
+}
+
 /* ── Info ── */
 .pilotInfo {
     padding: 1.5rem;

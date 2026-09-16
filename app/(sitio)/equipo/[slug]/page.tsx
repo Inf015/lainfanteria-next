@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { getMiembro, getMiembros, seccionActiva } from '@/lib/datos';
 import { aParrafos } from '@/lib/formato';
 import { hayMasQueFichas, resumirPalmares, totalTrofeos } from '@/lib/palmares';
+import { recordsNacionalesVigentes } from '@/lib/records';
+import Records from '../../_componentes/Records';
 import GaleriaTrofeos from './GaleriaTrofeos';
 import s from './miembro.module.css';
 
@@ -56,6 +58,7 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
   const total = totalTrofeos(miembro);
   const resumen = resumirPalmares(miembro.palmares);
   const parrafos = aParrafos(miembro.biografia);
+  const nacionales = recordsNacionalesVigentes(miembro.records).length;
 
   /*
    * Los conteos del resumen salen de las fichas cargadas, no del total
@@ -64,6 +67,7 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
    */
   const cifras = [
     { valor: total, etiqueta: total === 1 ? 'Trofeo' : 'Trofeos' },
+    { valor: nacionales, etiqueta: nacionales === 1 ? 'Récord nacional' : 'Récords nacionales' },
     { valor: resumen.campeonatos, etiqueta: 'Campeonatos' },
     { valor: resumen.primeros, etiqueta: 'Primeros lugares' },
     { valor: resumen.podios, etiqueta: 'Podios' },
@@ -154,6 +158,8 @@ export default async function MiembroPage({ params }: PageProps<'/equipo/[slug]'
             ))}
           </section>
         )}
+
+        <Records records={miembro.records} titulo="Récords" />
 
         {miembro.palmares.length > 0 && (
           <section className={s.bloque}>

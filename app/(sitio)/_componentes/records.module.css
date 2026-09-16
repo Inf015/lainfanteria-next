@@ -1,0 +1,168 @@
+/* Bloque de récords: fichas vigentes en grilla + historial de superados.
+   Mismo lenguaje visual que app/(sitio)/equipo/[slug]/miembro.module.css
+   (títulos de bloque, cifras, tarjetas), self-contained porque lo comparten
+   /equipo/<slug> (T-003) y /nosotros (T-004). */
+
+.bloque {
+    padding-top: 2.5rem;
+}
+
+.bloqueTitulo {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--color-text);
+    margin: 0 0 1.25rem;
+}
+
+/* ── Grilla de fichas vigentes ── */
+.grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.ficha {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-primary);
+    padding: 1.25rem;
+    min-width: 0;
+}
+
+.etiqueta {
+    color: var(--color-primary);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+}
+
+/* ── Marca (ficha con cifras) ── */
+.marca {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.15rem;
+}
+
+.marcaPrincipal {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: var(--color-text);
+    line-height: 1.1;
+    overflow-wrap: break-word;
+}
+
+.marcaSecundaria {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+/* ── Hito (ficha sin cifras): el título es el elemento principal ── */
+.hito {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--color-text);
+    line-height: 1.3;
+    margin: 0.15rem 0 0;
+    overflow-wrap: break-word;
+}
+
+.disciplina {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0;
+    overflow-wrap: break-word;
+}
+
+.meta,
+.fecha {
+    color: var(--color-text-faint);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    margin: 0;
+    overflow-wrap: break-word;
+}
+
+.fuente {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    min-height: 44px;
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.fuente:hover {
+    color: var(--color-primary-hover);
+}
+
+/* ── Historial de superados ── */
+.historialWrap {
+    margin-top: 1.75rem;
+}
+
+.historialTitulo {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--color-text-muted);
+    letter-spacing: 0.04em;
+    margin: 0 0 0.75rem;
+}
+
+.historial {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.historialItem {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    padding: 0.6rem 0.9rem;
+}
+
+.superado {
+    flex-shrink: 0;
+    color: var(--color-text-dim);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.historialTexto {
+    color: var(--color-text-faint);
+    font-size: 0.8rem;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .grilla {
+        grid-template-columns: 1fr;
+    }
+
+    .marcaPrincipal {
+        font-size: 1.5rem;
+    }
+}
