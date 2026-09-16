@@ -95,6 +95,13 @@ mueve bajo el ratón o bajo el foco, decímelo: es ahí donde puede quedar algo.
 
 Y **cómo se ve** en general, que no puedo capturar.
 
+## Reserva que sube con el cambio
+
+QA dejó abierto **T-005-D06**: ninguna prueba falla si alguien vuelve a la
+implementación que no rotaba. Cubrirlo de verdad necesita un navegador real
+—jsdom no sirve, no implementa scroll ni layout—, así que se hace en **T-006**
+con Playwright. Sube como follow-up, no como defecto de esta entrega.
+
 ## La cicatriz: por qué no rotaba
 
 La primera versión pedía el desplazamiento con
