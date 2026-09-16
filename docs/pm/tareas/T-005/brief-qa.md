@@ -33,7 +33,7 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-005/brief-dev.md` (criterios CA-1 a CA-11) |
 | Entrega del dev | `docs/pm/tareas/T-005/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-005/gate-rN.txt` |
-| Ronda anterior | ninguna |
+| Ronda anterior | `reporte-qa-r1.md` (FAIL, 6 defectos) |
 
 ## Qué hacer
 
@@ -55,6 +55,11 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 5. **Evaluación de los tests del dev:** ¿fallarían si se revierte el fix?
    ¿cubren el defecto D00 —o sea, algo que se rompa si se vuelve a
    `behavior: 'smooth'`— o solo la aritmética de posiciones? Decilo explícito.
+6. **Ronda ≥ 2:** *confirmation testing* de cada defecto anterior (FIXED /
+   NOT FIXED / PARTIAL) + *regression testing* de lo que el fix tocó. Los fixes
+   introducen defectos nuevos seguido: buscalos. En esta ronda el fix tocó el
+   modelo de paradas (`paginas`), la pausa (dos estados en vez de uno), el
+   ciclo de vida de la animación y la consulta de datos de la portada.
 
 ## Foco de esta tarea (además del checklist general)
 

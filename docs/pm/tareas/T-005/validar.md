@@ -55,6 +55,11 @@ Debajo van **‹**, los puntos y **›**. La flecha mueve una tarjeta; el punto
 rojo alargado marca en cuál estás; tocando un punto salta a esa persona. Desde
 la primera, **‹** va a la última; desde la última, **›** vuelve a la primera.
 
+En pantalla ancha vas a ver **menos puntos que pilotos**, y está bien: cuando se
+ven tres tarjetas a la vez, las últimas nunca llegan a quedar pegadas a la
+izquierda, así que hay un punto por **parada real**. El último punto siempre
+lleva al final y queda marcado al llegar.
+
 ### 8. En el teléfono
 
 Achicá la ventana a ancho de celular (o abrilo en el teléfono). Se ve **una
@@ -71,16 +76,24 @@ la página de esa persona. `VER EQUIPO →` arriba abre `/equipo`.
 ## Verificado antes de entregar
 
 - **Rota solo** (paso 5): observado en el navegador, una tarjeta cada 5 s
-  (0 → 590 → 1180 → …).
+  (0 → 590 → 1180 → … → 4031 → 0).
+- **El último punto** (paso 7): lleva al tope (4031) y queda marcado.
 - Orden del bloque, las 8 tarjetas de pilotos, los trofeos, la etiqueta de
   récord y el ancho de las tarjetas, en el HTML servido.
-- Lógica de navegación y de la animación (avance, retroceso, vuelta en los
-  extremos, punto activo, no pasarse del destino): 15 pruebas en
+- Lógica de navegación, de las paradas y de la animación: 24 pruebas en
   `tests/unidad/carrusel.test.ts`.
-- Gate: tipos ✅ lint ✅ 221/221 ✅ build ✅ seguridad 49/49 ✅.
+- Gate: tipos ✅ lint ✅ 230/230 ✅ build ✅ seguridad 49/49 ✅.
 
-No puedo sacar capturas de pantalla —el navegador que uso falla al capturar si
-su ventana no tiene el foco—, así que **cómo se ve** lo mirás vos.
+## Lo que mirás vos y yo no pude
+
+**Los pasos 6 (la pausa con el ratón y con el teclado) y 8 (el teléfono).** El
+navegador que manejo no tiene el foco de la ventana, y sin eso `focus()` no toma
+y el hover no llega a disparar la pausa; por lo mismo falla la captura de
+pantalla. Son además los dos defectos P1 que QA encontró y que corregí **por
+lectura del código**, sin poder ejercitarlos. Si en el paso 6 el carrusel se te
+mueve bajo el ratón o bajo el foco, decímelo: es ahí donde puede quedar algo.
+
+Y **cómo se ve** en general, que no puedo capturar.
 
 ## La cicatriz: por qué no rotaba
 
