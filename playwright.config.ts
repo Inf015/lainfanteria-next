@@ -32,11 +32,18 @@ export default defineConfig({
    * comportamiento del temporizador del carrusel no es el que ve quien
    * visita el sitio. Playwright arranca y apaga el servidor solo — no hace
    * falta levantarlo a mano en otra terminal (CA-1).
+   *
+   * `reuseExistingServer: false` **también en local** (T-006-D02): con la
+   * reutilización activada, cualquier proceso que estuviera escuchando en el
+   * puerto se daba por bueno y la suite podía saltarse el build — probando
+   * otra cosa, o el HEAD de otro worktree, y dando verde sin haber compilado
+   * este. Con esto, si el puerto está ocupado la corrida falla de entrada
+   * diciendo que ya está en uso, en vez de probar contra un desconocido.
    */
   webServer: {
     command: `npm run build && npx next start -p ${PUERTO}`,
     url: URL_BASE,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
