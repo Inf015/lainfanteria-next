@@ -754,7 +754,73 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await noSeMueve(page, pista, alPausar);
   });
 
-  test('CA-5 (T-007): el foco con Tab detiene el paso aun pasado el punto medio', async ({
+  /**
+   * CA-5 con la entrada de frente, que es la que hace de verdad quien navega
+   * con teclado (T-007-D02).
+   *
+   * El criterio enmendado no pide que el scroll se quede clavado: pide que la
+   * **rotación se detenga**. La diferencia importa porque el navegador sí mueve
+   * el scroll al entrar el foco, y hace bien: el Tab cae en el enlace de la
+   * primera tarjeta y, si el paso ya la sacó de la vista, la trae de vuelta —
+   * lo contrario dejaría el foco en algo que no se ve. Eso es accesibilidad
+   * funcionando, no el carrusel moviéndose solo.
+   *
+   * Lo que se mide, entonces: que el paso en curso no llegue a su parada, y que
+   * después del reacomodo del navegador el carrusel no se mueva nunca más
+   * mientras el foco siga dentro —ni en tiempo real, donde corría lo que el
+   * `scroll-snap` terminaba por su cuenta, ni avanzando el reloj falso dos
+   * intervalos enteros—.
+   */
+  test('CA-5 (T-007): el foco que entra con Tab pasado el punto medio detiene la rotación', async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const marco = await irAlCarrusel(page);
+    const pista = marco.getByRole('list');
+    const { destinos, max } = await medirParadas(marco);
+
+    // El foco entra y sale para conocer el cero del intervalo, y queda justo
+    // antes del carrusel: así **un solo** Tab entra de frente.
+    await entrarConTab(page, marco);
+    await page.keyboard.press('Shift+Tab');
+    expect(await focoAdentro(marco)).toBe(false);
+    await pista.evaluate((el) => {
+      el.scrollLeft = 0;
+    });
+    const reloj = relojDe(page);
+
+    const desde = await scrollLeftDe(pista);
+    const objetivo = proximaPosicion(desde, destinos, max, 1);
+
+    await reloj.hastaPasoEnCurso(MS_PASADO_EL_MEDIO);
+    const enCurso = await scrollLeftDe(pista);
+    expectAMitadDeCamino(enCurso, desde, objetivo, 0.5);
+
+    await page.keyboard.press('Tab');
+    expect(await focoAdentro(marco)).toBe(true);
+
+    // El navegador puede reacomodar el scroll para mostrar el enlace que acaba
+    // de recibir el foco. Se le da tiempo real a que termine y se mide desde
+    // ahí: lo que no puede pasar es que el carrusel siga moviéndose solo.
+    await page.waitForTimeout(MS_VIGILANCIA);
+    const trasElFoco = await scrollLeftDe(pista);
+    expect(
+      Math.abs(trasElFoco - objetivo),
+      `el paso se completó igual: llegó a ${trasElFoco}, la parada que perseguía`,
+    ).toBeGreaterThan(MARGEN_PIXELES);
+    await noSeMueve(page, pista, trasElFoco);
+
+    // Y la rotación seguía viva: al salir el foco, vuelve a andar.
+    await page.keyboard.press('Shift+Tab');
+    expect(await focoAdentro(marco)).toBe(false);
+    await page.clock.runFor(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
+    expect(await scrollLeftDe(pista)).not.toBe(trasElFoco);
+  });
+
+  // El mismo criterio entrando por los controles, que están fuera de la pista y
+  // no la desplazan: ahí el scroll se queda **exactamente** donde lo agarró el
+  // foco, sin reacomodo del navegador de por medio.
+  test('CA-5 (T-007, extra): entrando por los controles, el scroll ni se mueve', async ({
     page,
   }) => {
     await page.clock.install();
@@ -763,10 +829,9 @@ test.describe('Carrusel de pilotos de la portada', () => {
     const { destinos, max } = await medirParadas(marco);
 
     // El foco se estaciona **después** del carrusel: al volver con un solo
-    // `Shift+Tab` entra por el último control, que está fuera de la pista y no
-    // la desplaza (ver `salirTabulandoPorAbajo`). Y al salir, el intervalo se
-    // vuelve a crear, con lo que su próximo disparo queda a `MS_ENTRE_PASOS`
-    // exactos de acá.
+    // `Shift+Tab` entra por el último control (ver `salirTabulandoPorAbajo`). Y
+    // al salir, el intervalo se vuelve a crear, con lo que su próximo disparo
+    // queda a `MS_ENTRE_PASOS` exactos de acá.
     await salirTabulandoPorAbajo(page, marco);
 
     // Tabular por las tarjetas arrastró la pista hasta el final; se la devuelve
