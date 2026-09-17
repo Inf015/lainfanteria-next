@@ -109,25 +109,54 @@ async function laPortadaMuestraPilotos(page: Page): Promise<boolean> {
 /**
  * Va a la portada y devuelve el bloque del carrusel, ya visible.
  *
- * Distingue dos cosas que las rondas anteriores confundían (T-006-D01):
+ * Distingue **tres** cosas que las rondas anteriores confundían:
  *
+ * - **La portada no cargó** —respuesta HTTP de error, o una página que no es la
+ *   del sitio público— : eso es el sitio caído, y se falla diciéndolo
+ *   (T-006-D07). Es lo primero que se comprueba, antes de mirar contenido.
  * - **Ausencia legítima de datos** —sección "equipo" apagada, sin pilotos, o
  *   el equipo entra sin desbordar— : no hay carrusel que probar hoy y las
  *   pruebas se saltan con un motivo legible (CA-9, CA-10).
  * - **Fallo de renderizado o de hidratación** —la portada trae pilotos pero no
  *   hay contenedor de carrusel, o la pista desborda y los controles no están, o
  *   cambió alguna etiqueta— : eso es una regresión, y se exige con `expect`,
- *   para que salga como fallo y no como ocho omitidas.
+ *   para que salga como fallo y no como ocho omitidas (T-006-D01).
  *
  * La decisión de omitir se apoya **solo** en señales independientes del
- * atributo bajo prueba (`laPortadaMuestraPilotos`). El desborde se mide sobre
- * el DOM (`scrollWidth`/`clientWidth`, geometría de CSS que no depende de que
- * React haya hidratado); los controles se esperan con
- * `expect(...).toBeVisible()`, que reintenta mientras el efecto que los monta
- * hace su trabajo.
+ * atributo bajo prueba (`laPortadaMuestraPilotos`), y solo se llega a ella con
+ * la portada cargada. El desborde se mide sobre el DOM
+ * (`scrollWidth`/`clientWidth`, geometría de CSS que no depende de que React
+ * haya hidratado); los controles se esperan con `expect(...).toBeVisible()`,
+ * que reintenta mientras el efecto que los monta hace su trabajo.
  */
 async function irAlCarrusel(page: Page): Promise<Locator> {
-  await page.goto('/');
+  const respuesta = await page.goto('/');
+
+  // `goto()` **no** lanza ante un 404 ni un 500: devuelve la respuesta y la
+  // prueba sigue como si nada. Y una página de error no trae el encabezado del
+  // bloque de equipo ni enlaces a perfiles, así que las dos señales de
+  // `laPortadaMuestraPilotos` dan cero y el sitio caído se leía como "hoy no
+  // hay pilotos" — las ocho pruebas omitidas justo cuando más importaban
+  // (T-006-D07). CA-9 autoriza omitir por sección apagada o falta de datos, no
+  // por una respuesta de error.
+  if (!respuesta) {
+    throw new Error(
+      'La navegación a la portada no devolvió ninguna respuesta HTTP: el sitio no cargó (y eso no es "hoy no hay pilotos")',
+    );
+  }
+  expect(
+    respuesta.ok(),
+    `La portada respondió HTTP ${respuesta.status()} ${respuesta.statusText()}: el sitio no cargó, y eso no es "hoy no hay pilotos"`,
+  ).toBe(true);
+
+  // Un 200 tampoco alcanza: podría ser cualquier otra página. El pie lo pinta
+  // el layout del sitio público (`app/(sitio)/layout.tsx`) pase lo que pase con
+  // las secciones, así que sirve de señal de "esto sí es la portada", y es
+  // independiente del bloque de equipo y del carrusel.
+  await expect(
+    page.getByRole('contentinfo'),
+    'La respuesta no trae el pie del sitio público: lo que cargó no es la portada',
+  ).toBeVisible();
 
   test.skip(
     !(await laPortadaMuestraPilotos(page)),
