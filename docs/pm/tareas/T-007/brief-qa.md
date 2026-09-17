@@ -33,7 +33,7 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-007/brief-dev.md` (criterios CA-1 a CA-7) |
 | Entrega del dev | `docs/pm/tareas/T-007/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-007/gate-rN.txt` |
-| Ronda anterior | ninguna |
+| Ronda anterior | `reporte-qa-r1.md` (FAIL, 2 defectos P1) |
 | Antecedentes | `docs/pm/tareas/T-005/reporte-qa-r2.md` (T-005-D02) y `docs/pm/tareas/T-006/` |
 
 ## Qué hacer
@@ -64,6 +64,15 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
    Playwright. `npx tsc --noEmit` sí. El PM dejó la salida del gate en
    `docs/pm/tareas/T-007/gate-rN.txt`; verificá que corresponda al `HEAD`
    actual. Lo que no puedas ejecutar va a *Pruebas a ejecutar por el PM*.
+
+> **Nota del PM para la ronda 2.** CA-5 quedó **enmendado**: el criterio
+> original pedía que el scroll no se moviera al entrar el foco con `Tab`, y eso
+> contradice el comportamiento accesible correcto (un elemento que recibe el
+> foco debe hacerse visible). El criterio ahora exige que **la rotación
+> automática se detenga**, permitiendo el reposicionamiento del navegador.
+> Evaluá contra el criterio enmendado, no contra el original. T-007-D02 se
+> cierra por enmienda del criterio, no por código: verificá que la prueba
+> cubra ahora el camino con `Tab` de verdad.
 
 ## Checklist de esta tarea
 

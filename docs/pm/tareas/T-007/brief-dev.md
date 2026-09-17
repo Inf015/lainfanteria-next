@@ -7,7 +7,7 @@
 | Base | `oliver132123/pruebas-navegador` |
 | Tipo | fix |
 | Migración | No |
-| Ronda | 1 |
+| Ronda | 2 — defectos de `reporte-qa-r1.md` |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
 este brief.
@@ -78,11 +78,60 @@ fallaba era lo que el navegador hace con ella.
 - **CA-4** — Dado un paso en curso **pasado el punto medio** (por ejemplo a los
   300 ms de los 450), cuando el puntero entra en el carrusel, entonces el
   scroll **se queda donde está** y no completa el salto.
-- **CA-5** — Lo mismo que CA-4 con el foco del teclado entrando con `Tab`.
+- **CA-5** — *(enmendado por el PM en la ronda 2, ver más abajo)* Dado un paso
+  en curso pasado el punto medio, cuando el foco del teclado entra en el
+  carrusel con `Tab`, entonces **la rotación se detiene**: el carrusel no sigue
+  avanzando solo mientras el foco esté dentro. El navegador **sí puede** mover
+  el scroll para dejar a la vista el elemento que acaba de recibir el foco —eso
+  es lo correcto y no cuenta como incumplimiento—, pero después de eso no puede
+  haber más movimiento propio del carrusel.
 - **CA-6** — Las **ocho pruebas de navegador que ya existen** siguen pasando,
   y las 230 de unidad también.
 - **CA-7** — Dado que se revierte el arreglo, entonces la prueba de CA-1 falla.
   Hay que demostrarlo con salida real y dejar el cambio revertido.
+
+## 4.b Defectos a corregir (ronda 2)
+
+De `docs/pm/tareas/T-007/reporte-qa-r1.md` (veredicto **FAIL**).
+
+| ID | Sev / Pri | Resumen | Esperado |
+| -- | --------- | ------- | -------- |
+| T-007-D01 | S2 / P1 | El snap se puede encender con la animación todavía pendiente. El helper calcula su avance con el timestamp que le pasa `requestAnimationFrame`, pero el componente decide si terminó leyendo `performance.now()` de nuevo: si el cuadro se ejecuta con retraso, las dos lecturas no coinciden, el componente da el paso por terminado y enciende el snap mientras el helper todavía va a escribir posiciones intermedias. QA lo reprodujo en memoria: timestamp de rAF 300 ms, `performance.now()` 460 ms, posición 397,7 de 413, snap encendido y otro cuadro pendiente | Que el snap se encienda cuando la animación **efectivamente terminó de escribir**, no cuando se deduce por una segunda lectura del reloj. Lo natural es que `animarScroll` avise —un callback de fin, o que devuelva esa señal— en vez de que el componente lo adivine |
+
+### CA-5: el criterio estaba mal escrito, y es culpa del PM
+
+QA reporta como **T-007-D02** que la prueba de CA-5 esquiva con `Shift+Tab` el
+caso que la entrega documenta: entrar con `Tab` a un enlace que el paso sacó de
+vista hace que el navegador traiga la tarjeta de vuelta, y el scroll va a 0.
+
+Tiene razón en que la prueba esquiva el caso. **Pero el criterio original estaba
+mal**: pedía que el scroll «se quede donde está», y eso contradice el
+comportamiento correcto de un navegador. Cuando un elemento recibe el foco por
+teclado, hacerlo visible es lo que corresponde; lo contrario deja a quien navega
+con teclado con el foco en algo que no ve. No es un defecto a corregir: es
+accesibilidad funcionando.
+
+Lo que sí tiene que garantizar CA-5 es lo que de verdad importaba: **que la
+rotación automática se detenga**. Por eso el criterio queda enmendado arriba.
+
+Entonces, para esta ronda:
+
+- **No** cambies el componente para impedir que el navegador reposicione al
+  enfocar. Sería empeorar la accesibilidad para satisfacer un criterio mal
+  redactado.
+- **Sí** reescribí la prueba de CA-5 para que entre con `Tab` de verdad —el caso
+  que hoy esquiva— y verifique lo que el criterio enmendado pide: que tras el
+  reposicionamiento del navegador, el carrusel **no vuelva a moverse solo**
+  mientras el foco siga dentro. Dejá `Shift+Tab` si te sirve como caso extra,
+  pero el camino con `Tab` tiene que estar cubierto.
+- Documentá en la entrega, en una línea, el comportamiento del navegador al
+  enfocar, para que quede claro que es esperado y no un defecto tapado.
+
+### Cómo comprobar que el fix de D01 sirve
+
+Demostrá que la prueba nueva **falla sin el arreglo**, como en la ronda 1:
+volvé a la deducción por `performance.now()`, corré, pegá la salida real del
+fallo, revertí.
 
 ## 5. Pruebas requeridas
 
