@@ -1,144 +1,264 @@
-# Entrega T-006 — ronda 1
+# Entrega T-006 — ronda 2
 
 **Estado:** LISTA PARA QA
 
-## Qué hice
+Ronda de corrección de los cinco defectos de `reporte-qa-r1.md` (veredicto
+FAIL). No se tocó nada más: el diff son cuatro archivos —el spec, la
+configuración de Playwright, `package.json` y `package-lock.json`— más esta
+entrega. El código del carrusel quedó **sin cambios** (las mutaciones para
+demostrar sensibilidad se revirtieron; ver el final de cada demostración y
+`git status --short` al cierre).
 
-- `@playwright/test` como devDependency y `npm run test:navegador` —
-  `package.json:14`. Sin fijar la versión del navegador: `npx playwright
-  install chromium` lo baja fuera del repo.
-- `playwright.config.ts` — levanta el sitio compilado (`next build && next
-  start -p 3015`, puerto propio, ni 3000 ni 3014) y lo apaga solo; un
-  proyecto, `chromium`.
-- `tests/navegador/carrusel.spec.ts` — CA-2 a CA-7, con `page.clock` (no
-  esperas reales) y locators por `aria-roledescription`/`aria-label`, nunca
-  por clases de CSS Module.
-- `.gitignore` — `test-results/`, `playwright-report/`, `blob-report/`.
-- `README.md` y `docs/pm/contexto.md` — la suite de navegador suma a la tabla
-  de pruebas, mismo nivel que unidad/seguridad/humo.
+## Defecto → fix → evidencia
 
-## Trazabilidad
+| Defecto | Fix | Prueba / evidencia |
+| ------- | --- | ------------------ |
+| **T-006-D01** (S2/P1) — el `test.skip` convertía un carrusel roto en seis omitidas | `irAlCarrusel()` ahora **mide el desborde** de la pista (`scrollWidth - clientWidth > 1`, geometría de CSS que no depende de la hidratación) y separa los dos casos: sin bloque o sin desborde ⇒ `test.skip` con motivo; con desborde ⇒ los tres controles se **exigen** con `expect(...).toBeVisible()` y un mensaje que dice que el carrusel no renderizó sus controles — `tests/navegador/carrusel.spec.ts:92-141` | Demostración abajo: con el `aria-label` del botón siguiente cambiado, la suite da **8 failed / 0 skipped** (antes: 6 omitidas). El `toBeVisible()` con reintento cubre además el riesgo de hidratación que QA marcó en "Riesgos" |
+| **T-006-D02** (S2/P1) — podía engancharse a cualquier servidor del 3015 | `reuseExistingServer: false`, también en local — `playwright.config.ts:29-51` | Corrida con el puerto ocupado: falla de entrada con `EADDRINUSE`, sin probar nada (salida abajo). Con el puerto libre, la suite compila y pasa |
+| **T-006-D03** (S2/P1) — CA-4/CA-5 pausaban *antes* de que hubiera un paso en curso | Dos pruebas nuevas —`CA-4 (T-005-D02)` con el puntero y `CA-5 (T-005-D02)` con el teclado— que demuestran movimiento, entran **a los 48 ms de los 450 de la animación** y comprueban que el scroll se queda donde estaba, muestreando en tiempo real y avanzando después dos intervalos completos — `carrusel.spec.ts:327-415`. Hizo falta además **pausar el reloj falso** (`page.clock.pauseAt`), ver "Decisiones" | Demostración abajo: quitando el `useEffect` de `CarruselEquipo.tsx:119-122`, las dos pruebas nuevas **fallan** y las seis de la ronda 1 siguen pasando — que era exactamente la queja de QA |
+| **T-006-D04** (S2/P2) — CA-5 entraba con `.focus()` | Dos pasos, los dos con `Tab`: `entrarConTab()` pulsa hasta que el foco esté dentro del carrusel (lo usan CA-5 y la prueba nueva de teclado), y `tabularHastaInteractivo()` sigue hasta que el foco quede sobre un **enlace o control** del carrusel — `carrusel.spec.ts:186-219`. El segundo paso hizo falta: Chromium hace tabulable la pista por ser un contenedor con scroll, así que entrar al bloque no prueba que los enlaces sigan alcanzables | Demostración abajo: con `tabIndex={-1}` en los enlaces y los botones, CA-5 **falla**. Medido en esta portada: 13 pulsaciones para entrar al bloque |
+| **T-006-D05** (S3/P2) — versión con rango | `"@playwright/test": "1.63.0"` exacta — `package.json:26`, y el `package-lock.json` regenerado con `npm install --package-lock-only` para que la raíz del lock declare el mismo literal | `node -e "…"` sobre el lock: raíz `1.63.0`, paquete instalado `1.63.0`. `npm ci` sigue siendo coherente |
 
-| CA | Cómo se cumple | Test / evidencia |
-| -- | --------------- | ----------------- |
-| CA-1 | `webServer` en `playwright.config.ts` compila y arranca el sitio solo | Corrido de punta a punta con `npm ci && npx playwright install chromium && npm run test:navegador` — ver "Verificación" abajo, sin servidor arrancado a mano en otra terminal |
-| CA-2 | El intervalo (reloj falso) avanza `scrollLeft` a `proximaPosicion(...)`, calculada con la misma función pura del componente | `carrusel.spec.ts:99` "CA-2: rota sola..." — y la sección **CA-8** de abajo, que prueba que esta prueba puntual falla sin el fix |
-| CA-3 | Arranca en la última parada (`scrollLeft = max` fijado directo) y verifica que el intervalo lo manda a `0` | `carrusel.spec.ts:117` "CA-3: en la última parada..." |
-| CA-4 | `marco.hover()` mantiene `scrollLeft` fijo; sacar el puntero lo retoma | `carrusel.spec.ts:137` "CA-4: se pausa con el puntero..." |
-| CA-5 | Foco en un enlace de la primera tarjeta mantiene `scrollLeft` fijo aunque el puntero entre y salga en el medio | `carrusel.spec.ts:153` "CA-5: se pausa con el foco..." |
-| CA-6 | `‹` en la primera parada → al final; `›` en la última → al principio; el último punto llega al tope con `aria-current="true"` | `carrusel.spec.ts:173` "CA-6: los controles respetan los extremos..." |
-| CA-7 | `page.emulateMedia({ reducedMotion: 'reduce' })` antes de navegar; `scrollLeft` no cambia con el reloj avanzado | `carrusel.spec.ts:204` "CA-7: con prefers-reduced-motion..." |
-| CA-8 | Ver sección dedicada abajo | — |
-| CA-9 | El helper `irAlCarrusel()` (compartido por las seis pruebas) hace `test.skip(...)` con motivo legible si no hay bloque de equipo o si no desborda | `carrusel.spec.ts:41-57` |
-| CA-10 | Ninguna prueba escribe; todas miden `scrollLeft`/atributos ARIA de lo que ya está en la portada, sin nombres ni cantidades de miembros hardcodeados (`puntos.last()`, `destinos.length` implícito vía `paginas()`) | Lectura del spec completo |
+## Sensibilidad de las pruebas nuevas
 
-## CA-8 — la prueba falla sin el fix
+### D01 — un carrusel roto tiene que fallar, no omitirse
 
-Cambié en `app/(sitio)/_componentes/CarruselEquipo.tsx`, dentro de `mover()`,
-la llamada a `animarScroll` por la implementación que T-005 tenía antes del
-fix:
+Mutación: en `app/(sitio)/_componentes/CarruselEquipo.tsx`, `aria-label="Miembro
+siguiente"` → `aria-label="Siguiente miembro del equipo"` (el botón sigue
+existiendo y el carrusel sigue desbordando; solo cambió la etiqueta, como
+pedía el reporte).
+
+```
+$ npm run test:navegador
+
+Running 8 tests using 4 workers
+...
+  8) [chromium] › tests/navegador/carrusel.spec.ts:448:7 › Carrusel de pilotos de la portada › CA-7: con prefers-reduced-motion no rota sola
+
+    Error: La pista desborda pero no aparece el control "Miembro siguiente": el carrusel no renderizó sus controles
+
+    expect(locator).toBeVisible() failed
+
+    Locator: locator('[aria-roledescription="carrusel"]').getByRole('button', { name: 'Miembro siguiente' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+      118 |     marco.getByRole('button', { name: 'Miembro siguiente' }),
+      119 |     'La pista desborda pero no aparece el control "Miembro siguiente": el carrusel no renderizó sus controles',
+    > 120 |   ).toBeVisible();
+          |     ^
+        at irAlCarrusel (.../tests/navegador/carrusel.spec.ts:120:5)
+        at .../tests/navegador/carrusel.spec.ts:452:19
+
+  8 failed
+    [chromium] › carrusel.spec.ts:269:7 › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción
+    [chromium] › carrusel.spec.ts:287:7 › CA-3: en la última parada, el intervalo vuelve al principio
+    [chromium] › carrusel.spec.ts:307:7 › CA-4: se pausa con el puntero encima y retoma al salir
+    [chromium] › carrusel.spec.ts:327:7 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso
+    [chromium] › carrusel.spec.ts:358:7 › CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga
+    [chromium] › carrusel.spec.ts:384:7 › CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso
+    [chromium] › carrusel.spec.ts:417:7 › CA-6: los controles respetan los extremos y marcan la parada activa
+    [chromium] › carrusel.spec.ts:448:7 › CA-7: con prefers-reduced-motion no rota sola
+```
+
+**8 failed, ninguna omitida.** En la ronda 1 la misma mutación daba seis
+omitidas y salida 0. Revertido con
+`git checkout -- "app/(sitio)/_componentes/CarruselEquipo.tsx"`.
+
+### D03 — la pausa tiene que cortar el paso en curso
+
+Mutación: se borró de `CarruselEquipo.tsx:119-122` **solo** el efecto que corta
+la animación al pausar, dejando intacta la limpieza del intervalo:
 
 ```diff
--      cortarRef.current = animarScroll(
--        (posicion) => {
--          pista.scrollLeft = posicion;
--        },
--        pista.scrollLeft,
--        destino,
--        RELOJ_NAVEGADOR,
--      );
-+      pista.scrollTo({ left: destino, behavior: 'smooth' });
+-  useEffect(() => {
+-    if (!pausado && !sinMovimiento && desborda) return;
+-    cortar();
+-  }, [pausado, sinMovimiento, desborda, cortar]);
 ```
 
-Corrí solo esa prueba (`npm run test:navegador -- -g "CA-2"`). Salida real:
+```
+$ npm run test:navegador -- -g "T-005-D02"
+
+  ✘  2 [chromium] › carrusel.spec.ts:384:7 › CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (949ms)
+  ✘  1 [chromium] › carrusel.spec.ts:327:7 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.1s)
+
+  1) [chromium] › ... CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 413
+    Received: 827
+
+      261 |   await page.clock.runFor(MS_ENTRE_PASOS * 2);
+    > 262 |   expect(await scrollLeftDe(pista)).toBe(posicion);
+          |                                     ^
+        at noSeMueve (.../tests/navegador/carrusel.spec.ts:262:37)
+        at .../tests/navegador/carrusel.spec.ts:355:5
+
+  2) [chromium] › ... CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 413
+
+        at noSeMueve (.../tests/navegador/carrusel.spec.ts:262:37)
+        at .../tests/navegador/carrusel.spec.ts:411:5
+  2 failed
+```
+
+El carrusel siguió hasta la parada siguiente (413 → 827 con el puntero encima;
+0 → 413 con el foco dentro) pese a estar pausado: es el defecto T-005-D02.
+
+Y la suite **entera** con esa misma mutación, que es lo que QA pedía comprobar:
 
 ```
-Running 1 test using 1 worker
+$ npm run test:navegador
 
-  ✘  1 [chromium] › tests/navegador/carrusel.spec.ts:99:7 › Carrusel de pilotos de la portada › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (361ms)
+  ✓ CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (604ms)
+  ✓ CA-3: en la última parada, el intervalo vuelve al principio (616ms)
+  ✓ CA-4: se pausa con el puntero encima y retoma al salir (735ms)
+  ✓ CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga (507ms)
+  ✘ CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.3s)
+  ✓ CA-7: con prefers-reduced-motion no rota sola (255ms)
+  ✘ CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (898ms)
+  ✓ CA-6: los controles respetan los extremos y marcan la parada activa (840ms)
+  2 failed
+  6 passed (6.1s)
+```
 
-  1) [chromium] › tests/navegador/carrusel.spec.ts:99:7 › Carrusel de pilotos de la portada › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción
+Las seis pruebas de la ronda 1 pasan sin el efecto; solo las dos nuevas lo
+detectan. Revertido con
+`git checkout -- "app/(sitio)/_componentes/CarruselEquipo.tsx"`.
 
-    Error: expect(received).not.toBe(expected) // Object.is equality
+### D04 — el teclado tiene que llegar de verdad
 
-    Expected: not 0
+Mutación: `tabIndex={-1}` en los tres `<Link>` de cada tarjeta y en los tres
+`<button>` de los controles, la que proponía el reporte.
 
-      111 |
-      112 |     const despues = await scrollLeftDe(pista);
-    > 113 |     expect(despues).not.toBe(antes);
-          |                         ^
-      114 |     expectCerca(despues, esperado);
-      115 |   });
-      116 |
-        at .../tests/navegador/carrusel.spec.ts:113:25
+```
+$ npm run test:navegador -- -g "CA-5"
+
+  1) [chromium] › carrusel.spec.ts:358:7 › CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga
+
+    Error: Ningún enlace ni control del carrusel recibió el foco en 40 pulsaciones de Tab: quedaron fuera del orden de tabulación
+
+      214 |     await page.keyboard.press('Tab');
+      215 |   }
+    > 216 |   throw new Error(
+          |         ^
+        at tabularHastaInteractivo (.../tests/navegador/carrusel.spec.ts:216:9)
+        at .../tests/navegador/carrusel.spec.ts:370:5
 
   1 failed
-    [chromium] › tests/navegador/carrusel.spec.ts:99:7 › ... CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción
+  1 passed (6.3s)
 ```
 
-`scrollLeft` se quedó en `0`: reproduce exactamente el bug original — el
-navegador no arranca `scrollTo({ behavior: 'smooth' })` cuando el paso lo
-dispara el `setInterval` en vez de un clic. La prueba de CA-2 sí puede fallar,
-que era el problema entero de T-005-D06.
+Vale la pena el detalle porque la **primera** versión del fix no lo detectaba:
+solo comprobaba que el foco entrara en el bloque, y entraba igual —Chromium
+hace tabulable la pista por ser un contenedor con scroll—, así que la prueba
+pasaba con los enlaces inalcanzables. De ahí `tabularHastaInteractivo()`.
+Revertido.
 
-Reverti el cambio con `git checkout -- "app/(sitio)/_componentes/CarruselEquipo.tsx"`
-(no tenía otro diff pendiente en ese archivo) y confirmé que no quedó en el
-diff — ver "Commits" y la corrida completa en "Verificación", ambas ya con el
-fix real puesto.
+### D02 — puerto ocupado
+
+```
+$ python3 -m http.server 3015 &   # un servidor ajeno cualquiera
+$ npm run test:navegador
+
+[WebServer] ⨯ Failed to start server
+[WebServer] Error: listen EADDRINUSE: address already in use :::3015
+[WebServer]   code: 'EADDRINUSE',
+[WebServer]   port: 3015
+Error: Process from config.webServer was not able to start. Exit code: 1
+
+$ lsof -nP -iTCP:3015 -sTCP:LISTEN | wc -l   # tras matar el ajeno
+       0
+```
+
+No reutiliza nada, no da falso verde y no deja procesos propios escuchando.
+
+### CA-8 revalidado (el reloj cambió, la prueba tenía que seguir sirviendo)
+
+Como esta ronda pasa a usar el reloj **pausado**, repetí la mutación de CA-8
+—`animarScroll(...)` → `pista.scrollTo({ left: destino, behavior: 'smooth' })`—
+para comprobar que CA-2 sigue detectándola:
+
+```
+$ npm run test:navegador -- -g "CA-2"
+
+  ✘  1 [chromium] › carrusel.spec.ts:269:7 › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (371ms)
+
+    Error: expect(received).not.toBe(expected) // Object.is equality
+    Expected: not 0
+
+    > 283 |     expect(despues).not.toBe(antes);
+  1 failed
+```
+
+Revertido; T-005-D06 sigue cubierto.
 
 ## Commits
 
 ```
-769c7d9 docs: cómo correr las pruebas de navegador
-8826773 test(navegador): pruebas de Playwright del carrusel de la portada
-3c85a92 chore(ci): playwright como devDependency y script test:navegador
-2b4b726 docs(pm): brief T-006 — pruebas de navegador con Playwright   ← ya en la base
+(este commit)  docs(pm): entrega T-006 ronda 2
+f646d9d test(navegador): exigir los controles y cubrir la pausa a mitad de paso
+0f3927e chore(ci): playwright con versión exacta y sin reutilizar servidores
 ```
 
-(`git log --oneline origin/Inf015/oliver132123-carrusel-equipo..HEAD`; el
-`CarruselEquipo.tsx` alterado para CA-8 no generó commit — se revirtió antes
-de stagear nada.)
+(`git log --oneline 2c23235..HEAD`. Las mutaciones de las demostraciones no
+generaron commit: se revirtieron antes de stagear.)
 
 ## Verificación (salida real, recortada)
 
 ```
+$ git status --short          # antes de commitear
+ M package-lock.json
+ M package.json
+ M playwright.config.ts
+ M tests/navegador/carrusel.spec.ts
+
 $ npx next typegen && npx tsc --noEmit
+Generating route types...
 ✓ Types generated successfully
-(sin errores)
+tsc exit=0            (sin errores)
 
 $ npm run lint
 > eslint
-(sin salida = sin errores)
+lint exit=0           (sin salida = sin errores)
 
 $ npm test
  Test Files  11 passed (11)
       Tests  230 passed (230)
-   Duration  285ms
+   Duration  280ms
 
-$ npm ci && npx playwright install chromium && npm run test:navegador
-added 397 packages, and audited 398 packages in 6s
-...
-Running 6 tests using 4 workers
-  ✓ CA-5: se pausa con el foco del teclado, aunque el puntero entre y salga (816ms)
-  ✓ CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (822ms)
-  ✓ CA-3: en la última parada, el intervalo vuelve al principio (855ms)
-  ✓ CA-4: se pausa con el puntero encima y retoma al salir (925ms)
-  ✓ CA-7: con prefers-reduced-motion no rota sola (238ms)
-  ✓ CA-6: los controles respetan los extremos y marcan la parada activa (747ms)
-  6 passed (9.2s)
+$ npm run test:navegador
+Running 8 tests using 4 workers
+  ✓ CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (618ms)
+  ✓ CA-3: en la última parada, el intervalo vuelve al principio (610ms)
+  ✓ CA-4: se pausa con el puntero encima y retoma al salir (792ms)
+  ✓ CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.1s)
+  ✓ CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga (484ms)
+  ✓ CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (852ms)
+  ✓ CA-6: los controles respetan los extremos y marcan la parada activa (764ms)
+  ✓ CA-7: con prefers-reduced-motion no rota sola (267ms)
+  8 passed (7.9s)
+
+$ npm run test:navegador -- --repeat-each=3     # estabilidad
+  24 passed (13.0s)
 ```
 
-`npm test` sigue en 230 (antes de esta tarea, sin la suite de navegador) y no
-recogió ningún `.spec.ts`: confirmado leyendo `vitest.config.mts`
-(`include: ['tests/unidad/**/*.test.ts']`, sin tocar) y viendo que
-"Test Files 11" no cambia con o sin `tests/navegador/` presente.
+`npm test` sigue en **230 pruebas / 11 archivos**: las dos pruebas nuevas son de
+Playwright y Vitest no las recoge (`vitest.config.mts` incluye solo
+`tests/unidad/**/*.test.ts`, sin tocar).
 
 ## Cuánto tarda la suite
 
-**~9 segundos** de punta a punta (incluido compilar el sitio), con el
-servidor arrancado en frío en cada corrida — no hubo que esperar ningún
-intervalo real de 5 s gracias a `page.clock`. Sin la instalación de Chromium
-(que se hace una sola vez y queda cacheada fuera del repo).
+**~8 segundos** de punta a punta (compilación incluida, con la caché de
+`.next` caliente; en frío manda el `next build`). Las ocho pruebas suman menos
+de 6 s de navegador: nada espera intervalos reales de 5 s.
 
 ## Migraciones
 
@@ -146,43 +266,71 @@ Ninguna.
 
 ## Decisiones tomadas
 
-- **`page.clock.runFor(...)` y no `fastForward(...)`** — `fastForward` "solo
-  dispara los timers vencidos una vez" (como cerrar la laptop y abrirla
-  después): no re-ejecuta la cadena de `requestAnimationFrame` que
-  `animarScroll` reprograma cuadro a cuadro, así que la animación no llegaría
-  a completarse dentro del salto. `runFor` sí "dispara todos los callbacks de
-  tiempo en orden", incluida esa cadena y el `setInterval` de la rotación.
-- **`MS_ENTRE_PASOS` duplicado en el spec, con comentario** — no está
-  exportado desde `CarruselEquipo.tsx` (es un detalle del componente) y el
-  brief prohíbe tocar ese archivo. Documenté la duplicación explícitamente
-  para que quede claro que hay que actualizarla si cambia el intervalo real.
-- **`paginas`/`proximaPosicion` de `lib/carrusel` como oráculo**, en vez de
-  reinventar la aritmética de píxeles en el spec: son funciones puras, ya
-  correctas por sus propios tests de T-005, y usarlas evita hardcodear
-  posiciones o depender de cuántos pilotos haya (CA-10).
-- **CA-3 arranca en la última parada fijando `scrollLeft` directo** (no a
-  fuerza de clics): `paso()` lee `scrollLeft` del DOM, no del estado de
-  React, así que no hace falta simular una secuencia de clics — que además
-  movería el foco a un botón y podría interferir con lo que se está probando.
-- **CA-5 usa `.focus()` sobre el enlace**, no una secuencia real de `Tab`: el
-  comportamiento que importa es "¿el carrusel reacciona a que el foco esté
-  adentro?", no cuántos `Tab` hacen falta para llegar — eso es un detalle del
-  orden de tabulación de la página entera, ajeno a este componente.
-- **Margen de 2 px al comparar `scrollLeft` contra un destino calculado**
-  (`MARGEN_PIXELES`), igual al `TOLERANCIA` que ya usa `lib/carrusel.ts`: el
-  subpíxel del navegador podía hacer fallar una comparación exacta por motivos
-  ajenos al fix. Las comparacions de "no cambió" (pausa) sí son exactas: ahí
-  no debería moverse ni un subpíxel.
-- **Un solo proyecto (`chromium`)**: el brief solo pide instalar y usar
-  chromium; no agregué Firefox ni WebKit.
+- **El reloj falso ahora se pausa (`page.clock.pauseAt`) una vez cargada la
+  portada** — sin esto, D03 no se podía probar de forma estable, y descubrirlo
+  costó la mitad de la tarea. `clock.install()` **no congela el tiempo**: lo
+  falsea pero lo deja corriendo en tiempo real. Con el reloj corriendo, entre un
+  `runFor` y la acción siguiente la animación de 450 ms avanzaba sola durante
+  los viajes de ida y vuelta de Playwright, así que "entrar a mitad del paso"
+  era una carrera contra la latencia: el mismo caso daba 413 u 827 según lo que
+  hubiera tardado el `hover()`. Pausado, el tiempo avanza solo cuando la prueba
+  lo pide y las ocho pruebas son deterministas (40/40 con `--repeat-each=5`, y 24/24 en la corrida final con `--repeat-each=3`).
+  Se pausa **después** de cargar e hidratar, como recomienda la documentación
+  de Playwright, y saltando 500 ms —menos que un intervalo, así que el salto no
+  dispara ningún paso—.
+- **Las dos pruebas nuevas fijan el cero del intervalo entrando y saliendo
+  (puntero o Tab) antes de medir.** El `setInterval` no cuenta desde donde
+  quedó la prueba sino desde que el efecto lo creó; al salir el puntero o el
+  foco el efecto lo vuelve a crear, y recién ahí se sabe cuánto falta para el
+  próximo disparo. Sin ese cero, "avanzar `MS_ENTRE_PASOS + 48`" caía después
+  de terminada la animación y la prueba no probaba lo que decía (me pasó: la
+  primera versión fallaba con 827 en vez de 413).
+- **Se entra a la animación a los 48 ms de los 450** (`MS_EN_CURSO`), no a los
+  8 ni a los 200. Es una ventana con dos bordes medidos: antes de ~16 ms no
+  corrió ningún cuadro y todavía no hay animación que cortar; pasados ~93 ms el
+  desplazamiento cruza el punto medio hacia la parada siguiente y el
+  `scroll-snap-type: x mandatory` hace que Chromium **termine el salto por su
+  cuenta**, en tiempo real y fuera del alcance de `cancelAnimationFrame` (a los
+  100 ms todavía se corta; a los 200 ya no). 48 ms cae cómodo en el medio.
+- **La comprobación de "no se mueve" muestrea en tiempo real y además avanza
+  dos intervalos del reloj falso.** Una sola medición al final no distingue
+  "nunca se movió" de "fue y volvió" (riesgo que QA marcó), y el
+  desplazamiento que Chromium completa por el snap corre fuera del reloj falso.
+- **`entrarConTab` tolera cuántos elementos tabulables haya antes** (tope de 40,
+  hoy hacen falta 13). Fijar el número exacto ataría la prueba del carrusel a
+  la navbar y al resto de la portada, que son de otra tarea.
+- **La entrada por teclado se comprueba en dos niveles** (el bloque, y después
+  un enlace o control). Chromium hace tabulable la pista por ser un contenedor
+  con scroll, así que "el foco entró en el carrusel" se cumple aunque sus
+  enlaces estén excluidos del orden de tabulación — comprobado mutando el
+  componente, no razonado.
+- **El `package-lock.json` se regeneró con `npm install --package-lock-only`**
+  (un cambio de una línea, el literal de la raíz) en vez de editarlo a mano: es
+  la única forma de que npm lo dé por coherente.
+- **La prueba de teclado que corta el paso en curso demuestra el movimiento al
+  final, no al principio** (sale el foco → vuelve a rotar). Tabular hasta el
+  carrusel mueve el foco a la primera tarjeta, y hacerlo con el scroll ya
+  avanzado provocaría un desplazamiento del navegador ajeno a lo que se mide.
 
 ## Fuera de alcance que vi (no tocado)
 
-- Nada nuevo. El carrusel se comportó según el brief y según su propio código
-  en las seis pruebas; no encontré ningún defecto adicional al explorarlo
-  (más allá del ya conocido T-005-D06, que es justamente lo que esta tarea
-  cierra).
+- **La cancelación al pausar llega tarde en Chromium.** `scroll-snap-type: x
+  mandatory` (`app/(sitio)/_componentes/carrusel-equipo.module.css:23`) hace que,
+  en cuanto la animación pasa el punto medio hacia la parada siguiente (~93 ms
+  de los 450), el navegador **complete el salto solo**, y ahí el `cortar()` de
+  `CarruselEquipo.tsx:119-122` ya no puede detener nada: si el ratón entra en la
+  segunda mitad del paso, la tarjeta se le sigue moviendo debajo hasta la
+  parada siguiente. Medido, no deducido (tabla de la sección de decisiones).
+  O sea: T-005-D02 está resuelto **a medias** en Chromium. No lo toqué —esta
+  tarea prueba, no arregla— y la prueba nueva cubre la mitad que sí depende del
+  componente. Si el PM quiere cerrarlo del todo, es una tarea aparte (y
+  probablemente pase por el CSS, no por el efecto).
+- **`MS_ENTRE_PASOS` sigue duplicado** entre `CarruselEquipo.tsx:39` y
+  `carrusel.spec.ts:28`: el componente no lo exporta. Ya reportado en la ronda 1.
+- **Aviso de deprecación en cada build**: *"The `middleware` file convention is
+  deprecated. Please use `proxy` instead"* (`middleware.ts`). Ajeno a esta
+  tarea, pero sale en la salida de toda corrida de navegador.
 
 ## Preguntas / bloqueos
 
-Ninguna.
+Ninguno.
