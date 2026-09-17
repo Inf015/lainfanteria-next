@@ -36,12 +36,58 @@ const MARGEN = 100;
 const MARGEN_PIXELES = 2;
 
 /**
+ * Cuánto se deja avanzar el reloj **dentro** de un paso ya disparado, para
+ * pausar con la animación en curso (T-006-D03).
+ *
+ * Tiene que caer en dos ventanas a la vez:
+ *
+ * - Después del primer cuadro (~16 ms), para que la animación ya haya escrito
+ *   posiciones intermedias y el paso esté de verdad en curso.
+ * - Antes de que el desplazamiento pase el punto medio hacia la parada
+ *   siguiente (~93 ms con el suavizado de `posicionAnimada`): a partir de ahí
+ *   el `scroll-snap-type: x mandatory` de la pista hace que **Chromium**
+ *   termine el salto por su cuenta, en tiempo real y fuera del alcance de
+ *   `cancelAnimationFrame`. Medido: a los 100 ms todavía se corta; a los
+ *   200 ms ya no hay nada que cancelar.
+ *
+ * 48 ms cae cómodo en el medio de las dos, y siempre dentro de los
+ * `MS_ANIMACION` (450 ms) que dura el paso.
+ */
+const MS_EN_CURSO = 48;
+
+/** Cuánto se salta el reloj falso al pausarlo, una vez cargada la portada.
+ * Menos que `MS_ENTRE_PASOS`, para que el salto no dispare un paso. */
+const MS_HASTA_PAUSA = 500;
+
+/** Cuánto se vigila en **tiempo real** que un carrusel pausado no se mueva, y
+ * en cuántas muestras. El reloj falso queda pausado, pero el desplazamiento
+ * que Chromium se encarga de terminar por el `scroll-snap` corre en tiempo
+ * real, fuera de él; y muestrear en vez de mirar solo el final distingue
+ * "nunca se movió" de "fue y volvió". */
+const MS_VIGILANCIA = 300;
+const MUESTRAS_VIGILANCIA = 3;
+
+/** Tope de pulsaciones de Tab para llegar al carrusel desde el principio de la
+ * portada. Generoso a propósito: no se fija cuántos elementos tabulables hay
+ * antes; lo que se exige es que el teclado **pueda** llegar. */
+const MAX_TABS = 40;
+
+/**
  * Va a la portada y devuelve el bloque del carrusel, ya visible.
  *
- * Si la portada no muestra el bloque de equipo (sección apagada o sin
- * pilotos) o si el equipo entra sin desbordar (no hay nada que rotar hoy),
- * salta las pruebas con un motivo legible en vez de fallarlas: no pueden
- * depender de cuántos pilotos haya cargados en este momento (CA-9, CA-10).
+ * Distingue dos cosas que la ronda 1 confundía (T-006-D01):
+ *
+ * - **Ausencia legítima de datos** —sección "equipo" apagada, sin pilotos, o
+ *   el equipo entra sin desbordar— : no hay carrusel que probar hoy y las
+ *   pruebas se saltan con un motivo legible (CA-9, CA-10).
+ * - **Fallo de renderizado o de hidratación** —la pista desborda pero los
+ *   controles no están, o cambió su `aria-label`— : eso es una regresión, y se
+ *   exige con `expect`, para que salga como fallo y no como seis omitidas.
+ *
+ * El desborde se mide sobre el DOM (`scrollWidth`/`clientWidth`, geometría de
+ * CSS que no depende de que React haya hidratado); los controles se esperan
+ * con `expect(...).toBeVisible()`, que reintenta mientras el efecto que los
+ * monta hace su trabajo.
  */
 async function irAlCarrusel(page: Page): Promise<Locator> {
   await page.goto('/');
@@ -53,11 +99,43 @@ async function irAlCarrusel(page: Page): Promise<Locator> {
   );
   await expect(marco).toBeVisible();
 
-  const siguiente = marco.getByRole('button', { name: 'Miembro siguiente' });
+  const pista = marco.getByRole('list');
+  await expect(pista).toBeVisible();
+
+  const desborda = await pista.evaluate((el) => el.scrollWidth - el.clientWidth > 1);
   test.skip(
-    (await siguiente.count()) === 0,
+    !desborda,
     'El equipo entra sin desbordar hoy: no hay controles ni rotación automática que probar',
   );
+
+  // Desborda ⇒ los controles son obligatorios. Si faltan, el carrusel está
+  // roto: se falla acá, no se salta.
+  await expect(
+    marco.getByRole('button', { name: 'Miembro anterior' }),
+    'La pista desborda pero no aparece el control "Miembro anterior": el carrusel no renderizó sus controles',
+  ).toBeVisible();
+  await expect(
+    marco.getByRole('button', { name: 'Miembro siguiente' }),
+    'La pista desborda pero no aparece el control "Miembro siguiente": el carrusel no renderizó sus controles',
+  ).toBeVisible();
+  await expect(
+    marco.getByRole('button', { name: /^Ir a /u }).first(),
+    'La pista desborda pero no aparece ningún punto "Ir a <nombre>": el carrusel no renderizó sus controles',
+  ).toBeVisible();
+
+  // Recién ahora se **pausa** el reloj falso, con la portada cargada y el
+  // carrusel ya hidratado (sus controles están en pantalla), como recomienda
+  // Playwright: durante la carga el tiempo tiene que correr o la página se
+  // queda esperando un temporizador que nadie dispara.
+  //
+  // Pausarlo no es un detalle: `install()` deja el reloj **corriendo** en
+  // tiempo real, así que entre un `runFor` y la acción siguiente la animación
+  // seguía avanzando por su cuenta —los 450 ms de un paso se consumían en los
+  // viajes de ida y vuelta de Playwright— y no había forma estable de entrar
+  // con el puntero o el foco en medio de un paso. Pausado, el tiempo avanza
+  // solo cuando la prueba lo pide.
+  const ahora = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(ahora + MS_HASTA_PAUSA);
 
   return marco;
 }
@@ -90,6 +168,98 @@ async function sacarPuntero(page: Page, marco: Locator) {
 
 function expectCerca(real: number, esperado: number) {
   expect(Math.abs(real - esperado)).toBeLessThanOrEqual(MARGEN_PIXELES);
+}
+
+/** ¿El foco del teclado está dentro del carrusel? */
+async function focoAdentro(marco: Locator): Promise<boolean> {
+  return marco.evaluate((el) => el.contains(document.activeElement));
+}
+
+/**
+ * Entra al carrusel **con el teclado**, no con `.focus()` (T-006-D04): así la
+ * prueba se entera si sus enlaces y controles quedan fuera del orden de
+ * tabulación (`tabIndex={-1}`, un contenedor con `inert`...), que es
+ * precisamente lo que rompería la pausa por foco para quien navega con Tab.
+ *
+ * Devuelve cuántas pulsaciones hicieron falta.
+ */
+async function entrarConTab(page: Page, marco: Locator): Promise<number> {
+  for (let n = 1; n <= MAX_TABS; n += 1) {
+    await page.keyboard.press('Tab');
+    if (await focoAdentro(marco)) return n;
+  }
+  throw new Error(
+    `El foco del teclado no llegó al carrusel en ${MAX_TABS} pulsaciones de Tab: quedó entero fuera del orden de tabulación`,
+  );
+}
+
+/**
+ * Sigue tabulando hasta que el foco quede sobre un enlace o un botón **del
+ * carrusel**, y devuelve cuál.
+ *
+ * Entrar al bloque no alcanza para dar por buena la navegación con teclado:
+ * Chromium hace tabulable la pista por ser un contenedor con scroll, así que
+ * el foco entra en el carrusel aunque sus enlaces y controles estén excluidos
+ * con `tabIndex={-1}` — y quien navega con Tab no podría abrir ningún perfil.
+ */
+async function tabularHastaInteractivo(page: Page, marco: Locator): Promise<string> {
+  for (let n = 0; n <= MAX_TABS; n += 1) {
+    const foco = await marco.evaluate((el) => {
+      const activo = document.activeElement;
+      if (!activo || !el.contains(activo)) return null;
+      if (activo.tagName !== 'A' && activo.tagName !== 'BUTTON') return null;
+      return `${activo.tagName}: ${activo.getAttribute('aria-label') ?? activo.textContent?.trim() ?? ''}`;
+    });
+    if (foco) return foco;
+    await page.keyboard.press('Tab');
+  }
+  throw new Error(
+    `Ningún enlace ni control del carrusel recibió el foco en ${MAX_TABS} pulsaciones de Tab: quedaron fuera del orden de tabulación`,
+  );
+}
+
+/**
+ * Un reloj falso que además lleva la cuenta de cuánto se avanzó desde que la
+ * rotación arrancó.
+ *
+ * Hace falta para poder pausar **durante** un paso: el `setInterval` no cuenta
+ * desde donde quedó la prueba, sino desde que el efecto lo creó, así que sus
+ * disparos caen en múltiplos de `MS_ENTRE_PASOS` desde ese instante. Sumar otro
+ * `MS_ENTRE_PASOS` a ojo cae *después* de la animación, y la prueba deja de
+ * probar lo que dice.
+ *
+ * Se construye justo después de que el carrusel reanude la rotación —cuando
+ * sale el puntero o el foco, el efecto vuelve a crear el intervalo— para que el
+ * cero del contador y el del intervalo sean el mismo. Vale mientras no se
+ * vuelva a pausar.
+ */
+function relojDe(page: Page) {
+  let avanzado = 0;
+  return {
+    async avanzar(ms: number) {
+      await page.clock.runFor(ms);
+      avanzado += ms;
+    },
+    /** Avanza hasta `MS_EN_CURSO` después del próximo disparo del intervalo. */
+    async hastaPasoEnCurso() {
+      const proximo = (Math.floor(avanzado / MS_ENTRE_PASOS) + 1) * MS_ENTRE_PASOS;
+      await this.avanzar(proximo + MS_EN_CURSO - avanzado);
+    },
+  };
+}
+
+/**
+ * Comprueba que el carrusel **no se mueve**: ni con el reloj de verdad —donde
+ * corre lo que deja pendiente un paso a medias— ni avanzando el falso dos
+ * intervalos enteros, por si alguno de los dos relojes lo despertara.
+ */
+async function noSeMueve(page: Page, pista: Locator, posicion: number) {
+  for (let i = 0; i < MUESTRAS_VIGILANCIA; i += 1) {
+    await page.waitForTimeout(MS_VIGILANCIA / MUESTRAS_VIGILANCIA);
+    expect(await scrollLeftDe(pista)).toBe(posicion);
+  }
+  await page.clock.runFor(MS_ENTRE_PASOS * 2);
+  expect(await scrollLeftDe(pista)).toBe(posicion);
 }
 
 test.describe('Carrusel de pilotos de la portada', () => {
@@ -150,24 +320,98 @@ test.describe('Carrusel de pilotos de la portada', () => {
     expect(await scrollLeftDe(pista)).not.toBe(antes); // vuelve a rotar al salir
   });
 
-  test('CA-5: se pausa con el foco del teclado, aunque el puntero entre y salga', async ({
+  // La prueba de arriba cubre "con el puntero adentro no **empieza** otro
+  // paso". Esta cubre la otra mitad, que era el defecto T-005-D02 y que en la
+  // ronda 1 no tenía cobertura (T-006-D03): el paso que **ya está en curso**
+  // tiene que detenerse, o la tarjeta se sigue moviendo bajo el ratón.
+  test('CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso', async ({
     page,
   }) => {
     await page.clock.install();
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
 
-    // El foco entra en un enlace de la primera tarjeta, como con Tab.
-    await marco.getByRole('link').first().focus();
+    // El puntero entra y sale: al salir, el efecto vuelve a crear el intervalo
+    // y su próximo disparo queda a `MS_ENTRE_PASOS` exactos de este instante.
+    // Sin ese cero conocido no se puede entrar a mitad de un paso: cuánto falta
+    // para el siguiente dependería de lo que tardó en cargar la portada.
+    await marco.hover();
+    await sacarPuntero(page, marco);
+    const reloj = relojDe(page);
+
+    // 1. El carrusel se mueve de verdad: un ciclo completo lo demuestra.
+    const inicio = await scrollLeftDe(pista);
+    await reloj.avanzar(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
+    const trasUnPaso = await scrollLeftDe(pista);
+    expect(trasUnPaso).not.toBe(inicio);
+
+    // 2. Arranca el paso siguiente y el puntero entra mientras se anima.
+    await reloj.hastaPasoEnCurso();
+    await marco.hover();
+
+    // 3. El paso se cortó donde estaba: no llega a la parada que perseguía.
+    const alPausar = await scrollLeftDe(pista);
+    expect(alPausar).toBe(trasUnPaso);
+    await noSeMueve(page, pista, alPausar);
+  });
+
+  test('CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga', async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const marco = await irAlCarrusel(page);
+    const pista = marco.getByRole('list');
+
+    // El foco entra tabulando desde el principio de la portada, como quien
+    // navega con teclado — no con `.focus()`, que también funciona sobre algo
+    // que el Tab nunca alcanzaría (T-006-D04) — y tiene que llegar a un enlace
+    // o control del carrusel, no solo al bloque.
+    await entrarConTab(page, marco);
+    await tabularHastaInteractivo(page, marco);
     const antes = await scrollLeftDe(pista);
 
     // El puntero entra y sale mientras el foco sigue adentro: no tiene que
     // reanudar la rotación (T-005-D01: un solo booleano confundía las dos cosas).
     await marco.hover();
     await sacarPuntero(page, marco);
+    expect(await focoAdentro(marco)).toBe(true);
 
     await page.clock.runFor(MS_ENTRE_PASOS * 2);
     expect(await scrollLeftDe(pista)).toBe(antes);
+  });
+
+  // La misma mitad que faltaba de CA-4, pero por teclado (T-006-D03).
+  test('CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso', async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const marco = await irAlCarrusel(page);
+    const pista = marco.getByRole('list');
+
+    // Deja el foco en el elemento justo anterior al carrusel: así, más
+    // adelante, **un solo** Tab entra. Y al salir el foco, el intervalo se
+    // vuelve a crear, con lo que el próximo disparo queda a `MS_ENTRE_PASOS`
+    // exactos de acá.
+    await entrarConTab(page, marco);
+    await page.keyboard.press('Shift+Tab');
+    expect(await focoAdentro(marco)).toBe(false);
+    const reloj = relojDe(page);
+
+    const quieto = await scrollLeftDe(pista);
+
+    // El intervalo dispara un paso y el foco entra con la animación en curso.
+    await reloj.hastaPasoEnCurso();
+    await page.keyboard.press('Tab');
+    expect(await focoAdentro(marco)).toBe(true);
+
+    // El paso se cortó: el carrusel se queda donde estaba.
+    await noSeMueve(page, pista, quieto);
+
+    // Y seguía vivo: al salir el foco, vuelve a rotar.
+    await page.keyboard.press('Shift+Tab');
+    expect(await focoAdentro(marco)).toBe(false);
+    await page.clock.runFor(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
+    expect(await scrollLeftDe(pista)).not.toBe(quieto);
   });
 
   test('CA-6: los controles respetan los extremos y marcan la parada activa', async ({
