@@ -142,12 +142,21 @@ export const RELOJ_NAVEGADOR: RelojCuadros = {
  *
  * Devuelve la función que corta la animación a mitad de camino —hace falta al
  * pausar, al desmontar y cuando llega un paso nuevo encima del anterior.
+ *
+ * `alTerminar` se llama **una sola vez, justo después de escribir la última
+ * posición**, y nunca si la animación se cortó antes. Lo avisa la animación
+ * porque es la única que sabe: calcula su avance con el timestamp que le da el
+ * navegador en cada cuadro, no con el reloj leído aparte. Quien lo dedujera
+ * volviendo a leer el reloj se equivocaría cada vez que un cuadro se ejecuta
+ * con retraso —timestamp 300 ms, reloj ya en 460— y daría por terminado un paso
+ * que todavía va a escribir posiciones intermedias (T-007-D01).
  */
 export function animarScroll(
   aplicar: (posicion: number) => void,
   desde: number,
   hasta: number,
   reloj: RelojCuadros,
+  alTerminar?: () => void,
 ): () => void {
   const arranque = reloj.ahora();
   let pendiente: number | null = null;
@@ -155,7 +164,14 @@ export function animarScroll(
   const cuadro = (ahora: number) => {
     const t = (ahora - arranque) / MS_ANIMACION;
     aplicar(posicionAnimada(desde, hasta, t));
-    pendiente = t < 1 ? reloj.pedirCuadro(cuadro) : null;
+
+    if (t < 1) {
+      pendiente = reloj.pedirCuadro(cuadro);
+      return;
+    }
+
+    pendiente = null;
+    alTerminar?.();
   };
 
   pendiente = reloj.pedirCuadro(cuadro);

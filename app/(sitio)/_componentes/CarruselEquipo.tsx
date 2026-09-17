@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  MS_ANIMACION,
   RELOJ_NAVEGADOR,
   animarScroll,
   indiceActivo,
@@ -133,20 +132,21 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
 
       apagarSnap();
 
-      // `animarScroll` no avisa cuándo terminó, y no se lo pide: su aritmética
-      // está cerrada y probada. El último cuadro se reconoce por el mismo reloj
-      // que usa ella —el que ya alcanzó los `MS_ANIMACION`—, y ahí el scroll ya
-      // está en la parada, así que encender el snap no lo mueve.
-      const arranque = RELOJ_NAVEGADOR.ahora();
-
+      // El snap vuelve cuando la animación avisa que **terminó de escribir**,
+      // no cuando el componente lo deduce: deducirlo leyendo el reloj otra vez
+      // fallaba con un cuadro ejecutado tarde —timestamp 300 ms, reloj ya en
+      // 460— y encendía el snap con el scroll todavía a 397 de 413 y otro
+      // cuadro pedido, provocando justo el salto que este arreglo elimina
+      // (T-007-D01). En el aviso, el scroll ya está en la parada y encenderlo
+      // no lo mueve.
       cortarRef.current = animarScroll(
         (posicion) => {
           pista.scrollLeft = posicion;
-          if (RELOJ_NAVEGADOR.ahora() - arranque >= MS_ANIMACION) encenderSnap();
         },
         pista.scrollLeft,
         destino,
         RELOJ_NAVEGADOR,
+        encenderSnap,
       );
     },
     [apagarSnap, cortar, encenderSnap, sinMovimiento],
