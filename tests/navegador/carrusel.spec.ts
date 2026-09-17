@@ -73,31 +73,75 @@ const MUESTRAS_VIGILANCIA = 3;
 const MAX_TABS = 40;
 
 /**
+ * Título del bloque de equipo de la portada (`app/(sitio)/page.tsx`).
+ *
+ * Lo renderiza el servidor bajo exactamente la misma condición que decide si
+ * hay pilotos que mostrar (`equipoOn && equipo.length > 0`), y **fuera** de
+ * `CarruselEquipo`: por eso sirve de señal independiente del carrusel y de sus
+ * atributos (ver `laPortadaMuestraPilotos`).
+ */
+const TITULO_BLOQUE_EQUIPO = /Los que corren por/iu;
+
+/**
+ * ¿La portada de hoy **debería** estar mostrando pilotos?
+ *
+ * La pregunta se contesta sin mirar nada de lo que las pruebas verifican
+ * (T-006-D01). Dos señales, cualquiera de las dos alcanza:
+ *
+ * - El **encabezado del bloque de equipo**, que pinta el servidor en
+ *   `page.tsx` bajo la misma condición que trae los pilotos y que vive fuera
+ *   del componente del carrusel. Sigue ahí aunque `CarruselEquipo` no renderice
+ *   absolutamente nada.
+ * - Los **enlaces a perfiles** (`/equipo/<slug>`), uno por tarjeta. Los pinta
+ *   el servidor dentro de la pista, pero no dependen de ningún atributo,
+ *   `aria-label` ni control del carrusel.
+ *
+ * Ninguna de las dos usa `aria-roledescription`, ni los roles ni las etiquetas
+ * que las pruebas afirman. Si alguna dice que sí hay pilotos y el carrusel no
+ * está, eso es una regresión y se falla; nunca se omite.
+ */
+async function laPortadaMuestraPilotos(page: Page): Promise<boolean> {
+  const encabezado = page.getByRole('heading', { name: TITULO_BLOQUE_EQUIPO });
+  const perfiles = page.locator('a[href^="/equipo/"]');
+  return (await encabezado.count()) > 0 || (await perfiles.count()) > 0;
+}
+
+/**
  * Va a la portada y devuelve el bloque del carrusel, ya visible.
  *
- * Distingue dos cosas que la ronda 1 confundía (T-006-D01):
+ * Distingue dos cosas que las rondas anteriores confundían (T-006-D01):
  *
  * - **Ausencia legítima de datos** —sección "equipo" apagada, sin pilotos, o
  *   el equipo entra sin desbordar— : no hay carrusel que probar hoy y las
  *   pruebas se saltan con un motivo legible (CA-9, CA-10).
- * - **Fallo de renderizado o de hidratación** —la pista desborda pero los
- *   controles no están, o cambió su `aria-label`— : eso es una regresión, y se
- *   exige con `expect`, para que salga como fallo y no como seis omitidas.
+ * - **Fallo de renderizado o de hidratación** —la portada trae pilotos pero no
+ *   hay contenedor de carrusel, o la pista desborda y los controles no están, o
+ *   cambió alguna etiqueta— : eso es una regresión, y se exige con `expect`,
+ *   para que salga como fallo y no como ocho omitidas.
  *
- * El desborde se mide sobre el DOM (`scrollWidth`/`clientWidth`, geometría de
- * CSS que no depende de que React haya hidratado); los controles se esperan
- * con `expect(...).toBeVisible()`, que reintenta mientras el efecto que los
- * monta hace su trabajo.
+ * La decisión de omitir se apoya **solo** en señales independientes del
+ * atributo bajo prueba (`laPortadaMuestraPilotos`). El desborde se mide sobre
+ * el DOM (`scrollWidth`/`clientWidth`, geometría de CSS que no depende de que
+ * React haya hidratado); los controles se esperan con
+ * `expect(...).toBeVisible()`, que reintenta mientras el efecto que los monta
+ * hace su trabajo.
  */
 async function irAlCarrusel(page: Page): Promise<Locator> {
   await page.goto('/');
 
-  const marco = page.locator('[aria-roledescription="carrusel"]');
   test.skip(
-    (await marco.count()) === 0,
+    !(await laPortadaMuestraPilotos(page)),
     'La portada no muestra el bloque de equipo hoy (sección "equipo" apagada o sin pilotos cargados)',
   );
-  await expect(marco).toBeVisible();
+
+  // Hay pilotos en la portada ⇒ el contenedor del carrusel es obligatorio. Si
+  // falta —o si cambió `aria-roledescription`— el carrusel está roto: se falla
+  // acá, no se omite.
+  const marco = page.locator('[aria-roledescription="carrusel"]');
+  await expect(
+    marco,
+    'La portada muestra el bloque de pilotos pero no hay ningún elemento con aria-roledescription="carrusel": el carrusel no renderizó, o perdió el atributo que lo identifica',
+  ).toBeVisible();
 
   const pista = marco.getByRole('list');
   await expect(pista).toBeVisible();
@@ -142,6 +186,62 @@ async function irAlCarrusel(page: Page): Promise<Locator> {
 
 async function scrollLeftDe(pista: Locator): Promise<number> {
   return pista.evaluate((el) => el.scrollLeft);
+}
+
+/** Dónde guarda la página el recorrido que se va grabando. */
+const VAR_RECORRIDO = '__recorridoCarrusel';
+
+/** Movimiento mínimo, en píxeles, que cuenta como movimiento de verdad y no
+ * como el redondeo a subpíxeles del navegador. */
+const MINIMO_MOVIMIENTO = 0.5;
+
+/**
+ * Empieza a grabar **todas** las posiciones por las que pasa la pista.
+ *
+ * Mirar solo el `scrollLeft` final de una ventana de espera no distingue "no se
+ * movió" de "se movió y volvió" (T-006-D06): un carrusel da la vuelta, así que
+ * tantos pasos como paradas lo dejan otra vez en el origen.
+ *
+ * Se graba por dos vías, porque ninguna sola las cubre todas:
+ *
+ * - El evento `scroll` de la pista, que salta ante cualquier desplazamiento,
+ *   venga del reloj falso o del tiempo real.
+ * - Un `requestAnimationFrame` encadenado, que muestrea cuadro a cuadro
+ *   mientras el reloj falso avanza — el mismo reloj que hace correr la
+ *   animación del componente.
+ */
+async function grabarRecorrido(pista: Locator): Promise<void> {
+  await pista.evaluate(
+    (el, [nombre, minimo]) => {
+      const ventana = window as unknown as Record<string, number[] | undefined>;
+      const recorrido: number[] = [el.scrollLeft];
+      ventana[nombre as string] = recorrido;
+
+      const registrar = () => {
+        const ultima = recorrido[recorrido.length - 1];
+        if (Math.abs(el.scrollLeft - ultima) > (minimo as number)) {
+          recorrido.push(el.scrollLeft);
+        }
+      };
+
+      el.addEventListener('scroll', registrar);
+      const porCuadro = () => {
+        registrar();
+        requestAnimationFrame(porCuadro);
+      };
+      requestAnimationFrame(porCuadro);
+    },
+    [VAR_RECORRIDO, MINIMO_MOVIMIENTO] as [string, number],
+  );
+}
+
+/** Las posiciones grabadas desde `grabarRecorrido`, en orden. La primera es la
+ * posición de partida, así que un carrusel quieto devuelve un solo elemento. */
+async function recorridoGrabado(pista: Locator): Promise<number[]> {
+  return pista.evaluate((el, nombre) => {
+    const ventana = window as unknown as Record<string, number[] | undefined>;
+    return ventana[nombre as string] ?? [el.scrollLeft];
+  }, VAR_RECORRIDO);
 }
 
 /** Las paradas alcanzables y el tope, medidos sobre el DOM real con la misma
@@ -452,8 +552,33 @@ test.describe('Carrusel de pilotos de la portada', () => {
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
 
+    const { destinos, max } = await medirParadas(marco);
     const antes = await scrollLeftDe(pista);
-    await page.clock.runFor(MS_ENTRE_PASOS * 3);
-    expect(await scrollLeftDe(pista)).toBe(antes);
+
+    // La ventana es **una vuelta entera**: tantos pasos como paradas. Elegida a
+    // propósito para que sea el peor caso del oráculo viejo (T-006-D06): si el
+    // carrusel rotara, terminaría exactamente donde empezó y comparar solo el
+    // final daría verde. Se comprueba acá mismo, con las funciones puras del
+    // componente, para que la prueba no pueda "fallar por la razón equivocada"
+    // —por quedar lejos del origen— si mañana cambia la geometría.
+    let simulado = antes;
+    for (let i = 0; i < destinos.length; i += 1) {
+      simulado = proximaPosicion(simulado, destinos, max, 1);
+    }
+    expect(
+      Math.abs(simulado - antes),
+      `La ventana de CA-7 (${destinos.length} pasos) tendría que completar una vuelta y volver a ${antes}, pero termina en ${simulado}: revisá la geometría antes de creerle a esta prueba`,
+    ).toBeLessThanOrEqual(MARGEN_PIXELES);
+
+    await grabarRecorrido(pista);
+    await page.clock.runFor(MS_ENTRE_PASOS * destinos.length + MS_ANIMACION + MARGEN);
+
+    // Se exige el recorrido entero, no la posición final: cualquier posición
+    // intermedia delata la rotación aunque haya vuelto al origen.
+    const recorrido = await recorridoGrabado(pista);
+    expect(
+      recorrido,
+      `Con prefers-reduced-motion el carrusel no puede moverse solo, y se movió: recorrido ${JSON.stringify(recorrido)} durante ${destinos.length} intervalos (una vuelta entera, por eso vuelve al origen y mirar solo el final no lo notaría)`,
+    ).toEqual([antes]);
   });
 });
