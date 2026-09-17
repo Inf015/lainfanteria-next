@@ -20,6 +20,12 @@
     list-style: none;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    /* El snap es para el arrastre con el dedo: soltar entre dos tarjetas tiene
+       que dejar una alineada. Durante un paso programático el componente lo
+       apaga con un estilo en línea y lo vuelve a encender al llegar a la
+       parada: con el snap puesto, el navegador reajusta cada posición
+       intermedia que escribe la animación y el paso se ve como un salto
+       (T-007). Ver `apagarSnap`/`encenderSnap` en CarruselEquipo.tsx. */
     scroll-snap-type: x mandatory;
     /* La barra sobra: hay flechas, puntos y el gesto táctil. */
     scrollbar-width: none;
