@@ -152,6 +152,20 @@ function relojFalso() {
       cb(ms);
       return true;
     },
+    /**
+     * Corre el cuadro pendiente **ejecutado tarde**: el navegador le pasa el
+     * timestamp del principio del cuadro (`timestampCuadro`) pero, si el hilo
+     * venía ocupado, para cuando el callback corre el reloj ya va por
+     * `relojEn`. Las dos lecturas no coinciden, y ahí vivía T-007-D01.
+     */
+    correrCuadroTarde(timestampCuadro: number, relojEn: number) {
+      tiempo = relojEn;
+      const [id, cb] = [...pendientes.entries()][0] ?? [];
+      if (cb === undefined || id === undefined) return false;
+      pendientes.delete(id);
+      cb(timestampCuadro);
+      return true;
+    },
     get pendientes() {
       return pendientes.size;
     },
@@ -204,6 +218,79 @@ describe('animarScroll', () => {
     expect(avanzarA(MS_ANIMACION)).toBe(false);
     expect(posiciones).toHaveLength(2);
     expect(posiciones.at(-1)).toBeLessThan(590);
+  });
+
+  // El aviso de fin existe por T-007-D01. El carrusel apaga el `scroll-snap`
+  // de la pista mientras anima —si no, el navegador reajusta cada posición
+  // intermedia a la parada más cercana y el paso se ve como un salto— y lo
+  // vuelve a encender al terminar. Encenderlo un cuadro antes de tiempo, con
+  // el scroll todavía entre dos tarjetas, provoca exactamente el salto que se
+  // quería eliminar: de ahí que "terminó" tenga que decirlo quien escribe las
+  // posiciones, y no deducirlo el llamador leyendo el reloj por su cuenta.
+  it('avisa el fin una sola vez, después de escribir la última posición', () => {
+    const eventos: string[] = [];
+    const { reloj, avanzarA } = relojFalso();
+
+    animarScroll(
+      (x) => eventos.push(`escribe ${x}`),
+      0,
+      590,
+      reloj,
+      () => eventos.push('fin'),
+    );
+
+    avanzarA(0);
+    avanzarA(MS_ANIMACION / 3);
+    expect(eventos).not.toContain('fin');
+
+    avanzarA(MS_ANIMACION);
+    expect(eventos.filter((e) => e === 'fin')).toHaveLength(1);
+    expect(eventos.at(-1)).toBe('fin');
+    expect(eventos.at(-2)).toBe('escribe 590');
+  });
+
+  it('no avisa el fin con un cuadro todavía pendiente, aunque el reloj ya haya pasado los MS_ANIMACION', () => {
+    // El caso exacto que reportó QA: el cuadro trae el timestamp de los 300 ms
+    // (t = 0,67 del recorrido) pero se ejecuta tan tarde que el reloj ya marca
+    // 460, más que los 450 que dura el paso. Quien dedujera el fin releyendo el
+    // reloj daría el paso por terminado con el scroll en 397,7 de 413 y otro
+    // cuadro pedido.
+    const posiciones: number[] = [];
+    let fines = 0;
+    // Sin desestructurar `pendientes`: es un getter y hay que leerlo vivo.
+    const falso = relojFalso();
+
+    animarScroll((x) => posiciones.push(x), 0, 413, falso.reloj, () => {
+      fines += 1;
+    });
+
+    falso.avanzarA(0);
+    falso.correrCuadroTarde(300, MS_ANIMACION + 10);
+
+    expect(posiciones.at(-1)).toBeCloseTo(397.7, 1);
+    expect(fines, 'avisó el fin con la animación todavía a mitad de camino').toBe(0);
+    expect(falso.pendientes, 'no dejó pedido el cuadro que falta').toBe(1);
+
+    // Y cuando llega el cuadro que sí completa el recorrido, ahí sí avisa.
+    falso.correrCuadroTarde(MS_ANIMACION, MS_ANIMACION * 3);
+    expect(posiciones.at(-1)).toBe(413);
+    expect(fines).toBe(1);
+  });
+
+  it('no avisa el fin si se cortó antes de llegar', () => {
+    let fines = 0;
+    const { reloj, avanzarA } = relojFalso();
+
+    const cortar = animarScroll(() => {}, 0, 590, reloj, () => {
+      fines += 1;
+    });
+
+    avanzarA(0);
+    avanzarA(MS_ANIMACION / 3);
+    cortar();
+
+    expect(avanzarA(MS_ANIMACION)).toBe(false);
+    expect(fines).toBe(0);
   });
 
   it('cortar dos veces, o después de terminar, no rompe nada', () => {
