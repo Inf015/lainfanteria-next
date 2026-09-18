@@ -73,14 +73,32 @@ Para un auto con fotos:
 ## Pruebas
 
 ```bash
-npm test              # unitarias: rápidas, sin red
+npm test               # unitarias: rápidas, sin red
 npm run test:seguridad # invariantes de RLS contra el Supabase real
 npm run test:humo      # sitio desplegado de punta a punta
-npm run test:todo      # las tres
+npm run test:navegador # interacción real en un navegador (Playwright)
+npm run test:todo      # unidad + seguridad + humo (navegador queda aparte)
 ```
 
-Las tres suites están separadas a propósito: `npm test` corre en milisegundos y
-sirve mientras se programa; las otras dos necesitan red y credenciales.
+Las suites están separadas a propósito: `npm test` corre en milisegundos y
+sirve mientras se programa; las demás necesitan red, credenciales o un
+navegador real.
+
+**`tests/navegador`** cubre lo que ninguna de las otras puede: comportamiento
+que depende de verdad de un navegador (scroll, animación, foco, tiempo). Hoy
+es el carrusel de pilotos de la portada — se quedó quieto una vez porque
+`scrollTo({ behavior: 'smooth' })` no arranca la animación cuando el paso lo
+dispara un temporizador, y ninguna prueba lo detectó porque Vitest corre sobre
+Node/jsdom, que no implementa scroll ni layout.
+
+```bash
+npx playwright install chromium  # una vez, baja el navegador fuera del repo
+npm run test:navegador
+```
+
+No hace falta levantar el sitio a mano: Playwright compila (`next build`) y
+arranca (`next start`) el sitio solo, en un puerto dedicado, y lo apaga al
+terminar.
 
 **`tests/seguridad`** es la más importante. Comprueba que la *base* rechaza, no
 que la aplicación se porte bien: aunque el panel tenga un bug, Postgres tiene que

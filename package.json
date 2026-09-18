@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:seguridad": "vitest run --config vitest.seguridad.config.mts",
     "test:humo": "vitest run --config vitest.humo.config.mts",
+    "test:navegador": "playwright test",
     "test:todo": "npm run test && npm run test:seguridad && npm run test:humo"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -1,0 +1,60 @@
+# Gate PM — T-006 ronda 1
+fecha : 2026-09-16 13:17:26 -0400
+rama  : oliver132123/pruebas-navegador
+HEAD  : 3d255a53e7f9f9065b4db0582a5ca6d960bfbcf2
+base  : origin/Inf015/oliver132123-carrusel-equipo (8bfa140)
+
+## Commits
+3d255a5 docs(pm): entrega-dev T-006 ronda 1
+769c7d9 docs: cómo correr las pruebas de navegador
+8826773 test(navegador): pruebas de Playwright del carrusel de la portada
+3c85a92 chore(ci): playwright como devDependency y script test:navegador
+2b4b726 docs(pm): brief T-006 — pruebas de navegador con Playwright
+
+## Archivos
+ .gitignore                          |   5 +
+ README.md                           |  26 ++++-
+ docs/pm/contexto.md                 |   1 +
+ docs/pm/tareas/T-006/brief-dev.md   | 180 ++++++++++++++++++++++++++++++
+ docs/pm/tareas/T-006/brief-qa.md    | 154 ++++++++++++++++++++++++++
+ docs/pm/tareas/T-006/entrega-dev.md | 188 +++++++++++++++++++++++++++++++
+ package-lock.json                   |  61 +++++++---
+ package.json                        |   2 +
+ playwright.config.ts                |  42 +++++++
+ tests/navegador/carrusel.spec.ts    | 215 ++++++++++++++++++++++++++++++++++++
+ 10 files changed, 855 insertions(+), 19 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-pruebas-navegador
+
+
+ Test Files  11 passed (11)
+      Tests  230 passed (230)
+   Start at  13:17:31
+   Duration  282ms (transform 329ms, setup 0ms, import 462ms, tests 81ms, environment 1ms)
+
+→ OK

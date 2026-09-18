@@ -71,6 +71,7 @@ tests/{unidad,seguridad,humo}/
 | Unidad | `npm test` | Nada (lógica pura, sin red) | Dev siempre; CI en cada push |
 | Seguridad | `npm run test:seguridad` | **Supabase de producción** | PM en el gate pre-PR |
 | Humo | `npm run test:humo` | Prod, o `SITIO=http://localhost:3000` | PM en el gate pre-PR y tras deploy |
+| Navegador | `npx playwright install chromium && npm run test:navegador` | El sitio compilado (`next build && next start`), que Playwright levanta solo en un puerto propio | Dev cuando el cambio depende de scroll, animación, foco o tiempo — jsdom no lo puede probar |
 
 Convenciones (no negociables):
 
