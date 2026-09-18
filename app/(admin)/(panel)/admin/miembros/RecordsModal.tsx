@@ -16,11 +16,20 @@ import { crearSesionFormulario } from './sesion-formulario';
 import s from '../../../admin.module.css';
 
 /**
- * Récords de un miembro: la lista y el formulario de alta/edición.
+ * Récords de un miembro —o del equipo— : la lista y el formulario de
+ * alta/edición.
  *
  * Aparte de `PalmaresModal.tsx` a propósito: un récord no es un trofeo con
  * otro nombre (`docs/pm/backlog/EPICA-records.md`), tiene su propia validación
  * (`lib/records-form.ts`) y sus propias acciones (marcar superado/vigente).
+ *
+ * T-004: `miembro === null` es el modal de los récords del equipo, los que
+ * tienen `miembro_id` nulo. Es el mismo formulario y las mismas acciones; lo
+ * único que cambia es el dueño de la fila, y con él cómo se acota cada
+ * `update`/`delete`: `.is('miembro_id', null)` en vez de `.eq(…)` — con `eq`
+ * PostgREST compara contra el literal `null` y no matchea ninguna fila.
+ * La lista llega por `records` y no desde `miembro`, porque los del equipo no
+ * cuelgan de ninguno.
  *
  * Ronda 2 (T-002-D01): cada guardado/borrado se reporta al padre por
  * `miembroId` (el dueño real del récord, no el miembro del modal actualmente
@@ -60,15 +69,28 @@ const ALCANCES: { valor: AlcanceRecord | 'ninguno'; texto: string }[] = [
 const UNIDADES: UnidadVelocidad[] = ['mph', 'km_h'];
 
 interface Props {
-  miembro: Miembro;
+  /** Null = récords del equipo, los que no son de ninguna persona. */
+  miembro: Miembro | null;
+  /** Los récords a listar: los del miembro, o los del equipo. */
+  records: RecordDeportivo[];
   onCerrar: () => void;
-  /** El récord ya guardado (alta o edición), y de qué miembro es realmente dueño. */
-  onGuardado: (miembroId: number, fila: RecordDeportivo) => void;
-  onBorrado: (miembroId: number, id: number) => void;
+  /**
+   * El récord ya guardado (alta o edición), y de quién es realmente dueño:
+   * el id del miembro, o `null` si es del equipo.
+   */
+  onGuardado: (miembroId: number | null, fila: RecordDeportivo) => void;
+  onBorrado: (miembroId: number | null, id: number) => void;
 }
 
-export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado }: Props) {
-  const records = ordenarRecords(miembro.records ?? []);
+export default function RecordsModal({
+  miembro,
+  records: recordsSinOrdenar,
+  onCerrar,
+  onGuardado,
+  onBorrado,
+}: Props) {
+  const records = ordenarRecords(recordsSinOrdenar);
+  const dueñoDelModal = miembro?.id ?? null;
 
   const [editando, setEditando] = useState<RecordDeportivo | null>(null);
   const [form, setForm] = useState<FormRecord | null>(null);
@@ -139,24 +161,17 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
       const db = crearClienteNavegador();
 
       if (editando) {
-        // El dueño es el del récord que se edita, nunca el miembro del modal
+        // El dueño es el del récord que se edita, nunca el del modal
         // actualmente abierto: si una respuesta tardía de otro miembro llegó
         // a reemplazar records acá adentro, guardar igual no debe
-        // reasignarlos.
-        const miembroIdDueño = editando.miembro_id;
-        if (miembroIdDueño === null) {
-          if (sesion.esVigente(miBorrador)) {
-            setError('Este récord no tiene miembro asociado.');
-            setGuardando(false);
-          }
-          return;
-        }
-        const fila = aFilaRecord(form, miembroIdDueño);
-        const { data, error: err } = await db
-          .from('records')
-          .update(fila)
-          .eq('id', editando.id)
-          .eq('miembro_id', miembroIdDueño)
+        // reasignarlos. `null` es un récord del equipo, no un error.
+        const dueño = editando.miembro_id;
+        const fila = aFilaRecord(form, dueño);
+        const consulta = db.from('records').update(fila).eq('id', editando.id);
+        const { data, error: err } = await (dueño === null
+          ? consulta.is('miembro_id', null)
+          : consulta.eq('miembro_id', dueño)
+        )
           .select('*')
           .single();
         if (err) {
@@ -166,9 +181,9 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
           }
           return;
         }
-        onGuardado(miembroIdDueño, data as RecordDeportivo);
+        onGuardado(dueño, data as RecordDeportivo);
       } else {
-        const fila = aFilaRecord(form, miembro.id);
+        const fila = aFilaRecord(form, dueñoDelModal);
         const { data, error: err } = await db
           .from('records')
           .insert(fila)
@@ -181,7 +196,7 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
           }
           return;
         }
-        onGuardado(miembro.id, data as RecordDeportivo);
+        onGuardado(dueñoDelModal, data as RecordDeportivo);
       }
 
       if (sesion.esVigente(miBorrador)) {
@@ -195,42 +210,37 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
   }
 
   async function alternarVigente(r: RecordDeportivo) {
-    const miembroIdDueño = r.miembro_id;
-    if (miembroIdDueño === null) return;
-
+    const dueño = r.miembro_id;
     const db = crearClienteNavegador();
-    const { data, error: err } = await db
-      .from('records')
-      .update({ vigente: !r.vigente })
-      .eq('id', r.id)
-      .eq('miembro_id', miembroIdDueño)
+    const consulta = db.from('records').update({ vigente: !r.vigente }).eq('id', r.id);
+    const { data, error: err } = await (dueño === null
+      ? consulta.is('miembro_id', null)
+      : consulta.eq('miembro_id', dueño)
+    )
       .select('*')
       .single();
     if (err) {
       if (sesion.estaMontado()) setError(err.message);
       return;
     }
-    onGuardado(miembroIdDueño, data as RecordDeportivo);
+    onGuardado(dueño, data as RecordDeportivo);
     if (sesion.estaMontado()) setError(null);
   }
 
   async function borrar(r: RecordDeportivo) {
     if (!confirm(`¿Borrar "${r.titulo}"?`)) return;
 
-    const miembroIdDueño = r.miembro_id;
-    if (miembroIdDueño === null) return;
-
+    const dueño = r.miembro_id;
     const db = crearClienteNavegador();
-    const { error: err } = await db
-      .from('records')
-      .delete()
-      .eq('id', r.id)
-      .eq('miembro_id', miembroIdDueño);
+    const consulta = db.from('records').delete().eq('id', r.id);
+    const { error: err } = await (dueño === null
+      ? consulta.is('miembro_id', null)
+      : consulta.eq('miembro_id', dueño));
     if (err) {
       if (sesion.estaMontado()) setError(err.message);
       return;
     }
-    onBorrado(miembroIdDueño, r.id);
+    onBorrado(dueño, r.id);
     if (sesion.estaMontado()) setError(null);
   }
 
@@ -238,7 +248,9 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
     <div className={s.modalFondo} onClick={onCerrar}>
       <div className={s.modal} onClick={(e) => e.stopPropagation()}>
         <div className={s.modalCabecera}>
-          <h2 className={s.modalTitulo}>Récords de {miembro.nombre}</h2>
+          <h2 className={s.modalTitulo}>
+            {miembro ? `Récords de ${miembro.nombre}` : 'Récords del equipo'}
+          </h2>
           <button className={s.modalCerrar} onClick={onCerrar} aria-label="Cerrar">
             ✕
           </button>
@@ -329,7 +341,9 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
                   ))}
                 </select>
                 <p className={s.ayuda}>
-                  Solo los nacionales vigentes suman en la tarjeta del piloto
+                  {miembro
+                    ? 'Solo los nacionales vigentes suman en la tarjeta del piloto'
+                    : 'Solo los nacionales vigentes cuentan como récord nacional'}
                 </p>
               </div>
 
@@ -428,7 +442,11 @@ export default function RecordsModal({ miembro, onCerrar, onGuardado, onBorrado 
               </div>
 
               {records.length === 0 ? (
-                <p className={s.vacio}>Todavía no tiene récords cargados.</p>
+                <p className={s.vacio}>
+                  {miembro
+                    ? 'Todavía no tiene récords cargados.'
+                    : 'Todavía no hay récords del equipo cargados.'}
+                </p>
               ) : (
                 <div className={s.tablaWrap}>
                   <table className={s.tabla}>

@@ -55,12 +55,21 @@ function aForm(p: Miembro): FormMiembro {
   };
 }
 
-export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
+export default function MiembrosAdmin({
+  inicial,
+  recordsEquipo: recordsEquipoInicial,
+}: {
+  inicial: Miembro[];
+  /** Récords con `miembro_id` nulo: los de La Infantería como equipo (T-004). */
+  recordsEquipo: RecordDeportivo[];
+}) {
   const router = useRouter();
   const [miembros, setMiembros] = useState(inicial);
+  const [recordsEquipo, setRecordsEquipo] = useState(recordsEquipoInicial);
   const [editando, setEditando] = useState<Miembro | null>(null);
   const [palmaresDe, setPalmaresDe] = useState<Miembro | null>(null);
   const [recordsDe, setRecordsDe] = useState<Miembro | null>(null);
+  const [recordsDelEquipoAbierto, setRecordsDelEquipoAbierto] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState<FormMiembro>(VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -213,14 +222,21 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
   // capturado antes del await en RecordsModal. Así una respuesta tardía de un
   // miembro no pisa los records del que esté abierto en ese momento, y dos
   // acciones rápidas concurrentes no se restauran una a la otra.
-  function actualizarRecordsDeMiembro(
-    miembroId: number,
+  //
+  // T-004: `miembroId === null` es un récord del equipo. No cuelga de ningún
+  // miembro, así que vive en su propio estado y no se mezcla con `miembros`.
+  function actualizarRecords(
+    miembroId: number | null,
     actualizar: (records: RecordDeportivo[]) => RecordDeportivo[],
   ) {
-    setMiembros((prev) => aplicarRecordsDeMiembro(prev, miembroId, actualizar));
-    setRecordsDe((m) =>
-      m && m.id === miembroId ? { ...m, records: actualizar(m.records ?? []) } : m,
-    );
+    if (miembroId === null) {
+      setRecordsEquipo((prev) => actualizar(prev));
+    } else {
+      setMiembros((prev) => aplicarRecordsDeMiembro(prev, miembroId, actualizar));
+      setRecordsDe((m) =>
+        m && m.id === miembroId ? { ...m, records: actualizar(m.records ?? []) } : m,
+      );
+    }
     router.refresh();
   }
 
@@ -235,6 +251,14 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
           </p>
         </div>
         <div className={s.barraAcciones}>
+          {/* Los récords del equipo no son de nadie de la tabla: por eso el
+              botón va acá arriba y no en una fila. */}
+          <button
+            className={s.btnSecundario}
+            onClick={() => setRecordsDelEquipoAbierto(true)}
+          >
+            Récords del equipo
+          </button>
           <button className={s.btnNuevo} onClick={abrirNuevo}>
             + Nuevo miembro
           </button>
@@ -524,15 +548,35 @@ export default function MiembrosAdmin({ inicial }: { inicial: Miembro[] }) {
         />
       )}
 
+      {/* `key` distinto por dueño: cambiar de miembro —o pasar de un miembro al
+          equipo— remonta el modal, así no queda un borrador a medio escribir
+          apuntando a otro dueño (T-004, CA-3). */}
       {recordsDe && (
         <RecordsModal
+          key={`miembro-${recordsDe.id}`}
           miembro={recordsDe}
+          records={recordsDe.records ?? []}
           onCerrar={() => setRecordsDe(null)}
           onGuardado={(miembroId, fila) =>
-            actualizarRecordsDeMiembro(miembroId, (records) => aplicarGuardado(records, fila))
+            actualizarRecords(miembroId, (records) => aplicarGuardado(records, fila))
           }
           onBorrado={(miembroId, id) =>
-            actualizarRecordsDeMiembro(miembroId, (records) => aplicarBorrado(records, id))
+            actualizarRecords(miembroId, (records) => aplicarBorrado(records, id))
+          }
+        />
+      )}
+
+      {recordsDelEquipoAbierto && (
+        <RecordsModal
+          key="equipo"
+          miembro={null}
+          records={recordsEquipo}
+          onCerrar={() => setRecordsDelEquipoAbierto(false)}
+          onGuardado={(miembroId, fila) =>
+            actualizarRecords(miembroId, (records) => aplicarGuardado(records, fila))
+          }
+          onBorrado={(miembroId, id) =>
+            actualizarRecords(miembroId, (records) => aplicarBorrado(records, id))
           }
         />
       )}
