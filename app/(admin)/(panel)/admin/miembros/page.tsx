@@ -15,7 +15,7 @@ export default async function AdminMiembrosPage() {
   // cuelgan de ningún miembro (`miembro_id` nulo), así que el embebido
   // `records(*)` no los trae nunca. Van en paralelo: no dependen entre sí.
   // `is` y no `eq`: en PostgREST `eq('miembro_id', null)` no matchea nada.
-  const [{ data }, { data: recordsEquipo }] = await Promise.all([
+  const [{ data }, { data: recordsEquipo, error: errorRecordsEquipo }] = await Promise.all([
     // `palmares:logros(*)` con alias: `logros` a secas choca con la columna vieja
     // del mismo nombre que quedó en la tabla (ver 0011).
     db
@@ -26,10 +26,15 @@ export default async function AdminMiembrosPage() {
     db.from('records').select('*').is('miembro_id', null),
   ]);
 
+  // El error viaja al panel en vez de perderse (T-004-D02). Acá no vale el
+  // criterio del sitio público —donde una sección vacía es mejor que un 500—:
+  // si la lectura falló y el modal dice «todavía no hay récords cargados», el
+  // admin carga de nuevo lo que ya estaba y termina con duplicados.
   return (
     <MiembrosAdmin
       inicial={(data ?? []) as Miembro[]}
       recordsEquipo={ordenarRecords((recordsEquipo ?? []) as RecordDeportivo[])}
+      errorRecordsEquipo={errorRecordsEquipo?.message ?? null}
     />
   );
 }

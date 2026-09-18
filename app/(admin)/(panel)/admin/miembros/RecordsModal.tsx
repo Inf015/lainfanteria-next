@@ -31,6 +31,11 @@ import s from '../../../admin.module.css';
  * La lista llega por `records` y no desde `miembro`, porque los del equipo no
  * cuelgan de ninguno.
  *
+ * T-004 ronda 2 (T-004-D02): una lista vacía y una lectura fallida se ven
+ * distinto. En el sitio público caer al respaldo vacío es lo correcto; acá no:
+ * el admin que lee «todavía no hay récords cargados» cuando en realidad la
+ * consulta falló vuelve a cargar lo que ya estaba.
+ *
  * Ronda 2 (T-002-D01): cada guardado/borrado se reporta al padre por
  * `miembroId` (el dueño real del récord, no el miembro del modal actualmente
  * abierto) para que la lista global se actualice por id sobre el estado más
@@ -73,6 +78,16 @@ interface Props {
   miembro: Miembro | null;
   /** Los récords a listar: los del miembro, o los del equipo. */
   records: RecordDeportivo[];
+  /**
+   * Mensaje si la lista no se pudo leer (T-004-D02). Con esto, la lista vacía
+   * no se puede confundir con «no hay»: son dos cosas distintas y solo una
+   * habilita cargar.
+   */
+  errorCarga?: string | null;
+  /** Si hay un reintento de lectura en curso. */
+  recargando?: boolean;
+  /** Volver a leer la lista. Sin esto no se ofrece reintentar. */
+  onReintentar?: () => void;
   onCerrar: () => void;
   /**
    * El récord ya guardado (alta o edición), y de quién es realmente dueño:
@@ -85,6 +100,9 @@ interface Props {
 export default function RecordsModal({
   miembro,
   records: recordsSinOrdenar,
+  errorCarga = null,
+  recargando = false,
+  onReintentar,
   onCerrar,
   onGuardado,
   onBorrado,
@@ -433,6 +451,30 @@ export default function RecordsModal({
                 </button>
               </div>
             </form>
+          ) : errorCarga ? (
+            /* La lectura falló: no se sabe qué hay cargado. Se dice, y no se
+               ofrece agregar — cargar a ciegas sobre una lista que no se pudo
+               leer es exactamente cómo aparecen los duplicados (T-004-D02). */
+            <div className={s.error} role="alert">
+              <p style={{ margin: '0 0 0.75rem' }}>
+                No se pudieron cargar los récords{miembro ? '' : ' del equipo'}:{' '}
+                {errorCarga}
+              </p>
+              <p style={{ margin: '0 0 0.75rem' }}>
+                No es que no haya: es que no se pudo leer. Reintentá antes de cargar
+                nada, para no duplicar lo que ya esté guardado.
+              </p>
+              {onReintentar && (
+                <button
+                  type="button"
+                  className={s.btnSecundario}
+                  onClick={onReintentar}
+                  disabled={recargando}
+                >
+                  {recargando ? 'Reintentando…' : 'Reintentar'}
+                </button>
+              )}
+            </div>
           ) : (
             <>
               <div className={s.barraAcciones} style={{ marginBottom: '1rem' }}>

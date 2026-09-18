@@ -7,6 +7,7 @@ import type { Miembro, RecordDeportivo } from '@/lib/types';
 import { aLista, aSlug, slugUnico } from '@/lib/formato';
 import { borrarDelBucket } from '@/lib/storage';
 import { aplicarBorrado, aplicarGuardado, aplicarRecordsDeMiembro } from '@/lib/records-form';
+import { ordenarRecords } from '@/lib/records';
 import SubirFotoUnica from '../_componentes/SubirFotoUnica';
 import PalmaresModal from './PalmaresModal';
 import RecordsModal from './RecordsModal';
@@ -58,14 +59,19 @@ function aForm(p: Miembro): FormMiembro {
 export default function MiembrosAdmin({
   inicial,
   recordsEquipo: recordsEquipoInicial,
+  errorRecordsEquipo: errorRecordsEquipoInicial,
 }: {
   inicial: Miembro[];
   /** Récords con `miembro_id` nulo: los de La Infantería como equipo (T-004). */
   recordsEquipo: RecordDeportivo[];
+  /** Mensaje si la lectura de arriba falló; `null` si salió bien (T-004-D02). */
+  errorRecordsEquipo: string | null;
 }) {
   const router = useRouter();
   const [miembros, setMiembros] = useState(inicial);
   const [recordsEquipo, setRecordsEquipo] = useState(recordsEquipoInicial);
+  const [errorRecordsEquipo, setErrorRecordsEquipo] = useState(errorRecordsEquipoInicial);
+  const [recargandoEquipo, setRecargandoEquipo] = useState(false);
   const [editando, setEditando] = useState<Miembro | null>(null);
   const [palmaresDe, setPalmaresDe] = useState<Miembro | null>(null);
   const [recordsDe, setRecordsDe] = useState<Miembro | null>(null);
@@ -238,6 +244,32 @@ export default function MiembrosAdmin({
       );
     }
     router.refresh();
+  }
+
+  /**
+   * Reintento de la lectura de récords del equipo (T-004-D02).
+   *
+   * Vuelve a preguntar desde el navegador en vez de `router.refresh()`: el
+   * estado de este componente se inicializa una sola vez con las props, así
+   * que un refresh del servidor no cambiaría lo que el modal muestra y el
+   * botón sería mentira. Misma consulta que la del servidor, con el mismo
+   * `.is('miembro_id', null)`.
+   */
+  async function recargarRecordsDelEquipo() {
+    setRecargandoEquipo(true);
+    const db = crearClienteNavegador();
+    const { data, error: err } = await db
+      .from('records')
+      .select('*')
+      .is('miembro_id', null);
+    setRecargandoEquipo(false);
+
+    if (err) {
+      setErrorRecordsEquipo(err.message);
+      return;
+    }
+    setErrorRecordsEquipo(null);
+    setRecordsEquipo(ordenarRecords((data ?? []) as RecordDeportivo[]));
   }
 
   return (
@@ -571,6 +603,9 @@ export default function MiembrosAdmin({
           key="equipo"
           miembro={null}
           records={recordsEquipo}
+          errorCarga={errorRecordsEquipo}
+          recargando={recargandoEquipo}
+          onReintentar={recargarRecordsDelEquipo}
           onCerrar={() => setRecordsDelEquipoAbierto(false)}
           onGuardado={(miembroId, fila) =>
             actualizarRecords(miembroId, (records) => aplicarGuardado(records, fila))
