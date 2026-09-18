@@ -185,6 +185,16 @@
     color: #555;
 }
 
+/* ─── Récords del equipo ─── */
+/* Solo el fondo y el aire de sección: las fichas y el historial los dibuja
+   _componentes/Records.tsx con su propio CSS, compartido con /equipo/<slug>.
+   Los 2.5rem de arriba se suman al padding-top del bloque, y así el respiro
+   queda igual al de las secciones vecinas. */
+.nosotrosRecords {
+    background: var(--color-bg-dark);
+    padding: 2.5rem 0 5rem;
+}
+
 /* ─── Valores ─── */
 .nosotrosValores {
     background: var(--color-bg-dark);
