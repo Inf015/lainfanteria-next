@@ -6,11 +6,15 @@ import {
   getAjustes,
   getAutos,
   getNoticias,
+  getPilotos,
   getProductos,
   seccionActiva,
 } from '@/lib/datos';
 import { getVideos } from '@/lib/youtube';
+import { totalTrofeos } from '@/lib/palmares';
+import { recordsNacionalesVigentes } from '@/lib/records';
 import NovedadesGrid, { type Novedad } from './_componentes/NovedadesGrid';
+import CarruselEquipo, { type TarjetaEquipo } from './_componentes/CarruselEquipo';
 import s from './home.module.css';
 import { formatPrecio, soloDigitos } from '@/lib/formato';
 
@@ -95,21 +99,41 @@ const stats = [
 
 
 export default async function Home() {
-  const [ajustes, autosOn, merchOn, videosOn, noticiasOn] = await Promise.all([
+  const [ajustes, autosOn, merchOn, videosOn, noticiasOn, equipoOn] = await Promise.all([
     getAjustes(),
     seccionActiva('autos'),
     seccionActiva('merch'),
     seccionActiva('videos'),
     seccionActiva('noticias'),
+    seccionActiva('equipo'),
   ]);
 
   // Solo se consulta lo que se va a mostrar
-  const [autos, productos, videos, noticias] = await Promise.all([
+  const [autos, productos, videos, noticias, pilotos] = await Promise.all([
     autosOn ? getAutos() : Promise.resolve([]),
     merchOn ? getProductos(4) : Promise.resolve([]),
     videosOn ? getVideos(ajustes.youtube_channel_id ?? '', 6) : Promise.resolve([]),
     noticiasOn ? getNoticias(6) : Promise.resolve([]),
+    equipoOn ? getPilotos() : Promise.resolve([]),
   ]);
+
+  // Solo pilotos en la portada: son los que corren y los que tienen trofeos y
+  // récords que mostrar. El equipo completo —socios y técnicos— vive en
+  // /equipo, que es adonde lleva el enlace del bloque.
+  //
+  // El carrusel es un componente de cliente: lo que reciba viaja en el HTML de
+  // la portada. Por eso baja un resumen y no el miembro entero — el palmarés de
+  // un piloto son cientos de filas que acá se muestran como un número.
+  const equipo: TarjetaEquipo[] = pilotos.map((m) => ({
+    id: m.id,
+    nombre: m.nombre,
+    slug: m.slug,
+    numero: m.numero,
+    foto: m.foto_url,
+    roles: m.roles,
+    trofeos: totalTrofeos(m),
+    recordsNacionales: recordsNacionalesVigentes(m.records).length,
+  }));
 
   // Noticias y videos se mezclan en un solo bloque ordenado por fecha: para
   // quien visita el sitio ambos son "lo último del equipo".
@@ -397,6 +421,30 @@ export default async function Home() {
                 Próximamente — productos disponibles en tienda.
               </p>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── EQUIPO: carrusel con trofeos y récords ─── */}
+      {equipoOn && equipo.length > 0 && (
+        <section className={s.team}>
+          <div className={s.sectionContainer}>
+            <div className={s.blockHeader}>
+              <div>
+                <span className={s.sectionLabel}>NUESTROS PILOTOS</span>
+                <h2 className={s.sectionTitle}>
+                  Los que corren por <span className={s.accent}>La Infantería</span>
+                </h2>
+                <p className={s.sectionSubtitle}>
+                  Trofeos y récords que hablan por ellos.
+                </p>
+              </div>
+              <Link href="/equipo" className={s.linkWhatsapp}>
+                VER EQUIPO →
+              </Link>
+            </div>
+
+            <CarruselEquipo miembros={equipo} />
           </div>
         </section>
       )}

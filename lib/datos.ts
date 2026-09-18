@@ -98,6 +98,35 @@ export async function getMiembros(): Promise<Miembro[]> {
   }));
 }
 
+/**
+ * Solo los pilotos activos, para el carrusel de la portada.
+ *
+ * Filtra por rol en la consulta y no en memoria: la portada muestra pilotos, y
+ * traer a los socios y técnicos con su biografía, su palmarés y sus récords
+ * para descartarlos después es tráfico que nadie usa. `roles` es un `text[]`,
+ * así que el filtro es "contiene" y no "igual": quien es piloto y socio entra.
+ */
+export async function getPilotos(): Promise<Miembro[]> {
+  const pilotos = await consultar<Miembro[]>(
+    'pilotos activos',
+    (db) =>
+      db
+        .from('miembros')
+        .select(COLUMNAS_MIEMBRO)
+        .eq('activo', true)
+        .contains('roles', ['Piloto'])
+        .order('orden')
+        .order('id'),
+    [],
+  );
+
+  return pilotos.map((m) => ({
+    ...m,
+    palmares: ordenarPalmares(m.palmares ?? []),
+    records: ordenarRecords(m.records ?? []),
+  }));
+}
+
 /** Un miembro por su slug, para su página propia. Null si no existe o está inactivo. */
 export async function getMiembro(slug: string): Promise<Miembro | null> {
   const filas = await consultar<Miembro[]>(

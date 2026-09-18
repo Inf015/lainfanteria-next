@@ -1,0 +1,67 @@
+# Gate PM — T-005 ronda 2
+fecha : 2026-09-16 12:50:11 -0400
+rama  : Inf015/oliver132123-carrusel-equipo
+HEAD  : 410a99d6ff695a6d103e4abdbd4519e84c4d2a4f
+base  : origin/main (d2d5010)
+
+## Commits
+410a99d docs(pm): T-005 ronda 2 — briefs, entrega y guía de validación al día
+06281c3 fix(home): seis defectos del carrusel reportados por QA (ronda 1)
+8d2d0e8 docs(pm): QA T-005 r1 — FAIL
+8c25e2d docs(pm): briefs y entrega de T-005 para mandarla a QA
+fb514f7 feat(home): en la portada solo van los pilotos
+c6fb225 fix(home): el carrusel no rotaba — la animación va cuadro a cuadro
+4575c48 docs(pm): guía de validación del carrusel y fila T-005 en el tablero
+ac6284f feat(home): carrusel del equipo con trofeos y récords entre servicios y novedades
+
+## Archivos
+ app/(sitio)/_componentes/CarruselEquipo.tsx        | 283 +++++++++++++++++++++
+ .../_componentes/carrusel-equipo.module.css        | 259 +++++++++++++++++++
+ app/(sitio)/home.module.css                        |   8 +
+ app/(sitio)/page.tsx                               |  52 +++-
+ docs/pm/tablero.md                                 |   1 +
+ docs/pm/tareas/T-005/brief-dev.md                  | 147 +++++++++++
+ docs/pm/tareas/T-005/brief-qa.md                   | 160 ++++++++++++
+ docs/pm/tareas/T-005/entrega-dev.md                | 101 ++++++++
+ docs/pm/tareas/T-005/gate-r1.txt                   |  61 +++++
+ docs/pm/tareas/T-005/reporte-qa-r1.md              | 176 +++++++++++++
+ docs/pm/tareas/T-005/validar.md                    | 110 ++++++++
+ lib/carrusel.ts                                    | 168 ++++++++++++
+ lib/datos.ts                                       |  29 +++
+ tests/unidad/carrusel.test.ts                      | 241 ++++++++++++++++++
+ 14 files changed, 1794 insertions(+), 2 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/hippocamp
+
+
+ Test Files  11 passed (11)
+      Tests  230 passed (230)
+   Start at  12:50:17
+   Duration  285ms (transform 347ms, setup 0ms, import 474ms, tests 93ms, environment 1ms)
+
+→ OK

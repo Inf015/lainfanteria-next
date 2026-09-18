@@ -1,0 +1,259 @@
+/* Carrusel del equipo en la portada.
+
+   Mismo lenguaje visual que la tarjeta de /equipo (equipo.module.css): el
+   visitante tiene que reconocer la misma pieza cuando pasa de la portada a la
+   sección. Lo que cambia es el envase, no la tarjeta. */
+
+.marco {
+    position: relative;
+}
+
+/* ─── Pista ───
+   `position: relative` no es decorativo: hace de la pista el offsetParent de
+   las tarjetas, y el carrusel navega leyendo el offsetLeft de cada una. */
+.pista {
+    position: relative;
+    display: flex;
+    gap: 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    /* La barra sobra: hay flechas, puntos y el gesto táctil. */
+    scrollbar-width: none;
+}
+
+.pista::-webkit-scrollbar {
+    display: none;
+}
+
+.tarjeta {
+    flex: 0 0 calc((100% - 3rem) / 3);
+    scroll-snap-align: start;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    transition: border-color 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+.tarjeta:hover {
+    border-color: var(--color-primary);
+}
+
+/* ─── Foto ─── */
+.fotoWrap {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 300px;
+    overflow: hidden;
+    background-color: var(--color-bg-medium);
+}
+
+.fotoWrap img {
+    object-fit: cover;
+    object-position: top;
+    filter: brightness(0.9);
+    transition: transform 0.4s;
+}
+
+.tarjeta:hover .fotoWrap img {
+    transform: scale(1.04);
+}
+
+.fotoPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 4.5rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    background-color: var(--color-bg-medium);
+    border-bottom: 2px solid var(--color-primary);
+}
+
+.numero {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 900;
+    padding: 0.3rem 0.75rem;
+    letter-spacing: 1px;
+}
+
+/* Récords nacionales vigentes. Esquina opuesta al número de carrera para que
+   un piloto con las dos cosas no las vea encimadas. */
+.distintivoRecord {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    padding: 0.3rem 0.6rem;
+}
+
+/* ─── Info ─── */
+.info {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    flex: 1;
+}
+
+.nombre {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: white;
+    margin: 0;
+}
+
+.nombre a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.tarjeta:hover .nombre a {
+    color: var(--color-primary);
+}
+
+.roles {
+    color: #888;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.trofeos {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #999;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+.verPerfil {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    margin-top: auto;
+    min-height: 44px;
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    transition: opacity 0.2s;
+}
+
+.verPerfil:hover {
+    opacity: 0.75;
+}
+
+/* ─── Controles ─── */
+.controles {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.flecha {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: white;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.flecha:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.puntos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Con muchas paradas en una pantalla angosta, los puntos bajan a otra
+       línea antes que achicarse: el objetivo táctil no se negocia. */
+    flex-wrap: wrap;
+}
+
+/* El punto se ve chico, pero el botón mide 44×44 px para poder tocarlo con el
+   dedo: el relleno es transparente y el color va en el pseudoelemento. */
+.punto {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.punto::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-border);
+    transition: background-color 0.2s, width 0.2s;
+}
+
+.punto:hover::after {
+    background-color: #666;
+}
+
+.puntoActivo::after {
+    background-color: var(--color-primary);
+    width: 22px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+    .tarjeta {
+        flex-basis: calc((100% - 1.5rem) / 2);
+    }
+}
+
+@media (max-width: 768px) {
+    .tarjeta {
+        /* Se asoma la siguiente: sin ese borde a la vista nadie descubre que
+           el bloque se desliza. */
+        flex-basis: 85%;
+    }
+
+    .fotoWrap {
+        height: 260px;
+    }
+}
