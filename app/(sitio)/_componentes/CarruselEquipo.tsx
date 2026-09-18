@@ -50,6 +50,8 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
   const pistaRef = useRef<HTMLUListElement>(null);
   /** Corta la animación en curso. `null` si no hay ninguna. */
   const cortarRef = useRef<(() => void) | null>(null);
+  /** Si el `scroll-snap` de la pista está apagado por una animación nuestra. */
+  const snapApagadoRef = useRef(false);
   const [indice, setIndice] = useState(0);
   // Puntero y teclado se guardan por separado: con un solo booleano, sacar el
   // ratón reanudaba la rotación aunque el foco siguiera dentro del carrusel, y
@@ -70,6 +72,45 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
     return paginas(inicios, pista.scrollWidth - pista.clientWidth);
   }, []);
 
+  /**
+   * Apaga el `scroll-snap` de la pista mientras dura una animación nuestra.
+   *
+   * Con `scroll-snap-type: x mandatory`, cada posición intermedia que escribe
+   * `animarScroll` la reajusta el navegador a la parada más cercana: el scroll
+   * se queda en el origen hasta pasar el punto medio y ahí completa el salto de
+   * golpe. La animación de 450 ms existía pero no se veía (T-007). Medido en
+   * Chromium escribiendo las mismas posiciones con y sin snap:
+   * `x mandatory` → solo `0` y `413`; `none` → `0, 43, 84, 122, 157, …`.
+   */
+  const apagarSnap = useCallback(() => {
+    const pista = pistaRef.current;
+    if (!pista || snapApagadoRef.current) return;
+    pista.style.scrollSnapType = 'none';
+    snapApagadoRef.current = true;
+  }, []);
+
+  /**
+   * Devuelve la pista al `x mandatory` de la hoja de estilos.
+   *
+   * **Solo con el scroll ya en una parada.** Encenderlo a mitad de camino no es
+   * neutro: el navegador reajusta el scroll a la parada más cercana en el acto
+   * —medido: desde 271 px salta a 308 en la misma línea que cambia el estilo—,
+   * que es justo el salto que hay que evitar.
+   */
+  const encenderSnap = useCallback(() => {
+    const pista = pistaRef.current;
+    if (!pista || !snapApagadoRef.current) return;
+    pista.style.scrollSnapType = '';
+    snapApagadoRef.current = false;
+  }, []);
+
+  /**
+   * Corta la animación en curso, dejando el scroll donde esté.
+   *
+   * No enciende el snap: la pista queda entre dos tarjetas y encenderlo ahí
+   * completaría el salto que este corte acaba de frenar (T-005-D02). Vuelve
+   * solo, en el próximo paso que termine o en el primer gesto del visitante.
+   */
   const cortar = useCallback(() => {
     cortarRef.current?.();
     cortarRef.current = null;
@@ -84,10 +125,20 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
       cortar();
 
       if (sinMovimiento) {
+        encenderSnap();
         pista.scrollLeft = destino;
         return;
       }
 
+      apagarSnap();
+
+      // El snap vuelve cuando la animación avisa que **terminó de escribir**,
+      // no cuando el componente lo deduce: deducirlo leyendo el reloj otra vez
+      // fallaba con un cuadro ejecutado tarde —timestamp 300 ms, reloj ya en
+      // 460— y encendía el snap con el scroll todavía a 397 de 413 y otro
+      // cuadro pedido, provocando justo el salto que este arreglo elimina
+      // (T-007-D01). En el aviso, el scroll ya está en la parada y encenderlo
+      // no lo mueve.
       cortarRef.current = animarScroll(
         (posicion) => {
           pista.scrollLeft = posicion;
@@ -95,9 +146,10 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
         pista.scrollLeft,
         destino,
         RELOJ_NAVEGADOR,
+        encenderSnap,
       );
     },
-    [cortar, sinMovimiento],
+    [apagarSnap, cortar, encenderSnap, sinMovimiento],
   );
 
   const paso = useCallback(
@@ -119,9 +171,33 @@ export default function CarruselEquipo({ miembros }: { miembros: TarjetaEquipo[]
   useEffect(() => {
     if (!pausado && !sinMovimiento && desborda) return;
     cortar();
-  }, [pausado, sinMovimiento, desborda, cortar]);
+    // Pausado, el snap se queda apagado a propósito: la pista quedó entre dos
+    // tarjetas y encenderlo completaría el salto que este corte acaba de
+    // frenar. En los otros casos vuelve enseguida: con movimiento reducido los
+    // saltos son instantáneos, y si la pista dejó de desbordar no hay scroll
+    // que reajustar, así que encenderlo no mueve nada.
+    if (!pausado || !desborda) encenderSnap();
+  }, [pausado, sinMovimiento, desborda, cortar, encenderSnap]);
 
   useEffect(() => cortar, [cortar]);
+
+  // El snap que dejó apagado un paso cortado vuelve en el primer gesto del
+  // visitante sobre la pista, que es cuando tiene algo que hacer: al soltar el
+  // dedo, el navegador alinea la tarjeta (medido: suelta en 460 px y alinea en
+  // 308). Se enciende al empezar el gesto, no al terminarlo, para que el
+  // arrastre y su inercia sean los nativos de punta a punta.
+  useEffect(() => {
+    const pista = pistaRef.current;
+    if (!pista) return;
+
+    const alGesto = () => encenderSnap();
+    pista.addEventListener('pointerdown', alGesto, { passive: true });
+    pista.addEventListener('wheel', alGesto, { passive: true });
+    return () => {
+      pista.removeEventListener('pointerdown', alGesto);
+      pista.removeEventListener('wheel', alGesto);
+    };
+  }, [encenderSnap]);
 
   // El sistema puede pedir menos movimiento (macOS: Reducir movimiento). Ahí el
   // carrusel no rota solo y los saltos son instantáneos; los controles quedan.

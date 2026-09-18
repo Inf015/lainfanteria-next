@@ -1,0 +1,65 @@
+# Gate PM — T-007 ronda 2
+fecha : 2026-09-17 15:33:34 -0400
+rama  : oliver132123/carrusel-sin-salto
+HEAD  : 6b23178d12769da36c6febc954044b5febd68f81
+base  : oliver132123/pruebas-navegador (d7c71a4)
+
+## Commits
+6b23178 docs(pm): entrega T-007 ronda 2
+180ba5e test(navegador): CA-5 entra con Tab de verdad
+6270d8d test(home): el aviso de fin de animarScroll y el cuadro que llega tarde
+2b52099 fix(home): el snap vuelve cuando la animación avisa, no cuando se deduce
+07413ea docs(pm): T-007 ronda 2 — D01, y CA-5 enmendado por estar mal escrito
+fc72315 docs(pm): QA T-007 r1 — FAIL
+9d61fc6 docs(pm): entrega T-007 ronda 1
+6e08fdb test(navegador): el paso se desliza y se puede cortar pasado el medio
+192d6cb fix(home): el carrusel se desliza en vez de saltar
+ef63353 docs(pm): brief T-007 — el carrusel salta en vez de deslizarse
+
+## Archivos
+ app/(sitio)/_componentes/CarruselEquipo.tsx        |  80 ++-
+ .../_componentes/carrusel-equipo.module.css        |   6 +
+ docs/pm/tareas/T-007/brief-dev.md                  | 219 +++++++++
+ docs/pm/tareas/T-007/brief-qa.md                   | 156 ++++++
+ docs/pm/tareas/T-007/entrega-dev.md                | 291 +++++++++++
+ docs/pm/tareas/T-007/gate-r1.txt                   |  55 +++
+ docs/pm/tareas/T-007/reporte-qa-r1.md              | 124 +++++
+ lib/carrusel.ts                                    |  18 +-
+ tests/navegador/carrusel.spec.ts                   | 541 ++++++++++++++++++++-
+ tests/unidad/carrusel.test.ts                      |  87 ++++
+ 10 files changed, 1553 insertions(+), 24 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-carrusel-sin-salto
+
+
+ Test Files  11 passed (11)
+      Tests  233 passed (233)
+   Start at  15:33:39
+   Duration  279ms (transform 358ms, setup 0ms, import 475ms, tests 86ms, environment 1ms)
+
+→ OK

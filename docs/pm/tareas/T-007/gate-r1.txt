@@ -1,0 +1,55 @@
+# Gate PM — T-007 ronda 1
+fecha : 2026-09-17 15:19:42 -0400
+rama  : oliver132123/carrusel-sin-salto
+HEAD  : 9d61fc659d44303e7ef9f021bcf9ddf53039d20a
+base  : oliver132123/pruebas-navegador (d7c71a4)
+
+## Commits
+9d61fc6 docs(pm): entrega T-007 ronda 1
+6e08fdb test(navegador): el paso se desliza y se puede cortar pasado el medio
+192d6cb fix(home): el carrusel se desliza en vez de saltar
+ef63353 docs(pm): brief T-007 — el carrusel salta en vez de deslizarse
+
+## Archivos
+ app/(sitio)/_componentes/CarruselEquipo.tsx        |  80 +++-
+ .../_componentes/carrusel-equipo.module.css        |   6 +
+ docs/pm/tareas/T-007/brief-dev.md                  | 170 ++++++++
+ docs/pm/tareas/T-007/brief-qa.md                   | 147 +++++++
+ docs/pm/tareas/T-007/entrega-dev.md                | 212 +++++++++
+ tests/navegador/carrusel.spec.ts                   | 476 ++++++++++++++++++++-
+ 6 files changed, 1068 insertions(+), 23 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-carrusel-sin-salto
+
+
+ Test Files  11 passed (11)
+      Tests  230 passed (230)
+   Start at  15:19:47
+   Duration  274ms (transform 278ms, setup 0ms, import 433ms, tests 103ms, environment 1ms)
+
+→ OK
