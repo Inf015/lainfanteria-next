@@ -74,6 +74,89 @@ describe('consultar()', () => {
   });
 });
 
+/**
+ * `getRecordsEquipo()` — los récords que no son de ningún miembro.
+ *
+ * No se prueba la base (eso es `tests/seguridad` contra Postgres real): lo que
+ * se fija acá es cómo se arma la consulta, porque el error más caro es mudo.
+ * Con `eq('miembro_id', null)` PostgREST compara contra el literal `null`, no
+ * matchea ninguna fila y «Sobre nosotros» sale vacía sin ningún error visible.
+ */
+async function conRecords(respuesta: { data: unknown; error: unknown }) {
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://falso.supabase.co');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'clave-falsa');
+
+  const tablas: string[] = [];
+  const filtros: { metodo: string; columna: string; valor: unknown }[] = [];
+
+  const consulta = {
+    select: () => consulta,
+    eq: (columna: string, valor: unknown) => {
+      filtros.push({ metodo: 'eq', columna, valor });
+      return consulta;
+    },
+    is: (columna: string, valor: unknown) => {
+      filtros.push({ metodo: 'is', columna, valor });
+      return consulta;
+    },
+    then: (resolver: (r: typeof respuesta) => unknown) => resolver(respuesta),
+  };
+
+  vi.doMock('@supabase/supabase-js', () => ({
+    createClient: () => ({
+      from: (tabla: string) => {
+        tablas.push(tabla);
+        return consulta;
+      },
+    }),
+  }));
+
+  const { getRecordsEquipo } = await import('@/lib/datos');
+  return { getRecordsEquipo, tablas, filtros };
+}
+
+function filaRecord(over: Record<string, unknown>) {
+  return { vigente: true, alcance: null, anio: null, mes: null, ...over };
+}
+
+describe('getRecordsEquipo()', () => {
+  it('pide la tabla records filtrando con is(miembro_id, null), no con eq', async () => {
+    const { getRecordsEquipo, tablas, filtros } = await conRecords({
+      data: [],
+      error: null,
+    });
+    await getRecordsEquipo();
+
+    expect(tablas).toEqual(['records']);
+    expect(filtros).toEqual([{ metodo: 'is', columna: 'miembro_id', valor: null }]);
+  });
+
+  it('devuelve los récords ordenados como los de un miembro', async () => {
+    const { getRecordsEquipo } = await conRecords({
+      data: [
+        filaRecord({ id: 1, alcance: null, anio: 2024 }),
+        filaRecord({ id: 2, alcance: 'nacional', anio: 2025, vigente: false }),
+        filaRecord({ id: 3, alcance: 'nacional', anio: 2020 }),
+        filaRecord({ id: 4, alcance: 'pista', anio: 2026 }),
+      ],
+      error: null,
+    });
+
+    // Vigentes primero y, dentro de ellos, por importancia del alcance; el
+    // superado al final aunque sea el más reciente.
+    expect((await getRecordsEquipo()).map((r) => r.id)).toEqual([3, 4, 1, 2]);
+  });
+
+  it('si la consulta falla, devuelve lista vacía en vez de voltear la página', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { getRecordsEquipo } = await conRecords({
+      data: null,
+      error: { message: 'caída' },
+    });
+    expect(await getRecordsEquipo()).toEqual([]);
+  });
+});
+
 describe('cliente sin credenciales', () => {
   it('en desarrollo no rompe: el cliente queda en null', async () => {
     vi.stubEnv('NODE_ENV', 'development');

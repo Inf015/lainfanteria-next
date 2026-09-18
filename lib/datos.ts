@@ -7,6 +7,7 @@ import type {
   Miembro,
   Noticia,
   ProductoConFotos,
+  RecordDeportivo,
   Seccion,
 } from './types';
 
@@ -149,6 +150,27 @@ export async function getMiembro(slug: string): Promise<Miembro | null> {
         records: ordenarRecords(miembro.records ?? []),
       }
     : null;
+}
+
+/**
+ * Récords de La Infantería como equipo o taller: los que no son de ningún
+ * miembro. Se muestran en «Sobre nosotros» (`/nosotros`).
+ *
+ * El filtro va con `.is('miembro_id', null)` y no con `.eq(…, null)`: en
+ * PostgREST `eq` compara con el literal `null` y no matchea ninguna fila, así
+ * que la pantalla saldría siempre vacía sin ningún error visible.
+ *
+ * Se ordena en memoria con el mismo criterio que los récords de un miembro
+ * (`ordenarRecords`), para que la presentación no dependa de por dónde
+ * vinieron.
+ */
+export async function getRecordsEquipo(): Promise<RecordDeportivo[]> {
+  const records = await consultar<RecordDeportivo[]>(
+    'récords del equipo',
+    (db) => db.from('records').select('*').is('miembro_id', null),
+    [],
+  );
+  return ordenarRecords(records);
 }
 
 /**
