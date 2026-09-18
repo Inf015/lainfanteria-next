@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAjustes, seccionActiva } from '@/lib/datos';
+import { getAjustes, getRecordsEquipo, seccionActiva } from '@/lib/datos';
+import Records from '../_componentes/Records';
 import s from './nosotros.module.css';
 
 export const metadata: Metadata = {
@@ -62,7 +63,9 @@ const tallerLista = [
 export default async function NosotrosPage() {
   if (!(await seccionActiva('nosotros'))) notFound();
 
-  const ajustes = await getAjustes();
+  // En paralelo: no dependen entre sí, y si los récords fallan `consultar()`
+  // devuelve [] y la página se sigue viendo entera, solo que sin el bloque.
+  const [ajustes, recordsEquipo] = await Promise.all([getAjustes(), getRecordsEquipo()]);
   const wa = `https://wa.me/${ajustes.whatsapp_numero ?? ''}`;
 
   return (
@@ -129,6 +132,17 @@ export default async function NosotrosPage() {
           </div>
         </div>
       </section>
+
+      {/* Hoy no hay ningún récord del equipo cargado. Con la lista vacía no se
+          monta nada: la página queda igual que antes, sin una sección vacía
+          ocupando lugar (T-004, CA-5). */}
+      {recordsEquipo.length > 0 && (
+        <section className={s.nosotrosRecords}>
+          <div className={s.sectionContainer}>
+            <Records records={recordsEquipo} titulo="Récords del equipo" />
+          </div>
+        </section>
+      )}
 
       <section className={s.nosotrosValores}>
         <div className={s.sectionContainer}>

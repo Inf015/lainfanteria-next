@@ -1,0 +1,60 @@
+# Gate PM — T-004 ronda 1
+fecha : 2026-09-18 07:37:20 -0400
+rama  : oliver132123/records-equipo
+HEAD  : 778068a2c48e70877ccc0c33efdfb81b0b205117
+base  : origin/main (7f6917b)
+
+## Commits
+778068a docs(pm): entrega de dev de T-004 ronda 1
+8748b29 feat(equipo): bloque de récords del equipo en «Sobre nosotros»
+f1d4984 feat(admin): cargar los récords del equipo desde el panel
+29921a3 feat(equipo): getRecordsEquipo() — los récords que no son de nadie
+c025b2b docs(pm): brief T-004 — récords del equipo
+
+## Archivos
+ .../(panel)/admin/miembros/MiembrosAdmin.tsx       |  62 ++++++-
+ .../(panel)/admin/miembros/RecordsModal.tsx        | 112 +++++++-----
+ app/(admin)/(panel)/admin/miembros/page.tsx        |  32 +++-
+ app/(sitio)/nosotros/nosotros.module.css           |  10 ++
+ app/(sitio)/nosotros/page.tsx                      |  18 +-
+ docs/pm/tareas/T-004/brief-dev.md                  |  81 +++++++++
+ docs/pm/tareas/T-004/brief-qa.md                   | 162 +++++++++++++++++
+ docs/pm/tareas/T-004/entrega-dev.md                | 195 +++++++++++++++++++++
+ lib/datos.ts                                       |  22 +++
+ tests/unidad/datos.test.ts                         |  83 +++++++++
+ 10 files changed, 710 insertions(+), 67 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/orca/workspaces/lainfanteria-next/lainfanteria-next-records-equipo
+
+
+ Test Files  11 passed (11)
+      Tests  236 passed (236)
+   Start at  07:37:25
+   Duration  283ms (transform 399ms, setup 0ms, import 522ms, tests 119ms, environment 1ms)
+
+→ OK

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { crearClienteServidor } from '@/lib/supabase/servidor';
-import type { Miembro } from '@/lib/types';
+import { ordenarRecords } from '@/lib/records';
+import type { Miembro, RecordDeportivo } from '@/lib/types';
 import MiembrosAdmin from './MiembrosAdmin';
 
 export const metadata: Metadata = {
@@ -10,12 +11,30 @@ export const metadata: Metadata = {
 
 export default async function AdminMiembrosPage() {
   const db = await crearClienteServidor();
-  // `palmares:logros(*)` con alias: `logros` a secas choca con la columna vieja
-  // del mismo nombre que quedó en la tabla (ver 0011).
-  const { data } = await db
-    .from('miembros')
-    .select('*, palmares:logros(*), records(*)')
-    .order('orden')
-    .order('id');
-  return <MiembrosAdmin inicial={(data ?? []) as Miembro[]} />;
+  // Dos consultas porque son dos cosas distintas: los récords del equipo no
+  // cuelgan de ningún miembro (`miembro_id` nulo), así que el embebido
+  // `records(*)` no los trae nunca. Van en paralelo: no dependen entre sí.
+  // `is` y no `eq`: en PostgREST `eq('miembro_id', null)` no matchea nada.
+  const [{ data }, { data: recordsEquipo, error: errorRecordsEquipo }] = await Promise.all([
+    // `palmares:logros(*)` con alias: `logros` a secas choca con la columna vieja
+    // del mismo nombre que quedó en la tabla (ver 0011).
+    db
+      .from('miembros')
+      .select('*, palmares:logros(*), records(*)')
+      .order('orden')
+      .order('id'),
+    db.from('records').select('*').is('miembro_id', null),
+  ]);
+
+  // El error viaja al panel en vez de perderse (T-004-D02). Acá no vale el
+  // criterio del sitio público —donde una sección vacía es mejor que un 500—:
+  // si la lectura falló y el modal dice «todavía no hay récords cargados», el
+  // admin carga de nuevo lo que ya estaba y termina con duplicados.
+  return (
+    <MiembrosAdmin
+      inicial={(data ?? []) as Miembro[]}
+      recordsEquipo={ordenarRecords((recordsEquipo ?? []) as RecordDeportivo[])}
+      errorRecordsEquipo={errorRecordsEquipo?.message ?? null}
+    />
+  );
 }
