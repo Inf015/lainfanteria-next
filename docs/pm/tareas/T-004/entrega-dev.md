@@ -1,84 +1,113 @@
-# Entrega T-004 — ronda 1
+# Entrega T-004 — ronda 2
 
-**Estado:** LISTA PARA QA *(con una reserva: la verificación manual del panel
-cargando récords quedó sin hacer — ver «Preguntas / bloqueos»)*
+**Estado:** LISTA PARA QA *(con la reserva de D03, que el PM dejó fuera de esta
+ronda: la verificación con datos reales la hace Oliver al cargar el primer
+récord del equipo)*
 
-## Qué hice
+Ronda 2 corrige **T-004-D01** y **T-004-D02**. **T-004-D03 no se tocó** por
+indicación del PM.
 
-- `getRecordsEquipo()` en `lib/datos.ts:155-174`: `records` con
-  `.is('miembro_id', null)`, dentro de `consultar()` con respaldo `[]`, y el
-  resultado por `ordenarRecords`.
-- Panel, botón «Récords del equipo» en la cabecera de miembros:
-  `app/(admin)/(panel)/admin/miembros/MiembrosAdmin.tsx:250-262`.
-- Panel, segunda consulta en paralelo:
-  `app/(admin)/(panel)/admin/miembros/page.tsx:17-34`.
-- `RecordsModal` acepta `miembro: Miembro | null` y recibe la lista por
-  `records`: `RecordsModal.tsx:74-93`. Con `miembro` nulo cambian el título, el
-  texto de la lista vacía y la ayuda del alcance; el formulario y la validación
-  son los mismos.
-- `update`/`delete` acotados al dueño real, que ahora puede ser el equipo:
-  `RecordsModal.tsx:170-176` (guardar), `:215-220` (alternar vigente),
-  `:235-238` (borrar).
-- `/nosotros`: bloque «Récords del equipo» entre números y valores,
-  `app/(sitio)/nosotros/page.tsx:68,136-144`, con `.nosotrosRecords` en
-  `nosotros.module.css:188-196` (solo fondo y aire de sección).
-- Pruebas de `getRecordsEquipo()`: `tests/unidad/datos.test.ts:78-181`.
+## Defecto → fix → prueba
 
-**No tocado:** `lib/records.ts`, `lib/records-form.ts` (aceptaban
-`miembroId: null` desde T-001/T-002, no hizo falta escalar),
-`app/(sitio)/_componentes/Records.tsx` y su CSS, la migración 0013, `/equipo`,
-la home, `PalmaresModal.tsx`.
+| Defecto | Fix | Prueba que lo cubre |
+| ------- | --- | ------------------- |
+| **D01 (P1)** — los tests nuevos sustituían la capa de datos (`createClient`, `from`, `select`, `eq`, `is`) por un doble que devolvía la respuesta prefijada | El cliente de Supabase pasa a ser el real y arma la petición él mismo; lo único sustituido es `fetch`, que el canon sí permite mockear. La prueba mira la URL que salió: `tests/unidad/datos.test.ts:92-140` (helper `conHttp`) y `:142-196` (los tres casos) | `tests/unidad/datos.test.ts:156-158` exige `miembro_id=is.null` y que no aparezca `miembro_id=eq`. **Comprobado que caza**: con `.is` → `.eq` en `lib/datos.ts`, falla con `expected 'eq.null' to be 'is.null'` (salida real abajo) |
+| **D02 (P2)** — una lectura fallida se mostraba como «Todavía no hay récords del equipo cargados» | El `error` de la consulta viaja al panel (`page.tsx:18`, `:37`), llega al modal (`MiembrosAdmin.tsx:606-608`) y el modal muestra qué pasó en vez de la lista, **sin** «+ Agregar récord» (`RecordsModal.tsx:454-477`). «Reintentar» vuelve a leer desde el navegador (`MiembrosAdmin.tsx:248-273`) | Sin prueba automatizada: montar el modal exigiría traer jsdom y una librería de render que el repo no tiene, y eso es otra tarea. Verificable en revisión de código y en el paso 4 de «Pruebas a ejecutar por el PM» del reporte de QA |
 
-## Trazabilidad
+## D01 — por qué el camino nuevo no es el mismo mock con otra ropa
 
-| CA | Cómo se cumple | Test / evidencia |
-| -- | -------------- | ---------------- |
-| CA-1 | `getRecordsEquipo()` con `.is('miembro_id', null)`, `consultar()` y respaldo `[]`, pasado por `ordenarRecords` | `tests/unidad/datos.test.ts` › `getRecordsEquipo()` (3 casos: que el filtro sea `is` y no `eq`, el orden, y el respaldo ante error) + corrida real contra producción durante `npm run build`: 0 líneas `[supabase]` en el log, o sea que la consulta salió bien y devolvió cero filas |
-| CA-2 | Botón en la cabecera → `setRecordsDelEquipoAbierto(true)` → `<RecordsModal miembro={null} records={recordsEquipo}>`; título «Récords del equipo»; alta con `aFilaRecord(form, dueñoDelModal)` y `dueñoDelModal = miembro?.id ?? null` | Revisión de código + URLs que arma supabase-js (abajo). **Sin verificación manual con datos** — ver «Preguntas / bloqueos» |
-| CA-3 | Los récords del equipo viven en su propio estado (`recordsEquipo`), nunca dentro de `miembros`; el embebido `records(*)` de la consulta de miembros solo trae los que tienen esa FK, así que un récord del equipo no puede aparecer en ningún miembro. `key` distinto por dueño en el modal (`miembro-<id>` / `equipo`) para que React lo remonte y no quede un borrador apuntando a otro dueño | Revisión de código (`MiembrosAdmin.tsx:226-243,553-583`); el aislamiento por FK lo garantiza PostgREST, no el cliente. **Sin verificación manual** |
-| CA-4 | `<section className={s.nosotrosRecords}>` insertada entre `nosotrosNumeros` y `nosotrosValores` en `page.tsx:140` | HTML prerenderizado (con la lista vacía, ver CA-5); el orden en el JSX es directo |
-| CA-5 | La sección entera está bajo `recordsEquipo.length > 0` | HTML real de `.next/server/app/nosotros.html` tras `npm run build` contra producción: `grep -c "Récords del equipo"` → **0**, y entre las dos secciones no queda nada (ver «Verificación» abajo) |
-| CA-6 | `Promise.all([getAjustes(), getRecordsEquipo()])`; `consultar()` no propaga el fallo: registra y devuelve el respaldo `[]`, con lo que la página se arma igual sin el bloque | `tests/unidad/datos.test.ts` › «si la consulta falla, devuelve lista vacía…» + las pruebas ya existentes de `consultar()` (error, excepción y `data: null`) |
-| CA-7 | No se tocó `if (!(await seccionActiva('nosotros'))) notFound();` — sigue siendo lo primero de la página, antes de cualquier consulta | `git diff` de `page.tsx`: la línea del `notFound()` no aparece entre los cambios |
-| CA-8 | No se agregó ni una regla de layout nueva: la grilla y el `overflow-wrap` son los de `records.module.css` (T-003, ya probado), y el contenedor es el `.sectionContainer` que la página ya usaba en todas sus secciones. El bloque es Server Component, sin estado de cliente | Revisión de código. Con cero récords no hay nada que medir a 400 px; **cuando haya datos, QA tiene que mirarlo** |
+La diferencia no es de forma. Un doble de `from`/`select`/`is` **no puede
+fallar por la razón que importa**: devuelve la misma respuesta cualquiera sea el
+filtro, así que `is.null` y `eq.null` le dan igual — y ése es exactamente el
+error que se busca, uno que no lanza, no loguea y devuelve cero filas. Lo único
+que verificaba era «llamé al método que yo mismo registré».
 
-## Cómo verifiqué el filtro sin escribir en la base
+Dejando actuar al cliente real, lo que se observa es la petición que de verdad
+sale, y ahí `eq.null` y `is.null` son dos URLs distintas. Reemplazar `fetch` es
+lo que `docs/pm/contexto.md` clasifica como externo y permite mockear («Sí
+mockear lo externo: `fetch` a YouTube, HTTP, red»).
 
-El riesgo de esta tarea es mudo: un filtro mal escrito no falla, devuelve cero
-filas. Le pedí a supabase-js que armara las mismas consultas que usa el código y
-miré la URL resultante:
+Lo que estas pruebas **no** prueban, y queda escrito en el archivo: que Postgres
+devuelva las filas correctas. Eso es la base, va contra Postgres real y es
+`tests/seguridad` / la verificación local que quedó como D03. La prueba de acá
+cubre la mitad que sí es código nuestro: que el pedido que sale sea el correcto.
 
-```
-$ node -e '...createClient("http://127.0.0.1:1","clave-falsa")...'
-update equipo : /rest/v1/records?id=eq.7&miembro_id=is.null
-update miembro: /rest/v1/records?id=eq.7&miembro_id=eq.3
-eq(null) MAL  : /rest/v1/records?select=*&miembro_id=eq.null
-is(null) BIEN : /rest/v1/records?select=*&miembro_id=is.null
-delete equipo : /rest/v1/records?id=eq.7&miembro_id=is.null
-```
+Detalle de implementación que costó encontrar: las pruebas de `consultar()` que
+ya estaban en el archivo registran un doble del SDK con `vi.doMock`, y ese
+registro **sobrevive a `vi.resetModules()`**. Sin un `vi.doUnmock` explícito
+(`tests/unidad/datos.test.ts:96`) el helper nuevo seguía recibiendo el doble
+viejo y fallaba con `db.from(...).select is not a function`.
 
-`miembro_id=eq.null` es exactamente la trampa que advierte CA-1: PostgREST lo
-compara contra el literal `null` y no matchea ninguna fila.
+También se atendieron las dos observaciones de la sección «Evaluación de los
+tests del dev» del reporte:
 
-Y la 0013 respalda las dos mitades: la política de lectura pública es
-`miembro_id is null or exists (… m.activo)` —los del equipo son públicos
-siempre— y la de escritura es `for all to authenticated using (es_admin())`, sin
-condición sobre `miembro_id`, así que un `insert` con `miembro_id: null` desde el
-panel está permitido. Hasta hay un índice parcial hecho para esta consulta:
-`records_equipo_idx on records (id) where miembro_id is null`.
+- Las filas de ejemplo ahora traen **todas** las columnas de la 0013, `miembro_id`
+  incluido (`tests/unidad/datos.test.ts:121-140`), y se parsean como en
+  producción; la ronda 1 las omitía.
+- La prueba de error deja de apoyarse en `data: null` —que pasaba igual
+  ignorando `error`— y usa un **500 con cuerpo de PostgREST**, exigiendo además
+  que el fallo quede registrado (`:192-194`). Eso es lo que distingue haberlo
+  atendido de haberlo tragado.
 
-## Commits
+### Salida real de la mutación (sin el fix, la prueba falla)
 
 ```
+$ perl -0pi -e "s/select\('\*'\)\.is\('miembro_id', null\)/select('*').eq('miembro_id', null)/" lib/datos.ts
+$ sed -n '170p' lib/datos.ts
+    (db) => db.from('records').select('*').eq('miembro_id', null),
+
+$ npx vitest run tests/unidad/datos.test.ts
+ × pide records con miembro_id=is.null (con eq.null no matchearía ninguna fila)
+AssertionError: expected 'eq.null' to be 'is.null' // Object.is equality
+Expected: "is.null"
+Received: "eq.null"
+      Tests  1 failed | 9 passed (10)
+```
+
+El `'eq.null'` de ese mensaje lo produjo supabase-js armando la URL, no un espía
+mío. `lib/datos.ts` quedó restaurado byte a byte (`git diff` vacío para ese
+archivo antes de commitear).
+
+## D02 — qué ve ahora el admin
+
+Con la lectura caída, el modal del equipo muestra, en lugar de la lista:
+
+> No se pudieron cargar los récords del equipo: *(mensaje de PostgREST)*
+>
+> No es que no haya: es que no se pudo leer. Reintentá antes de cargar nada,
+> para no duplicar lo que ya esté guardado.
+>
+> \[ Reintentar \]
+
+Decisiones:
+
+- **No se ofrece «+ Agregar récord» mientras la lectura esté caída.** Cargar a
+  ciegas sobre una lista que no se pudo leer es literalmente el mecanismo del
+  duplicado que describe el defecto.
+- **«Reintentar» vuelve a consultar desde el navegador, no `router.refresh()`.**
+  El estado del panel se inicializa una sola vez con las props, así que un
+  refresh del servidor no cambiaría lo que el modal muestra: el botón sería
+  mentira. Es la misma consulta, con el mismo `.is('miembro_id', null)`.
+- **El modal de un miembro queda igual.** Recibe `errorCarga` opcional y hoy
+  nadie se lo pasa (ver «Fuera de alcance»).
+
+## Commits de esta ronda
+
+```
+d035990 fix(admin): distinguir «no hay récords» de «no se pudieron cargar»
+7b2e339 test(equipo): probar getRecordsEquipo() con el cliente real, mockeando solo la red
+```
+
+Ronda 1 (sin cambios):
+
+```
+778068a docs(pm): entrega de dev de T-004 ronda 1
 8748b29 feat(equipo): bloque de récords del equipo en «Sobre nosotros»
 f1d4984 feat(admin): cargar los récords del equipo desde el panel
 29921a3 feat(equipo): getRecordsEquipo() — los récords que no son de nadie
 ```
 
-(`git log --oneline c025b2b..HEAD`; `c025b2b` es el brief, que ya estaba en la
-rama.)
-
-## Verificación (salida real)
+## Verificación (salida real, ronda 2)
 
 ```
 $ npx next typegen
@@ -97,99 +126,59 @@ $ npm test
       Tests  236 passed (236)
 
 $ npm run build
-✓ Compiled successfully in 492ms
-  Finished TypeScript in 1027ms
-✓ Generating static pages using 7 workers (24/24) in 270ms
+✓ Compiled successfully in 537ms
+  Finished TypeScript in 1619ms
+✓ Generating static pages using 7 workers (24/24) in 1023ms
 exit code: 0
-$ grep -c '\[supabase\]' build.log
+$ grep -c '\[supabase\]' build-r2.log
+0
+$ grep -c "Récords del equipo" .next/server/app/nosotros.html
 0
 ```
 
-Cero líneas `[supabase]` es un dato, no un adorno: el build prerenderiza
-`/nosotros` contra la base real, así que `getRecordsEquipo()` corrió de verdad
-contra PostgREST con `is.null` y con RLS de `anon`, sin error. (En la entrega de
-T-003 esa misma línea sí aparecía, porque la 0013 todavía no estaba aplicada;
-ahora sí lo está.)
+El total de pruebas no cambió (236): las tres de la ronda 1 se reemplazaron por
+tres, no se sumaron.
 
 `npm run test:navegador` no se corrió: no se tocó la portada ni el carrusel.
 
-### CA-5, en el HTML prerenderizado
+## Trazabilidad de los CA (sin cambios respecto de la ronda 1)
 
-```
-$ grep -c "Récords del equipo" .next/server/app/nosotros.html
-0
-
-$ node -e 'imprimir lo que hay entre «Compromiso con el cliente» y «LO QUE NOS MUEVE»'
-"Compromiso con el cliente</span></div></div></div></section>
- <section class=\"nosotros-module__97DlLq__nosotrosValores\">…"
-```
-
-La sección de números cierra e inmediatamente abre la de valores: con cero
-récords no se monta ni el `<section>` ni su padding. La página queda como estaba.
+| CA | Cómo se cumple | Test / evidencia |
+| -- | -------------- | ---------------- |
+| CA-1 | `getRecordsEquipo()` con `.is('miembro_id', null)`, `consultar()` y respaldo `[]`, pasado por `ordenarRecords` (`lib/datos.ts:155-174`) | `tests/unidad/datos.test.ts` › `getRecordsEquipo()` (3 casos, ahora con el cliente real) + corrida contra producción durante `npm run build`, sin líneas `[supabase]` |
+| CA-2 | Botón en la cabecera → `<RecordsModal miembro={null} records={recordsEquipo}>`; alta con `aFilaRecord(form, dueñoDelModal)`, `dueñoDelModal = miembro?.id ?? null` | Revisión de código + las URLs que arma supabase-js. **Sin verificación con datos** (D03) |
+| CA-3 | Estados separados (`recordsEquipo` fuera de `miembros`), aislamiento por FK en el embebido, `key` por dueño en el modal | Revisión de código (`MiembrosAdmin.tsx:231-250`, `:586-600` y `:601-617`). **Sin verificación con datos** (D03) |
+| CA-4 | Sección entre `nosotrosNumeros` y `nosotrosValores` (`app/(sitio)/nosotros/page.tsx:140`) | HTML prerenderizado |
+| CA-5 | Toda la sección bajo `recordsEquipo.length > 0` | `grep -c "Récords del equipo" .next/server/app/nosotros.html` → **0**, y entre números y valores no queda nada (ronda 1, revalidado en este build) |
+| CA-6 | `Promise.all([getAjustes(), getRecordsEquipo()])`; `consultar()` registra y devuelve `[]` | `tests/unidad/datos.test.ts` › «ante un error de PostgREST devuelve [] y lo registra» (ahora con un 500 real) |
+| CA-7 | `seccionActiva('nosotros')` intacto, antes de cualquier consulta | El `git diff` no toca esa línea |
+| CA-8 | Sin reglas de layout nuevas: grilla y `overflow-wrap` son los de `records.module.css` (T-003) | Revisión de código. **Sin verificación con datos a 400 px** (D03) |
 
 ## Migraciones
 
-Ninguna. La 0013 ya trae la tabla, el `miembro_id` nulable, las políticas y el
-índice parcial.
-
-## Decisiones tomadas
-
-- **`RecordsModal` recibe `records` además de `miembro`.** El brief pedía
-  aceptar `miembro: Miembro | null`, pero la lista salía de `miembro.records`, y
-  los del equipo no cuelgan de ningún miembro. Pasarla aparte es una prop más y
-  deja el modal indiferente a de dónde salió la lista; la alternativa —inventar
-  un `Miembro` falso para el equipo— hubiera metido un objeto mentiroso en el
-  estado del panel.
-- **`onGuardado`/`onBorrado` pasan a `number | null`.** Es el dueño real de la
-  fila, que ahora puede ser el equipo. Sin eso, `MiembrosAdmin` no puede saber a
-  qué estado aplicar la respuesta.
-- **Se quitaron los tres `if (miembroIdDueño === null) return;` del modal.** Eran
-  el candado de T-002 para un caso que entonces no existía. Ahora ese caso es el
-  normal y el filtro pasa a `.is(…)`; dejarlos habría hecho que los botones
-  «Marcar superado» y «Borrar» no hicieran nada en el modal del equipo.
-- **`key` por dueño en el modal** en vez de limpiar el estado a mano: es lo que
-  garantiza CA-3 sin agregar un `useEffect` que haya que mantener sincronizado.
-- **El bloque de `/nosotros` va envuelto en `recordsEquipo.length > 0`** aunque
-  `Records` ya devuelve `null` con la lista vacía: el `<section>` con el fondo y
-  el padding es de la página, no del componente, y sin el guardado quedaría un
-  hueco visible (CA-5).
-- **La ayuda del alcance cambia de texto con el equipo.** «suman en la tarjeta
-  del piloto» es falso cuando no hay piloto. Es una línea de copy, no un
-  rediseño.
-- **Segunda consulta en el panel, no un embebido.** `records(*)` cuelga de la FK:
-  no hay forma de traer por ahí las filas que la tienen nula.
+Ninguna.
 
 ## Fuera de alcance que vi (no tocado)
 
+- **La consulta de miembros del panel pierde su `error` igual que antes**
+  (`page.tsx:21-25`). Es el mismo patrón que D02 señaló para el equipo, pero es
+  anterior a T-004 y arreglarlo toca la carga de toda la pantalla: merece su
+  propia tarea. El modal ya está preparado —`errorCarga` es opcional y hoy nadie
+  se lo pasa para un miembro—, así que cuando se haga es cablear una prop.
+- **`alternarVigente` y `borrar` no usan el candado de doble envío de `guardar`**
+  (riesgo que anota QA). Es de T-002, no de este diff; no lo toqué.
 - Lo ya anotado en `EPICA-records.md`: `tests/seguridad/rls.test.ts` no incluye
-  `logros` en `TABLAS`. Sigue sin cubrirse; no es de esta tarea.
-- El panel muestra los récords del equipo solo detrás de un botón en la página
-  de miembros. Si más adelante hay muchos, merece su propia entrada de menú —
-  hoy sería construir de más.
+  `logros` en `TABLAS`.
 
 ## Preguntas / bloqueos
 
-- **La verificación manual de la sección 5 del brief (cargar desde el panel un
-  récord del equipo con cifras y un hito, verlos en `/nosotros`, confirmar que
-  no aparecen en ningún miembro) no se hizo.** La instrucción con la que arranqué
-  esta tarea es explícita: hoy no hay ningún récord del equipo cargado, la
-  pantalla tiene que verse bien vacía, y **no inventar datos de ejemplo ni
-  escribir en la base**. Eso choca de frente con esa verificación, que consiste
-  justamente en cargar datos. Elegí respetar la instrucción y decirlo acá en vez
-  de decidirlo por mi cuenta.
-
-  Lo que quedó cubierto sin datos: CA-1 (prueba unitaria + corrida real contra
-  producción), CA-4 a CA-7 (HTML prerenderizado real y pruebas), y las URLs que
-  arma supabase-js para el `update`/`delete` del equipo.
-
-  Lo que **no** está verificado en pantalla y QA debería mirar con datos:
-  **CA-2** (alta, edición, superado y borrado desde el modal del equipo),
-  **CA-3** (aislamiento entre el modal del equipo y el de un miembro, en los dos
-  sentidos) y **CA-8** (400 px con fichas reales, sobre todo una cifra larga y un
-  hito largo).
-
-  Si el PM quiere esa evidencia en esta ronda, hace falta que me habilite a
-  escribir en un Supabase local (`npx supabase start` + un usuario admin), o que
-  Oliver cargue el primer récord real del equipo y se valide sobre eso — que es,
-  después de todo, la condición con la que la épica dejó esta tarea en prioridad
-  baja.
+- **D03 sigue abierto y no lo trabajé, por indicación del PM.** CA-2, CA-3 y
+  CA-8 siguen sin evidencia de ejecución con datos: los valida Oliver cuando
+  cargue el primer récord del equipo, que es la condición con la que esta tarea
+  estaba en espera.
+- **D02 quedó sin prueba automatizada** y prefiero decirlo antes que maquillarlo:
+  el repo no tiene hoy con qué montar un componente de React en las pruebas
+  (no hay jsdom ni librería de render en `tests/unidad`), y traerlo para esto
+  sería una tarea aparte, no un renglón de una ronda de fix. Si el PM quiere esa
+  cobertura, es un brief propio — y entonces conviene que cubra también el
+  aislamiento del modal (CA-3), que hoy tampoco tiene prueba.
