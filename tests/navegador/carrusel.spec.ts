@@ -92,13 +92,12 @@ const MS_ASENTARSE = 800;
  * Menos que `MS_ENTRE_PASOS`, para que el salto no dispare un paso. */
 const MS_HASTA_PAUSA = 500;
 
-/** Cuánto se vigila en **tiempo real** que un carrusel pausado no se mueva, y
- * en cuántas muestras. El reloj falso queda pausado, pero el desplazamiento
- * que Chromium se encarga de terminar por el `scroll-snap` corre en tiempo
- * real, fuera de él; y muestrear en vez de mirar solo el final distingue
- * "nunca se movió" de "fue y volvió". */
+/** Cuánto se vigila en **tiempo real** que un carrusel pausado no se mueva.
+ * El reloj falso queda pausado, pero el desplazamiento que Chromium se encarga
+ * de terminar por el `scroll-snap` corre en tiempo real, fuera de él. Durante
+ * esta ventana el recorrido se graba por el evento `scroll`, así que no quedan
+ * huecos entre muestras: cualquier desplazamiento queda registrado. */
 const MS_VIGILANCIA = 300;
-const MUESTRAS_VIGILANCIA = 3;
 
 /** Tope de pulsaciones de Tab para llegar al carrusel desde el principio de la
  * portada. Generoso a propósito: no se fija cuántos elementos tabulables hay
@@ -106,31 +105,104 @@ const MUESTRAS_VIGILANCIA = 3;
 const MAX_TABS = 40;
 
 /**
+ * Título del bloque de equipo de la portada (`app/(sitio)/page.tsx`).
+ *
+ * Lo renderiza el servidor bajo exactamente la misma condición que decide si
+ * hay pilotos que mostrar (`equipoOn && equipo.length > 0`), y **fuera** de
+ * `CarruselEquipo`: por eso sirve de señal independiente del carrusel y de sus
+ * atributos (ver `laPortadaMuestraPilotos`).
+ */
+const TITULO_BLOQUE_EQUIPO = /Los que corren por/iu;
+
+/**
+ * ¿La portada de hoy **debería** estar mostrando pilotos?
+ *
+ * La pregunta se contesta sin mirar nada de lo que las pruebas verifican
+ * (T-006-D01). Dos señales, cualquiera de las dos alcanza:
+ *
+ * - El **encabezado del bloque de equipo**, que pinta el servidor en
+ *   `page.tsx` bajo la misma condición que trae los pilotos y que vive fuera
+ *   del componente del carrusel. Sigue ahí aunque `CarruselEquipo` no renderice
+ *   absolutamente nada.
+ * - Los **enlaces a perfiles** (`/equipo/<slug>`), uno por tarjeta. Los pinta
+ *   el servidor dentro de la pista, pero no dependen de ningún atributo,
+ *   `aria-label` ni control del carrusel.
+ *
+ * Ninguna de las dos usa `aria-roledescription`, ni los roles ni las etiquetas
+ * que las pruebas afirman. Si alguna dice que sí hay pilotos y el carrusel no
+ * está, eso es una regresión y se falla; nunca se omite.
+ */
+async function laPortadaMuestraPilotos(page: Page): Promise<boolean> {
+  const encabezado = page.getByRole('heading', { name: TITULO_BLOQUE_EQUIPO });
+  const perfiles = page.locator('a[href^="/equipo/"]');
+  return (await encabezado.count()) > 0 || (await perfiles.count()) > 0;
+}
+
+/**
  * Va a la portada y devuelve el bloque del carrusel, ya visible.
  *
- * Distingue dos cosas que la ronda 1 confundía (T-006-D01):
+ * Distingue **tres** cosas que las rondas anteriores confundían:
  *
+ * - **La portada no cargó** —respuesta HTTP de error, o una página que no es la
+ *   del sitio público— : eso es el sitio caído, y se falla diciéndolo
+ *   (T-006-D07). Es lo primero que se comprueba, antes de mirar contenido.
  * - **Ausencia legítima de datos** —sección "equipo" apagada, sin pilotos, o
  *   el equipo entra sin desbordar— : no hay carrusel que probar hoy y las
  *   pruebas se saltan con un motivo legible (CA-9, CA-10).
- * - **Fallo de renderizado o de hidratación** —la pista desborda pero los
- *   controles no están, o cambió su `aria-label`— : eso es una regresión, y se
- *   exige con `expect`, para que salga como fallo y no como seis omitidas.
+ * - **Fallo de renderizado o de hidratación** —la portada trae pilotos pero no
+ *   hay contenedor de carrusel, o la pista desborda y los controles no están, o
+ *   cambió alguna etiqueta— : eso es una regresión, y se exige con `expect`,
+ *   para que salga como fallo y no como ocho omitidas (T-006-D01).
  *
- * El desborde se mide sobre el DOM (`scrollWidth`/`clientWidth`, geometría de
- * CSS que no depende de que React haya hidratado); los controles se esperan
- * con `expect(...).toBeVisible()`, que reintenta mientras el efecto que los
- * monta hace su trabajo.
+ * La decisión de omitir se apoya **solo** en señales independientes del
+ * atributo bajo prueba (`laPortadaMuestraPilotos`), y solo se llega a ella con
+ * la portada cargada. El desborde se mide sobre el DOM
+ * (`scrollWidth`/`clientWidth`, geometría de CSS que no depende de que React
+ * haya hidratado); los controles se esperan con `expect(...).toBeVisible()`,
+ * que reintenta mientras el efecto que los monta hace su trabajo.
  */
 async function irAlCarrusel(page: Page): Promise<Locator> {
-  await page.goto('/');
+  const respuesta = await page.goto('/');
 
-  const marco = page.locator('[aria-roledescription="carrusel"]');
+  // `goto()` **no** lanza ante un 404 ni un 500: devuelve la respuesta y la
+  // prueba sigue como si nada. Y una página de error no trae el encabezado del
+  // bloque de equipo ni enlaces a perfiles, así que las dos señales de
+  // `laPortadaMuestraPilotos` dan cero y el sitio caído se leía como "hoy no
+  // hay pilotos" — las ocho pruebas omitidas justo cuando más importaban
+  // (T-006-D07). CA-9 autoriza omitir por sección apagada o falta de datos, no
+  // por una respuesta de error.
+  if (!respuesta) {
+    throw new Error(
+      'La navegación a la portada no devolvió ninguna respuesta HTTP: el sitio no cargó (y eso no es "hoy no hay pilotos")',
+    );
+  }
+  expect(
+    respuesta.ok(),
+    `La portada respondió HTTP ${respuesta.status()} ${respuesta.statusText()}: el sitio no cargó, y eso no es "hoy no hay pilotos"`,
+  ).toBe(true);
+
+  // Un 200 tampoco alcanza: podría ser cualquier otra página. El pie lo pinta
+  // el layout del sitio público (`app/(sitio)/layout.tsx`) pase lo que pase con
+  // las secciones, así que sirve de señal de "esto sí es la portada", y es
+  // independiente del bloque de equipo y del carrusel.
+  await expect(
+    page.getByRole('contentinfo'),
+    'La respuesta no trae el pie del sitio público: lo que cargó no es la portada',
+  ).toBeVisible();
+
   test.skip(
-    (await marco.count()) === 0,
+    !(await laPortadaMuestraPilotos(page)),
     'La portada no muestra el bloque de equipo hoy (sección "equipo" apagada o sin pilotos cargados)',
   );
-  await expect(marco).toBeVisible();
+
+  // Hay pilotos en la portada ⇒ el contenedor del carrusel es obligatorio. Si
+  // falta —o si cambió `aria-roledescription`— el carrusel está roto: se falla
+  // acá, no se omite.
+  const marco = page.locator('[aria-roledescription="carrusel"]');
+  await expect(
+    marco,
+    'La portada muestra el bloque de pilotos pero no hay ningún elemento con aria-roledescription="carrusel": el carrusel no renderizó, o perdió el atributo que lo identifica',
+  ).toBeVisible();
 
   const pista = marco.getByRole('list');
   await expect(pista).toBeVisible();
@@ -175,6 +247,140 @@ async function irAlCarrusel(page: Page): Promise<Locator> {
 
 async function scrollLeftDe(pista: Locator): Promise<number> {
   return pista.evaluate((el) => el.scrollLeft);
+}
+
+/** Dónde guarda la página el recorrido que se va grabando. */
+const VAR_RECORRIDO = '__recorridoCarrusel';
+
+/** Movimiento mínimo, en píxeles, que cuenta como movimiento de verdad y no
+ * como el redondeo a subpíxeles del navegador. */
+const MINIMO_MOVIMIENTO = 0.5;
+
+/**
+ * Empieza a grabar **todas** las posiciones por las que pasa la pista.
+ *
+ * Mirar solo el `scrollLeft` final de una ventana de espera no distingue "no se
+ * movió" de "se movió y volvió" (T-006-D06): un carrusel da la vuelta, así que
+ * tantos pasos como paradas lo dejan otra vez en el origen.
+ *
+ * Se graba por dos vías, porque ninguna sola las cubre todas:
+ *
+ * - El evento `scroll` de la pista, que salta ante cualquier desplazamiento,
+ *   venga del reloj falso o del tiempo real.
+ * - Un `requestAnimationFrame` encadenado, que muestrea cuadro a cuadro
+ *   mientras el reloj falso avanza — el mismo reloj que hace correr la
+ *   animación del componente.
+ */
+async function grabarRecorrido(pista: Locator): Promise<void> {
+  await pista.evaluate(
+    (el, [nombre, minimo]) => {
+      const ventana = window as unknown as Record<string, number[] | undefined>;
+      const recorrido: number[] = [el.scrollLeft];
+      ventana[nombre as string] = recorrido;
+
+      const registrar = () => {
+        const ultima = recorrido[recorrido.length - 1];
+        if (Math.abs(el.scrollLeft - ultima) > (minimo as number)) {
+          recorrido.push(el.scrollLeft);
+        }
+      };
+
+      el.addEventListener('scroll', registrar);
+      const porCuadro = () => {
+        registrar();
+        requestAnimationFrame(porCuadro);
+      };
+      requestAnimationFrame(porCuadro);
+    },
+    [VAR_RECORRIDO, MINIMO_MOVIMIENTO] as [string, number],
+  );
+}
+
+/** Las posiciones grabadas desde `grabarRecorrido`, en orden. La primera es la
+ * posición de partida, así que un carrusel quieto devuelve un solo elemento. */
+async function recorridoGrabado(pista: Locator): Promise<number[]> {
+  return pista.evaluate((el, nombre) => {
+    const ventana = window as unknown as Record<string, number[] | undefined>;
+    return ventana[nombre as string] ?? [el.scrollLeft];
+  }, VAR_RECORRIDO);
+}
+
+/** Graba el recorrido mientras corre `ventana`, y lo devuelve entero. */
+async function recorridoDurante(
+  pista: Locator,
+  ventana: () => Promise<void>,
+): Promise<number[]> {
+  await grabarRecorrido(pista);
+  await ventana();
+  return recorridoGrabado(pista);
+}
+
+/**
+ * Exige que el carrusel **no se haya movido en ningún momento** de `ventana`.
+ *
+ * Es el oráculo de toda la familia "acá no tiene que pasar nada" (T-006-D06 y
+ * T-006-D08). Comparar la posición final con la inicial no sirve: el carrusel
+ * da la vuelta, así que un recorrido entero termina donde empezó y la igualdad
+ * se cumple aunque haya rotado. Acá se exige el recorrido completo.
+ */
+async function exigirInmovilidad(
+  pista: Locator,
+  ventana: () => Promise<void>,
+  contexto: string,
+) {
+  const antes = await scrollLeftDe(pista);
+  const recorrido = await recorridoDurante(pista, ventana);
+  expect(
+    recorrido,
+    `${contexto}: el carrusel se movió. Recorrido ${JSON.stringify(recorrido)} — empieza en ${recorrido[0]} y termina en ${recorrido[recorrido.length - 1]}, así que comparar solo la posición final no lo habría notado`,
+  ).toEqual([antes]);
+}
+
+/** Cuánto hay que esperar para que la rotación automática dé una vuelta
+ * entera: un paso por parada, más la animación del último. */
+function ventanaDeVuelta(destinos: number[]): number {
+  return MS_ENTRE_PASOS * destinos.length + MS_ANIMACION + MARGEN;
+}
+
+/**
+ * Comprueba que `ventanaDeVuelta` desde `desde` es de verdad **una vuelta
+ * entera**: que los `destinos.length` pasos devuelven el scroll a `desde`.
+ *
+ * Esto es lo que hace honestas a las pruebas de inmovilidad. Si la ventana no
+ * cerrara la vuelta, un carrusel que rotara terminaría lejos del origen y la
+ * aserción vieja —la que compara solo el final— también habría fallado: la
+ * prueba nueva "detectaría" la regresión sin aportar nada. Exigiendo la vuelta
+ * se garantiza el peor caso: el recorrido termina donde empezó, el oráculo
+ * viejo daría verde, y lo único que separa verde de rojo son las posiciones
+ * intermedias.
+ *
+ * Se simula con `proximaPosicion`, la misma función pura que usa el componente.
+ */
+function exigirVueltaEntera(
+  desde: number,
+  destinos: number[],
+  max: number,
+  contexto: string,
+) {
+  let simulado = desde;
+  for (let i = 0; i < destinos.length; i += 1) {
+    simulado = proximaPosicion(simulado, destinos, max, 1);
+  }
+  expect(
+    Math.abs(simulado - desde),
+    `${contexto}: la ventana de ${destinos.length} pasos tendría que completar una vuelta y volver a ${desde}, pero termina en ${simulado}. Sin eso la prueba de inmovilidad no está probando el peor caso`,
+  ).toBeLessThanOrEqual(MARGEN_PIXELES);
+}
+
+/** Deja el scroll en una parada conocida, sin pasar por los controles (que
+ * moverían el foco). Las pruebas de inmovilidad necesitan partir de una parada
+ * exacta: desde una posición intermedia, una vuelta entera no vuelve al mismo
+ * punto y `exigirVueltaEntera` no se cumpliría. */
+async function fijarScroll(pista: Locator, destino: number) {
+  await pista.evaluate((el, d) => {
+    el.scrollLeft = d;
+  }, destino);
+  expectCerca(await scrollLeftDe(pista), destino);
 }
 
 /** Las paradas alcanzables y el tope, medidos sobre el DOM real con la misma
@@ -442,16 +648,79 @@ function relojDe(page: Page) {
 
 /**
  * Comprueba que el carrusel **no se mueve**: ni con el reloj de verdad —donde
- * corre lo que deja pendiente un paso a medias— ni avanzando el falso dos
- * intervalos enteros, por si alguno de los dos relojes lo despertara.
+ * corre lo que deja pendiente un paso a medias— ni avanzando el falso una
+ * vuelta entera, por si alguno de los dos relojes lo despertara.
+ *
+ * Graba el recorrido de las dos ventanas en vez de comparar posiciones
+ * puntuales (T-006-D08): así no quedan huecos entre muestras en el tramo real,
+ * y en el tramo del reloj falso una vuelta completa no puede hacerse pasar por
+ * inmovilidad.
  */
-async function noSeMueve(page: Page, pista: Locator, posicion: number) {
-  for (let i = 0; i < MUESTRAS_VIGILANCIA; i += 1) {
-    await page.waitForTimeout(MS_VIGILANCIA / MUESTRAS_VIGILANCIA);
-    expect(await scrollLeftDe(pista)).toBe(posicion);
-  }
-  await page.clock.runFor(MS_ENTRE_PASOS * 2);
-  expect(await scrollLeftDe(pista)).toBe(posicion);
+async function noSeMueve(
+  page: Page,
+  pista: Locator,
+  posicion: number,
+  destinos: number[],
+  max: number,
+  contexto: string,
+) {
+  exigirVueltaEntera(posicion, destinos, max, contexto);
+  await exigirInmovilidad(pista, ventanaDeVigilancia(page, destinos), contexto);
+}
+
+/**
+ * La ventana que vigilan las pruebas de inmovilidad: primero tiempo real —donde
+ * corre lo que deja pendiente un paso a medias y lo que el `scroll-snap`
+ * termina por su cuenta— y después una vuelta entera del reloj falso.
+ */
+function ventanaDeVigilancia(page: Page, destinos: number[]): () => Promise<void> {
+  return async () => {
+    await page.waitForTimeout(MS_VIGILANCIA);
+    await page.clock.runFor(ventanaDeVuelta(destinos));
+  };
+}
+
+/**
+ * El guardián de `exigirVueltaEntera` cuando **no se parte de una parada**.
+ *
+ * Desde una parada, el peor caso es la vuelta entera: el recorrido termina donde
+ * empezó, el oráculo viejo —el que mira solo la posición final— daría verde, y
+ * lo único que separa verde de rojo son las posiciones intermedias. Desde una
+ * posición intermedia ese peor caso **no existe**: el primer paso lleva a la
+ * parada siguiente y, N pasos después, el carrusel está en esa parada y no donde
+ * arrancó. Por eso `exigirVueltaEntera` no se cumple acá (lo dice `fijarScroll`)
+ * y por eso tampoco hace falta: no hay ventana que engañe al oráculo viejo si la
+ * partida es un punto al que la rotación no puede volver.
+ *
+ * Eso es exactamente lo que se exige: que la partida esté fuera de toda parada.
+ * Con eso, cualquier movimiento —completar el paso cortado, deshacerlo, o dar
+ * vueltas enteras— deja el carrusel en otro punto.
+ */
+function exigirPartidaIntermedia(desde: number, destinos: number[], contexto: string) {
+  const cerca = destinos.filter((d) => Math.abs(d - desde) <= MARGEN_PIXELES);
+  expect(
+    cerca,
+    `${contexto}: se esperaba partir de una posición intermedia —un paso cortado a mitad de camino— pero ${desde} es una parada. Desde una parada la rotación puede volver al punto de partida, y esta prueba no distinguiría "no se movió" de "dio la vuelta"`,
+  ).toEqual([]);
+}
+
+/**
+ * Como `noSeMueve`, pero partiendo de una posición intermedia: el carrusel
+ * quedó entre dos tarjetas porque un paso se cortó a mitad de camino.
+ *
+ * Misma ventana de vigilancia y mismo oráculo de recorrido completo; lo que
+ * cambia es el guardián que hace honesta a la prueba, por lo que explica
+ * `exigirPartidaIntermedia`.
+ */
+async function noSeMueveDesdeElMedio(
+  page: Page,
+  pista: Locator,
+  posicion: number,
+  destinos: number[],
+  contexto: string,
+) {
+  exigirPartidaIntermedia(posicion, destinos, contexto);
+  await exigirInmovilidad(pista, ventanaDeVigilancia(page, destinos), contexto);
 }
 
 test.describe('Carrusel de pilotos de la portada', () => {
@@ -500,16 +769,31 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await page.clock.install();
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
+    const { destinos, max } = await medirParadas(marco);
 
     await marco.hover();
+    await fijarScroll(pista, destinos[0]);
     const antes = await scrollLeftDe(pista);
 
-    await page.clock.runFor(MS_ENTRE_PASOS * 2);
-    expect(await scrollLeftDe(pista)).toBe(antes); // no cambia con el puntero adentro
+    // Con el puntero adentro no se mueve **en ningún momento** de una vuelta
+    // entera (T-006-D08). La ventana es una vuelta a propósito: es el peor caso
+    // del oráculo viejo —el recorrido termina donde empezó— así que si esta
+    // prueba falla, falla por las posiciones intermedias y no por haber quedado
+    // lejos del origen.
+    exigirVueltaEntera(antes, destinos, max, 'CA-4, pausa por puntero');
+    await exigirInmovilidad(
+      pista,
+      () => page.clock.runFor(ventanaDeVuelta(destinos)),
+      'Con el puntero encima del carrusel la rotación tiene que estar frenada',
+    );
 
+    // Y al salir vuelve a rotar: no "a cualquier lado" —eso también lo cumpliría
+    // un recorrido que dio la vuelta— sino a la parada siguiente.
     await sacarPuntero(page, marco);
     await page.clock.runFor(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
-    expect(await scrollLeftDe(pista)).not.toBe(antes); // vuelve a rotar al salir
+    const alSalir = await scrollLeftDe(pista);
+    expect(alSalir).not.toBe(antes);
+    expectCerca(alSalir, proximaPosicion(antes, destinos, max, 1));
   });
 
   // La prueba de arriba cubre "con el puntero adentro no **empieza** otro
@@ -522,6 +806,7 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await page.clock.install();
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
+    const { destinos, max } = await medirParadas(marco);
 
     // El puntero entra y sale: al salir, el efecto vuelve a crear el intervalo
     // y su próximo disparo queda a `MS_ENTRE_PASOS` exactos de este instante.
@@ -530,13 +815,14 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await marco.hover();
     await sacarPuntero(page, marco);
     const reloj = relojDe(page);
-    const { destinos, max } = await medirParadas(marco);
 
-    // 1. El carrusel se mueve de verdad: un ciclo completo lo demuestra.
+    // 1. El carrusel se mueve de verdad, y **a la parada siguiente**: "distinto
+    //    de donde estaba" lo cumpliría también un recorrido que dio la vuelta.
     const inicio = await scrollLeftDe(pista);
     await reloj.avanzar(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
     const trasUnPaso = await scrollLeftDe(pista);
     expect(trasUnPaso).not.toBe(inicio);
+    expectCerca(trasUnPaso, proximaPosicion(inicio, destinos, max, 1));
 
     // 2. Arranca el paso siguiente y el puntero entra mientras se anima.
     const objetivo = proximaPosicion(trasUnPaso, destinos, max, 1);
@@ -550,7 +836,13 @@ test.describe('Carrusel de pilotos de la portada', () => {
     //    la parada hasta que el salto se completaba entero.
     const alPausar = await scrollLeftDe(pista);
     expectAMitadDeCamino(alPausar, trasUnPaso, objetivo);
-    await noSeMueve(page, pista, alPausar);
+    await noSeMueveDesdeElMedio(
+      page,
+      pista,
+      alPausar,
+      destinos,
+      'El paso cortado por el puntero no puede seguir moviéndose',
+    );
   });
 
   test('CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga', async ({
@@ -559,6 +851,7 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await page.clock.install();
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
+    const { destinos, max } = await medirParadas(marco);
 
     // El foco entra tabulando desde el principio de la portada, como quien
     // navega con teclado — no con `.focus()`, que también funciona sobre algo
@@ -566,6 +859,11 @@ test.describe('Carrusel de pilotos de la portada', () => {
     // o control del carrusel, no solo al bloque.
     await entrarConTab(page, marco);
     await tabularHastaInteractivo(page, marco);
+
+    // Tabular puede haber corrido la pista para traer el enlace enfocado a la
+    // vista, y eso deja el scroll entre dos paradas. Se lo lleva a una parada
+    // exacta para que la ventana de abajo sea de verdad una vuelta entera.
+    await fijarScroll(pista, destinos[0]);
     const antes = await scrollLeftDe(pista);
 
     // El puntero entra y sale mientras el foco sigue adentro: no tiene que
@@ -574,8 +872,14 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await sacarPuntero(page, marco);
     expect(await focoAdentro(marco)).toBe(true);
 
-    await page.clock.runFor(MS_ENTRE_PASOS * 2);
-    expect(await scrollLeftDe(pista)).toBe(antes);
+    // Igual que CA-4: recorrido entero durante una vuelta completa, no la
+    // posición final (T-006-D08).
+    exigirVueltaEntera(antes, destinos, max, 'CA-5, pausa por foco');
+    await exigirInmovilidad(
+      pista,
+      () => page.clock.runFor(ventanaDeVuelta(destinos)),
+      'Con el foco del teclado dentro del carrusel la rotación tiene que estar frenada',
+    );
   });
 
   // La misma mitad que faltaba de CA-4, pero por teclado (T-006-D03).
@@ -585,6 +889,7 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await page.clock.install();
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
+    const { destinos, max } = await medirParadas(marco);
 
     // Deja el foco en el elemento justo anterior al carrusel: así, más
     // adelante, **un solo** Tab entra. Y al salir el foco, el intervalo se
@@ -593,8 +898,8 @@ test.describe('Carrusel de pilotos de la portada', () => {
     await entrarConTab(page, marco);
     await page.keyboard.press('Shift+Tab');
     expect(await focoAdentro(marco)).toBe(false);
+    await fijarScroll(pista, destinos[0]);
     const reloj = relojDe(page);
-    const { destinos, max } = await medirParadas(marco);
 
     const quieto = await scrollLeftDe(pista);
     const objetivo = proximaPosicion(quieto, destinos, max, 1);
@@ -605,16 +910,29 @@ test.describe('Carrusel de pilotos de la portada', () => {
     expect(await focoAdentro(marco)).toBe(true);
 
     // El paso se cortó: el carrusel se queda donde lo agarró el foco, a mitad
-    // de camino (antes de T-007 el snap no lo dejaba salir de la parada).
+    // de camino (antes de T-007 el snap no lo dejaba salir de la parada), y no
+    // se mueve en toda la ventana, no solo al final (T-006-D08).
     const alPausar = await scrollLeftDe(pista);
     expectAMitadDeCamino(alPausar, quieto, objetivo);
-    await noSeMueve(page, pista, alPausar);
+    await noSeMueveDesdeElMedio(
+      page,
+      pista,
+      alPausar,
+      destinos,
+      'El paso cortado por el foco no puede seguir moviéndose',
+    );
 
-    // Y seguía vivo: al salir el foco, vuelve a rotar.
+    // Y seguía vivo: al salir el foco vuelve a rotar, a la parada siguiente.
     await page.keyboard.press('Shift+Tab');
     expect(await focoAdentro(marco)).toBe(false);
     await page.clock.runFor(MS_ENTRE_PASOS + MS_ANIMACION + MARGEN);
-    expect(await scrollLeftDe(pista)).not.toBe(alPausar);
+    // Se comprueba contra `alPausar`, que es donde el foco lo dejó parado, y no
+    // contra `quieto`: desde T-007 el paso cortado no vuelve a la parada
+    // anterior, se queda a mitad de camino. Adónde tiene que llegar es lo
+    // mismo, porque desde el medio la parada siguiente es la que perseguía.
+    const alSalir = await scrollLeftDe(pista);
+    expect(alSalir).not.toBe(alPausar);
+    expectCerca(alSalir, objetivo);
   });
 
   test('CA-6: los controles respetan los extremos y marcan la parada activa', async ({
@@ -751,7 +1069,13 @@ test.describe('Carrusel de pilotos de la portada', () => {
 
     const alPausar = await scrollLeftDe(pista);
     expectAMitadDeCamino(alPausar, desde, objetivo, 0.5);
-    await noSeMueve(page, pista, alPausar);
+    await noSeMueveDesdeElMedio(
+      page,
+      pista,
+      alPausar,
+      destinos,
+      'El paso cortado por el puntero pasado el punto medio no puede completarse',
+    );
   });
 
   /**
@@ -808,7 +1132,24 @@ test.describe('Carrusel de pilotos de la portada', () => {
       Math.abs(trasElFoco - objetivo),
       `el paso se completó igual: llegó a ${trasElFoco}, la parada que perseguía`,
     ).toBeGreaterThan(MARGEN_PIXELES);
-    await noSeMueve(page, pista, trasElFoco);
+
+    // El reacomodo del navegador alinea la tarjeta que recibió el foco, así que
+    // deja el scroll **en una parada**. Se exige, porque de eso depende cuál es
+    // el peor caso de la ventana de vigilancia: desde una parada la rotación
+    // puede dar la vuelta entera y volver al punto de partida, que es lo que
+    // `noSeMueve` garantiza que la ventana cubre.
+    expect(
+      enUnaParada(trasElFoco, destinos),
+      `el navegador dejó el scroll en ${trasElFoco}, que no es una parada (paradas: [${destinos.join(', ')}]): con una partida intermedia hay que vigilar con noSeMueveDesdeElMedio`,
+    ).toBe(true);
+    await noSeMueve(
+      page,
+      pista,
+      trasElFoco,
+      destinos,
+      max,
+      'Con el foco dentro del carrusel, después del reacomodo del navegador, la rotación tiene que estar frenada',
+    );
 
     // Y la rotación seguía viva: al salir el foco, vuelve a andar.
     await page.keyboard.press('Shift+Tab');
@@ -851,7 +1192,13 @@ test.describe('Carrusel de pilotos de la portada', () => {
 
     const alPausar = await scrollLeftDe(pista);
     expectAMitadDeCamino(alPausar, desde, objetivo, 0.5);
-    await noSeMueve(page, pista, alPausar);
+    await noSeMueveDesdeElMedio(
+      page,
+      pista,
+      alPausar,
+      destinos,
+      'El paso cortado por el foco que entra por los controles no puede completarse',
+    );
   });
 
   test('CA-7: con prefers-reduced-motion no rota sola', async ({ page }) => {
@@ -861,9 +1208,18 @@ test.describe('Carrusel de pilotos de la portada', () => {
     const marco = await irAlCarrusel(page);
     const pista = marco.getByRole('list');
 
+    const { destinos, max } = await medirParadas(marco);
+    await fijarScroll(pista, destinos[0]);
     const antes = await scrollLeftDe(pista);
-    await page.clock.runFor(MS_ENTRE_PASOS * 3);
-    expect(await scrollLeftDe(pista)).toBe(antes);
+
+    // Mismo oráculo que CA-4 y CA-5: recorrido entero durante una vuelta
+    // completa (T-006-D06, la primera instancia de la familia).
+    exigirVueltaEntera(antes, destinos, max, 'CA-7, movimiento reducido');
+    await exigirInmovilidad(
+      pista,
+      () => page.clock.runFor(ventanaDeVuelta(destinos)),
+      'Con prefers-reduced-motion el carrusel no puede rotar solo',
+    );
   });
 });
 

@@ -32,7 +32,7 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-006/brief-dev.md` (criterios CA-1 a CA-10) |
 | Entrega del dev | `docs/pm/tareas/T-006/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-006/gate-rN.txt` |
-| Ronda anterior | `reporte-qa-r1.md` (FAIL, 5 defectos) |
+| Ronda anterior | `reporte-qa-r2.md` (FAIL, 2 defectos P1) |
 | Contexto | Cierra `T-005-D06`; ver `docs/pm/tareas/T-005/reporte-qa-r2.md` |
 
 ## Qué hacer

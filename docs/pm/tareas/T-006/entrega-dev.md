@@ -1,264 +1,264 @@
-# Entrega T-006 — ronda 2
+# Entrega T-006 — ronda 5
 
 **Estado:** LISTA PARA QA
 
-Ronda de corrección de los cinco defectos de `reporte-qa-r1.md` (veredicto
-FAIL). No se tocó nada más: el diff son cuatro archivos —el spec, la
-configuración de Playwright, `package.json` y `package-lock.json`— más esta
-entrega. El código del carrusel quedó **sin cambios** (las mutaciones para
-demostrar sensibilidad se revirtieron; ver el final de cada demostración y
-`git status --short` al cierre).
+Ronda de **T-006-D08** (S2/P1) de `reporte-qa-r4.md`, tratado como lo que es:
+no una instancia sino una **familia** de oráculos mentirosos. Se cerró la clase
+entera en toda la suite, no solo CA-4.
 
-## Defecto → fix → evidencia
+El diff de esta ronda es un solo archivo de código,
+`tests/navegador/carrusel.spec.ts`, más esta entrega. El componente del
+carrusel quedó **sin cambios**: las tres mutaciones para demostrar sensibilidad
+se revirtieron con `git checkout --` y `git status --short` cierra vacío.
+
+## Nota de proceso — quinta ronda sobre un máximo de tres
+
+La autoriza el PM y el motivo es el que dice el kit: **el brief estaba mal
+cortado**. La ronda 3 pidió arreglar CA-7 —una instancia— en vez de la clase, y
+la misma falla volvió por CA-4 dos rondas después. Queda como ejemplo de por
+qué existe el límite: no fue el trabajo el que se desbordó, fue el recorte del
+problema.
+
+## El defecto, y por qué era una familia
+
+Comparar la posición final con la inicial **nunca** puede distinguir «no se
+movió» de «dio la vuelta y volvió», porque el carrusel es circular: tantos
+pasos como paradas lo dejan exactamente donde empezó. Con dos paradas alcanza
+con dos pasos; con seis, con seis. Cualquier prueba que use esa igualdad como
+oráculo de inmovilidad es ciega a una rotación completa.
+
+El reverso miente igual: afirmar movimiento con «final distinto del inicial»
+acepta que el carrusel haya ido a parar a cualquier lado, incluido un recorrido
+que dio una vuelta y media.
+
+## Defecto → fix → prueba
 
 | Defecto | Fix | Prueba / evidencia |
 | ------- | --- | ------------------ |
-| **T-006-D01** (S2/P1) — el `test.skip` convertía un carrusel roto en seis omitidas | `irAlCarrusel()` ahora **mide el desborde** de la pista (`scrollWidth - clientWidth > 1`, geometría de CSS que no depende de la hidratación) y separa los dos casos: sin bloque o sin desborde ⇒ `test.skip` con motivo; con desborde ⇒ los tres controles se **exigen** con `expect(...).toBeVisible()` y un mensaje que dice que el carrusel no renderizó sus controles — `tests/navegador/carrusel.spec.ts:92-141` | Demostración abajo: con el `aria-label` del botón siguiente cambiado, la suite da **8 failed / 0 skipped** (antes: 6 omitidas). El `toBeVisible()` con reintento cubre además el riesgo de hidratación que QA marcó en "Riesgos" |
-| **T-006-D02** (S2/P1) — podía engancharse a cualquier servidor del 3015 | `reuseExistingServer: false`, también en local — `playwright.config.ts:29-51` | Corrida con el puerto ocupado: falla de entrada con `EADDRINUSE`, sin probar nada (salida abajo). Con el puerto libre, la suite compila y pasa |
-| **T-006-D03** (S2/P1) — CA-4/CA-5 pausaban *antes* de que hubiera un paso en curso | Dos pruebas nuevas —`CA-4 (T-005-D02)` con el puntero y `CA-5 (T-005-D02)` con el teclado— que demuestran movimiento, entran **a los 48 ms de los 450 de la animación** y comprueban que el scroll se queda donde estaba, muestreando en tiempo real y avanzando después dos intervalos completos — `carrusel.spec.ts:327-415`. Hizo falta además **pausar el reloj falso** (`page.clock.pauseAt`), ver "Decisiones" | Demostración abajo: quitando el `useEffect` de `CarruselEquipo.tsx:119-122`, las dos pruebas nuevas **fallan** y las seis de la ronda 1 siguen pasando — que era exactamente la queja de QA |
-| **T-006-D04** (S2/P2) — CA-5 entraba con `.focus()` | Dos pasos, los dos con `Tab`: `entrarConTab()` pulsa hasta que el foco esté dentro del carrusel (lo usan CA-5 y la prueba nueva de teclado), y `tabularHastaInteractivo()` sigue hasta que el foco quede sobre un **enlace o control** del carrusel — `carrusel.spec.ts:186-219`. El segundo paso hizo falta: Chromium hace tabulable la pista por ser un contenedor con scroll, así que entrar al bloque no prueba que los enlaces sigan alcanzables | Demostración abajo: con `tabIndex={-1}` en los enlaces y los botones, CA-5 **falla**. Medido en esta portada: 13 pulsaciones para entrar al bloque |
-| **T-006-D05** (S3/P2) — versión con rango | `"@playwright/test": "1.63.0"` exacta — `package.json:26`, y el `package-lock.json` regenerado con `npm install --package-lock-only` para que la raíz del lock declare el mismo literal | `node -e "…"` sobre el lock: raíz `1.63.0`, paquete instalado `1.63.0`. `npm ci` sigue siendo coherente |
+| **T-006-D08** (S2/P1) — CA-4 comparaba solo la posición final tras dos intervalos con el puntero dentro; con dos paradas y la fase adecuada, `0 → 408 → 0` pasaba por inmovilidad | Se extrajo el mecanismo que la ronda 3 había escrito para CA-7 y se aplicó a **toda la familia**: `exigirInmovilidad(pista, ventana, contexto)` graba el recorrido durante la ventana entera y exige que no haya ninguna posición intermedia — `tests/navegador/carrusel.spec.ts:276-303` | Demostración D08-a abajo: con la pausa por puntero anulada, CA-4 falla con recorrido `[0,413,827,1240,1653,2067,1653,1240,827,413,0]` |
+| **misma familia, no reportado** — CA-5 (pausa por foco) tenía el oráculo idéntico: `expect(scrollLeft).toBe(antes)` tras dos intervalos | Usa `exigirInmovilidad` con ventana de una vuelta — `spec:633-637` | Demostración D08-b abajo: con la pausa por foco anulada, CA-5 falla con el mismo recorrido circular |
+| **misma familia, no reportado** — `noSeMueve`, el helper de las dos pruebas de cancelación a mitad de paso, tomaba tres muestras puntuales en tiempo real (con huecos entre una y otra, riesgo que QA ya había marcado) y después comparaba **solo el final** de dos intervalos de reloj falso | Reescrito sobre `exigirInmovilidad`: el evento `scroll` graba el tramo real sin huecos, y el tramo de reloj falso pasa de dos intervalos a **una vuelta entera** — `spec:467-484` | Demostración D08-b abajo: `CA-5 (T-005-D02)` falla dentro de `noSeMueve` con recorrido circular |
+| **misma familia, el reverso, no reportado** — tres aserciones afirmaban movimiento con solo «distinto de antes»: CA-4 al salir el puntero (`spec:449` de r4), CA-4 en curso paso 1, CA-5 en curso al salir el foco | Las tres fijan además la **parada esperada** con `proximaPosicion`, como ya hacía CA-2 — `spec:556`, `:585`, `:684` | Cubierto por el gate: las ocho siguen pasando con el componente intacto, y CA-4 en curso detecta la mutación del puntero justamente por esta vía (`Expected: 413, Received: 827`) |
+
+Y el guardián que hace honesto a todo lo anterior:
+`exigirVueltaEntera(desde, destinos, max, contexto)` (`spec:326-341`) simula los
+`destinos.length` pasos con `proximaPosicion` —la función pura del componente—
+y **exige** que vuelvan al punto de partida. Si no cerrara la vuelta, la ventana
+no sería el peor caso y un fallo podría venir de haber quedado lejos del origen
+en vez de las posiciones intermedias. Lo llaman CA-4, CA-5, `noSeMueve` y CA-7.
+
+Complemento necesario: `fijarScroll` (`spec:346-352`) deja la pista en una
+parada exacta antes de cada ventana de inmovilidad. Desde una posición
+intermedia —tabular mueve el scroll para traer el enlace enfocado a la vista—
+una vuelta entera **no** regresa al mismo punto, y `exigirVueltaEntera` no se
+cumpliría.
+
+### Inventario: dónde estaba el patrón y cómo quedó
+
+| Prueba | Oráculo en r4 | Oráculo ahora |
+| ------ | ------------- | ------------- |
+| CA-2 | `not.toBe(antes)` + `expectCerca(esperado)` | Sin cambios: ya fijaba la parada esperada |
+| CA-3 | `toBe(0)` exacto tras un paso | Sin cambios: posición exacta, una sola ventana de un paso |
+| CA-4, pausa | `toBe(antes)` tras 2 intervalos | `exigirInmovilidad` sobre una vuelta entera |
+| CA-4, reanudación | `not.toBe(antes)` | `not.toBe` + `expectCerca(proximaPosicion(...))` |
+| CA-4, paso en curso | `not.toBe(inicio)`; `noSeMueve` con 3 muestras + final | `expectCerca` de la parada; `noSeMueve` con recorrido y vuelta entera |
+| CA-5, pausa | `toBe(antes)` tras 2 intervalos | `exigirInmovilidad` sobre una vuelta entera |
+| CA-5, paso en curso | `noSeMueve`; `not.toBe(quieto)` al final | `noSeMueve` nuevo; `expectCerca` de la parada |
+| CA-6 | Posiciones exactas tras clics, sin intervalos | Sin cambios: no hay ventana de espera |
+| CA-7 | Recorrido completo (arreglado en r3) | Reescrita sobre los helpers comunes, mismo criterio |
+
+Las únicas que quedaron sin tocar son las que no tienen el patrón: CA-2 y CA-3
+observan una ventana de **un solo paso** (5550 ms), donde con dos o más paradas
+una vuelta es imposible, y además fijan la posición exacta esperada; CA-6 no
+avanza ningún intervalo.
 
 ## Sensibilidad de las pruebas nuevas
 
-### D01 — un carrusel roto tiene que fallar, no omitirse
+### D08-a — pausa por puntero anulada
 
-Mutación: en `app/(sitio)/_componentes/CarruselEquipo.tsx`, `aria-label="Miembro
-siguiente"` → `aria-label="Siguiente miembro del equipo"` (el botón sigue
-existiendo y el carrusel sigue desbordando; solo cambió la etiqueta, como
-pedía el reporte).
-
-```
-$ npm run test:navegador
-
-Running 8 tests using 4 workers
-...
-  8) [chromium] › tests/navegador/carrusel.spec.ts:448:7 › Carrusel de pilotos de la portada › CA-7: con prefers-reduced-motion no rota sola
-
-    Error: La pista desborda pero no aparece el control "Miembro siguiente": el carrusel no renderizó sus controles
-
-    expect(locator).toBeVisible() failed
-
-    Locator: locator('[aria-roledescription="carrusel"]').getByRole('button', { name: 'Miembro siguiente' })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
-
-      118 |     marco.getByRole('button', { name: 'Miembro siguiente' }),
-      119 |     'La pista desborda pero no aparece el control "Miembro siguiente": el carrusel no renderizó sus controles',
-    > 120 |   ).toBeVisible();
-          |     ^
-        at irAlCarrusel (.../tests/navegador/carrusel.spec.ts:120:5)
-        at .../tests/navegador/carrusel.spec.ts:452:19
-
-  8 failed
-    [chromium] › carrusel.spec.ts:269:7 › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción
-    [chromium] › carrusel.spec.ts:287:7 › CA-3: en la última parada, el intervalo vuelve al principio
-    [chromium] › carrusel.spec.ts:307:7 › CA-4: se pausa con el puntero encima y retoma al salir
-    [chromium] › carrusel.spec.ts:327:7 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso
-    [chromium] › carrusel.spec.ts:358:7 › CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga
-    [chromium] › carrusel.spec.ts:384:7 › CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso
-    [chromium] › carrusel.spec.ts:417:7 › CA-6: los controles respetan los extremos y marcan la parada activa
-    [chromium] › carrusel.spec.ts:448:7 › CA-7: con prefers-reduced-motion no rota sola
-```
-
-**8 failed, ninguna omitida.** En la ronda 1 la misma mutación daba seis
-omitidas y salida 0. Revertido con
-`git checkout -- "app/(sitio)/_componentes/CarruselEquipo.tsx"`.
-
-### D03 — la pausa tiene que cortar el paso en curso
-
-Mutación: se borró de `CarruselEquipo.tsx:119-122` **solo** el efecto que corta
-la animación al pausar, dejando intacta la limpieza del intervalo:
+Mutación, en `app/(sitio)/_componentes/CarruselEquipo.tsx:167` (la que describe
+QA: quitar la actualización de `onMouseEnter`):
 
 ```diff
--  useEffect(() => {
--    if (!pausado && !sinMovimiento && desborda) return;
--    cortar();
--  }, [pausado, sinMovimiento, desborda, cortar]);
+-      onMouseEnter={() => setPunteroAdentro(true)}
++      onMouseEnter={() => undefined}
 ```
 
 ```
-$ npm run test:navegador -- -g "T-005-D02"
+$ npm run test:navegador -- -g "CA-4"
 
-  ✘  2 [chromium] › carrusel.spec.ts:384:7 › CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (949ms)
-  ✘  1 [chromium] › carrusel.spec.ts:327:7 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.1s)
+    Error: Con el puntero encima del carrusel la rotación tiene que estar frenada: el carrusel se movió. Recorrido [0,413,827,1240,1653,2067,1653,1240,827,413,0] — empieza en 0 y termina en 0, así que comparar solo la posición final no lo habría notado
 
-  1) [chromium] › ... CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  0
+    + Received  + 10
+
+      Array [
+        0,
+    +   413,
+    +   827,
+    +   1240,
+    +   1653,
+    +   2067,
+    +   1653,
+    +   1240,
+    +   827,
+    +   413,
+    +   0,
+      ]
+
+        at exigirInmovilidad (.../tests/navegador/carrusel.spec.ts:303:5)
+        at .../tests/navegador/carrusel.spec.ts:544:5
 
     Error: expect(received).toBe(expected) // Object.is equality
-
     Expected: 413
     Received: 827
+        at .../tests/navegador/carrusel.spec.ts:593:22
 
-      261 |   await page.clock.runFor(MS_ENTRE_PASOS * 2);
-    > 262 |   expect(await scrollLeftDe(pista)).toBe(posicion);
-          |                                     ^
-        at noSeMueve (.../tests/navegador/carrusel.spec.ts:262:37)
-        at .../tests/navegador/carrusel.spec.ts:355:5
-
-  2) [chromium] › ... CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso
-
-    Error: expect(received).toBe(expected) // Object.is equality
-
-    Expected: 0
-    Received: 413
-
-        at noSeMueve (.../tests/navegador/carrusel.spec.ts:262:37)
-        at .../tests/navegador/carrusel.spec.ts:411:5
   2 failed
+    [chromium] › carrusel.spec.ts:528:7 › CA-4: se pausa con el puntero encima y retoma al salir
+    [chromium] › carrusel.spec.ts:563:7 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso
 ```
 
-El carrusel siguió hasta la parada siguiente (413 → 827 con el puntero encima;
-0 → 413 con el foco dentro) pese a estar pausado: es el defecto T-005-D02.
+Las **dos** pruebas de CA-4 fallan. La primera por el recorrido; la segunda por
+el paso que ya no se corta (esperaba la parada 413 y encontró 827), que es el
+reverso del mismo problema.
 
-Y la suite **entera** con esa misma mutación, que es lo que QA pedía comprobar:
+### D08-b — pausa por foco anulada
 
+Mutación equivalente, en `CarruselEquipo.tsx:169`:
+
+```diff
+-      onFocusCapture={() => setFocoAdentro(true)}
++      onFocusCapture={() => undefined}
 ```
-$ npm run test:navegador
-
-  ✓ CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (604ms)
-  ✓ CA-3: en la última parada, el intervalo vuelve al principio (616ms)
-  ✓ CA-4: se pausa con el puntero encima y retoma al salir (735ms)
-  ✓ CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga (507ms)
-  ✘ CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.3s)
-  ✓ CA-7: con prefers-reduced-motion no rota sola (255ms)
-  ✘ CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (898ms)
-  ✓ CA-6: los controles respetan los extremos y marcan la parada activa (840ms)
-  2 failed
-  6 passed (6.1s)
-```
-
-Las seis pruebas de la ronda 1 pasan sin el efecto; solo las dos nuevas lo
-detectan. Revertido con
-`git checkout -- "app/(sitio)/_componentes/CarruselEquipo.tsx"`.
-
-### D04 — el teclado tiene que llegar de verdad
-
-Mutación: `tabIndex={-1}` en los tres `<Link>` de cada tarjeta y en los tres
-`<button>` de los controles, la que proponía el reporte.
 
 ```
 $ npm run test:navegador -- -g "CA-5"
 
-  1) [chromium] › carrusel.spec.ts:358:7 › CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga
-
-    Error: Ningún enlace ni control del carrusel recibió el foco en 40 pulsaciones de Tab: quedaron fuera del orden de tabulación
-
-      214 |     await page.keyboard.press('Tab');
-      215 |   }
-    > 216 |   throw new Error(
-          |         ^
-        at tabularHastaInteractivo (.../tests/navegador/carrusel.spec.ts:216:9)
-        at .../tests/navegador/carrusel.spec.ts:370:5
-
-  1 failed
-  1 passed (6.3s)
+    Error: Con el foco del teclado dentro del carrusel la rotación tiene que estar frenada: el carrusel se movió. Recorrido [0,413,827,1240,1653,2067,1653,1240,827,413,0] — empieza en 0 y termina en 0, así que comparar solo la posición final no lo habría notado
+    Error: El paso cortado por el foco no puede seguir moviéndose: el carrusel se movió. Recorrido [0,413,827,1240,1653,2067,1653,1240,827,413,0] — empieza en 0 y termina en 0, así que comparar solo la posición final no lo habría notado
+  2 failed
 ```
 
-Vale la pena el detalle porque la **primera** versión del fix no lo detectaba:
-solo comprobaba que el foco entrara en el bloque, y entraba igual —Chromium
-hace tabulable la pista por ser un contenedor con scroll—, así que la prueba
-pasaba con los enlaces inalcanzables. De ahí `tabularHastaInteractivo()`.
-Revertido.
+Las dos pruebas de CA-5. La segunda falla **dentro de `noSeMueve`**
+(`spec:476`), que es el helper compartido: queda demostrado también el oráculo
+de las pruebas de cancelación a mitad de paso.
 
-### D02 — puerto ocupado
+### D08-c — CA-7 no perdió sensibilidad al reescribirla sobre los helpers
 
-```
-$ python3 -m http.server 3015 &   # un servidor ajeno cualquiera
-$ npm run test:navegador
-
-[WebServer] ⨯ Failed to start server
-[WebServer] Error: listen EADDRINUSE: address already in use :::3015
-[WebServer]   code: 'EADDRINUSE',
-[WebServer]   port: 3015
-Error: Process from config.webServer was not able to start. Exit code: 1
-
-$ lsof -nP -iTCP:3015 -sTCP:LISTEN | wc -l   # tras matar el ajeno
-       0
-```
-
-No reutiliza nada, no da falso verde y no deja procesos propios escuchando.
-
-### CA-8 revalidado (el reloj cambió, la prueba tenía que seguir sirviendo)
-
-Como esta ronda pasa a usar el reloj **pausado**, repetí la mutación de CA-8
-—`animarScroll(...)` → `pista.scrollTo({ left: destino, behavior: 'smooth' })`—
-para comprobar que CA-2 sigue detectándola:
+CA-7 se reescribió para usar los mismos `exigirVueltaEntera` +
+`exigirInmovilidad`. Se repitió la mutación de la ronda 3 (quitar `sinMovimiento`
+de la condición del intervalo, `componente:155`) para comprobar que el
+refactor no aflojó nada:
 
 ```
-$ npm run test:navegador -- -g "CA-2"
+$ npm run test:navegador -- -g "CA-7"
 
-  ✘  1 [chromium] › carrusel.spec.ts:269:7 › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (371ms)
-
-    Error: expect(received).not.toBe(expected) // Object.is equality
-    Expected: not 0
-
-    > 283 |     expect(despues).not.toBe(antes);
+    Error: Con prefers-reduced-motion el carrusel no puede rotar solo: el carrusel se movió. Recorrido [0,413,827,1240,1653,2067,0] — empieza en 0 y termina en 0, así que comparar solo la posición final no lo habría notado
   1 failed
 ```
 
-Revertido; T-005-D06 sigue cubierto.
+Las tres mutaciones se revirtieron con
+`git checkout -- 'app/(sitio)/_componentes/CarruselEquipo.tsx'`.
+
+### Fallan por el motivo correcto
+
+Es la comprobación que pidió el PM, y la respuesta está en los propios
+recorridos: **los tres empiezan en 0 y terminan en 0**.
+
+| Demostración | Recorrido | ¿La aserción de r4 habría dado verde? |
+| ------------ | --------- | ------------------------------------- |
+| D08-a, CA-4 pausa | `[0,413,827,1240,1653,2067,1653,1240,827,413,0]` | **Sí**: `expect(despues).toBe(antes)` con `despues = 0 = antes` |
+| D08-b, CA-5 pausa | `[0,413,827,1240,1653,2067,1653,1240,827,413,0]` | **Sí**, idéntico |
+| D08-b, `noSeMueve` | `[0,413,827,1240,1653,2067,1653,1240,827,413,0]` | **Sí**: la comparación final de `noSeMueve` daba `0 === 0` |
+| D08-c, CA-7 | `[0,413,827,1240,1653,2067,0]` | **Sí** |
+
+O sea: en los cuatro casos el carrusel rotó de punta a punta y volvió al
+origen, y el oráculo viejo lo habría aceptado como inmovilidad. Lo único que
+separa verde de rojo son las posiciones intermedias, que es exactamente lo que
+el fix agrega.
+
+Y no es casualidad ni suerte con la geometría de hoy: `exigirVueltaEntera` lo
+**exige** antes de medir, en cada una de las cuatro pruebas y con la geometría
+medida sobre el DOM real. Si mañana cambia la cantidad de pilotos y la ventana
+dejara de cerrar la vuelta, la prueba avisa con su propio mensaje en vez de
+fallar disfrazada. En las tres corridas de arriba esa aserción **pasó**: las
+vueltas cierran (seis paradas, `[0,413,827,1240,1653,2067]`).
+
+El recorrido de ida y vuelta —sube hasta 2067 y baja— es el paso que vuelve del
+tope al origen: la pista tiene `scroll-snap-type: x mandatory`, así que el
+navegador reporta las paradas por las que barre la animación de regreso.
 
 ## Commits
 
 ```
-(este commit)  docs(pm): entrega T-006 ronda 2
-f646d9d test(navegador): exigir los controles y cubrir la pausa a mitad de paso
-0f3927e chore(ci): playwright con versión exacta y sin reutilizar servidores
+$ git log --oneline d7c71a4..HEAD
+2125237 test(home): exigir el recorrido completo en toda prueba que afirme ausencia de movimiento
+818b0ab docs(pm): QA T-006 r4 — FAIL
+651ed3e docs(home): entrega T-006 ronda 4 — D07 con su sensibilidad demostrada
+9ec530f test(home): exigir que la portada haya cargado antes de decidir si se omite
+976b5d4 docs(pm): QA T-006 r3 — SIN VEREDICTO
+62669ed docs(home): entrega T-006 ronda 3 — D01 y D06 con su sensibilidad demostrada
+2bbefd2 test(home): apoyar el salto del carrusel en una señal independiente y vigilar el recorrido entero en CA-7
 ```
 
-(`git log --oneline 2c23235..HEAD`. Las mutaciones de las demostraciones no
-generaron commit: se revirtieron antes de stagear.)
+De esta ronda es `2125237` (más el commit de esta entrega).
 
 ## Verificación (salida real, recortada)
 
-```
-$ git status --short          # antes de commitear
- M package-lock.json
- M package.json
- M playwright.config.ts
- M tests/navegador/carrusel.spec.ts
+Todo esto **después** de revertir las mutaciones.
 
-$ npx next typegen && npx tsc --noEmit
-Generating route types...
+```
+$ npx next typegen
 ✓ Types generated successfully
-tsc exit=0            (sin errores)
+
+$ npx tsc --noEmit
+TSC=0          (sin salida)
 
 $ npm run lint
 > eslint
-lint exit=0           (sin salida = sin errores)
+LINT=0         (sin salida)
 
 $ npm test
  Test Files  11 passed (11)
       Tests  230 passed (230)
-   Duration  280ms
+   Duration  360ms
 
 $ npm run test:navegador
 Running 8 tests using 4 workers
-  ✓ CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (618ms)
-  ✓ CA-3: en la última parada, el intervalo vuelve al principio (610ms)
-  ✓ CA-4: se pausa con el puntero encima y retoma al salir (792ms)
-  ✓ CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (1.1s)
-  ✓ CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga (484ms)
-  ✓ CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (852ms)
-  ✓ CA-6: los controles respetan los extremos y marcan la parada activa (764ms)
-  ✓ CA-7: con prefers-reduced-motion no rota sola (267ms)
-  8 passed (7.9s)
 
-$ npm run test:navegador -- --repeat-each=3     # estabilidad
-  24 passed (13.0s)
+  ✓  4 › CA-2: rota sola y avanza a la parada siguiente, sin ninguna interacción (1.0s)
+  ✓  1 › CA-3: en la última parada, el intervalo vuelve al principio (1.1s)
+  ✓  3 › CA-4 (T-005-D02): el puntero corta el paso que ya estaba en curso (10.2s)
+  ✓  5 › CA-5: se pausa con el foco del teclado (Tab), aunque el puntero entre y salga (9.3s)
+  ✓  7 › CA-6: los controles respetan los extremos y marcan la parada activa (768ms)
+  ✓  2 › CA-4: se pausa con el puntero encima y retoma al salir (11.5s)
+  ✓  6 › CA-5 (T-005-D02): el foco que entra con Tab corta el paso en curso (11.2s)
+  ✓  8 › CA-7: con prefers-reduced-motion no rota sola (9.0s)
+
+  8 passed (26.0s)
+
+$ git status --short
+                (vacío)
 ```
 
-`npm test` sigue en **230 pruebas / 11 archivos**: las dos pruebas nuevas son de
-Playwright y Vitest no las recoge (`vitest.config.mts` incluye solo
-`tests/unidad/**/*.test.ts`, sin tocar).
+**230/230 unitarias** y **8 de navegador pasadas, 0 omitidas**.
 
 ## Cuánto tarda la suite
 
-**~8 segundos** de punta a punta (compilación incluida, con la caché de
-`.next` caliente; en frío manda el `next build`). Las ocho pruebas suman menos
-de 6 s de navegador: nada espera intervalos reales de 5 s.
+26,0 s de ejecución de las ocho pruebas (26,4 s de reloj para todo el comando,
+con el build de Next ya cacheado). Venía de 16,0 s en la ronda 4: las cuatro
+pruebas que ahora observan una vuelta entera pasaron de ~1 s a 9-11,5 s cada
+una.
+
+El costo es real y conviene que el PM lo sepa: grabar cuadro a cuadro obliga al
+reloj falso a **simular cada cuadro** de la ventana en vez de saltar de
+temporizador en temporizador, y la ventana además se alargó de dos intervalos a
+una vuelta entera (seis, con los pilotos de hoy). Crece con la cantidad de
+pilotos. Sigue muy lejos de «minutos» y corre en cuatro workers en paralelo,
+pero si algún día hay veinte pilotos habrá que revisarlo.
 
 ## Migraciones
 
@@ -266,70 +266,53 @@ Ninguna.
 
 ## Decisiones tomadas
 
-- **El reloj falso ahora se pausa (`page.clock.pauseAt`) una vez cargada la
-  portada** — sin esto, D03 no se podía probar de forma estable, y descubrirlo
-  costó la mitad de la tarea. `clock.install()` **no congela el tiempo**: lo
-  falsea pero lo deja corriendo en tiempo real. Con el reloj corriendo, entre un
-  `runFor` y la acción siguiente la animación de 450 ms avanzaba sola durante
-  los viajes de ida y vuelta de Playwright, así que "entrar a mitad del paso"
-  era una carrera contra la latencia: el mismo caso daba 413 u 827 según lo que
-  hubiera tardado el `hover()`. Pausado, el tiempo avanza solo cuando la prueba
-  lo pide y las ocho pruebas son deterministas (40/40 con `--repeat-each=5`, y 24/24 en la corrida final con `--repeat-each=3`).
-  Se pausa **después** de cargar e hidratar, como recomienda la documentación
-  de Playwright, y saltando 500 ms —menos que un intervalo, así que el salto no
-  dispara ningún paso—.
-- **Las dos pruebas nuevas fijan el cero del intervalo entrando y saliendo
-  (puntero o Tab) antes de medir.** El `setInterval` no cuenta desde donde
-  quedó la prueba sino desde que el efecto lo creó; al salir el puntero o el
-  foco el efecto lo vuelve a crear, y recién ahí se sabe cuánto falta para el
-  próximo disparo. Sin ese cero, "avanzar `MS_ENTRE_PASOS + 48`" caía después
-  de terminada la animación y la prueba no probaba lo que decía (me pasó: la
-  primera versión fallaba con 827 en vez de 413).
-- **Se entra a la animación a los 48 ms de los 450** (`MS_EN_CURSO`), no a los
-  8 ni a los 200. Es una ventana con dos bordes medidos: antes de ~16 ms no
-  corrió ningún cuadro y todavía no hay animación que cortar; pasados ~93 ms el
-  desplazamiento cruza el punto medio hacia la parada siguiente y el
-  `scroll-snap-type: x mandatory` hace que Chromium **termine el salto por su
-  cuenta**, en tiempo real y fuera del alcance de `cancelAnimationFrame` (a los
-  100 ms todavía se corta; a los 200 ya no). 48 ms cae cómodo en el medio.
-- **La comprobación de "no se mueve" muestrea en tiempo real y además avanza
-  dos intervalos del reloj falso.** Una sola medición al final no distingue
-  "nunca se movió" de "fue y volvió" (riesgo que QA marcó), y el
-  desplazamiento que Chromium completa por el snap corre fuera del reloj falso.
-- **`entrarConTab` tolera cuántos elementos tabulables haya antes** (tope de 40,
-  hoy hacen falta 13). Fijar el número exacto ataría la prueba del carrusel a
-  la navbar y al resto de la portada, que son de otra tarea.
-- **La entrada por teclado se comprueba en dos niveles** (el bloque, y después
-  un enlace o control). Chromium hace tabulable la pista por ser un contenedor
-  con scroll, así que "el foco entró en el carrusel" se cumple aunque sus
-  enlaces estén excluidos del orden de tabulación — comprobado mutando el
-  componente, no razonado.
-- **El `package-lock.json` se regeneró con `npm install --package-lock-only`**
-  (un cambio de una línea, el literal de la raíz) en vez de editarlo a mano: es
-  la única forma de que npm lo dé por coherente.
-- **La prueba de teclado que corta el paso en curso demuestra el movimiento al
-  final, no al principio** (sale el foco → vuelve a rotar). Tabular hasta el
-  carrusel mueve el foco a la primera tarjeta, y hacerlo con el scroll ya
-  avanzado provocaría un desplazamiento del navegador ajeno a lo que se mide.
+- **Se cerró la clase, no la instancia** — se revisaron los nueve oráculos de la
+  suite (tabla «Inventario» arriba) y se corrigieron los seis que tenían la
+  forma, no solo el que QA reportó. Dos de esos seis nadie los había reportado:
+  CA-5 pausa y `noSeMueve`.
+- **El mismo helper para las cuatro pruebas de inmovilidad** — `exigirInmovilidad`
+  toma la ventana como función, así sirve igual para «avanzá el reloj falso» y
+  para «esperá en tiempo real y después avanzá el falso». Alternativa descartada:
+  copiar el bloque de CA-7 en cada prueba, que es exactamente cómo esta familia
+  se escapó dos rondas.
+- **La ventana de inmovilidad es una vuelta entera, derivada de la geometría
+  medida** — no un número fijo de intervalos. Así el peor caso del oráculo viejo
+  es el caso que se prueba siempre, en cualquier portada, sin que nadie tenga
+  que recalcular nada cuando cambie la cantidad de pilotos.
+- **`noSeMueve` deja de muestrear tres veces** — el evento `scroll` no tiene
+  huecos: registra cualquier desplazamiento en cuanto ocurre. Tres muestras
+  separadas por 100 ms no prueban nada de lo que pasa entre ellas, riesgo que QA
+  ya había señalado dos rondas seguidas. La ventana real sigue siendo de 300 ms,
+  que es lo que necesita el `scroll-snap` de Chromium para terminar lo que deja
+  pendiente un paso cancelado.
+- **`fijarScroll` antes de las ventanas de inmovilidad** — tabular puede correr
+  la pista para traer a la vista el enlace enfocado, y desde una posición que no
+  es parada una vuelta entera no vuelve al mismo punto. Es preparación, no lo
+  que se mide; mismo patrón que ya usaba CA-3.
+- **El reverso también se ajustó** — «distinto de antes» acepta cualquier
+  destino. Las tres aserciones de movimiento fijan ahora la parada esperada con
+  `proximaPosicion`, igual que CA-2.
+- **Los mensajes de fallo incluyen el recorrido y los extremos** — para que la
+  próxima lectura de QA no necesite una ronda más para saber si el fallo fue por
+  el motivo correcto.
 
 ## Fuera de alcance que vi (no tocado)
 
-- **La cancelación al pausar llega tarde en Chromium.** `scroll-snap-type: x
-  mandatory` (`app/(sitio)/_componentes/carrusel-equipo.module.css:23`) hace que,
-  en cuanto la animación pasa el punto medio hacia la parada siguiente (~93 ms
-  de los 450), el navegador **complete el salto solo**, y ahí el `cortar()` de
-  `CarruselEquipo.tsx:119-122` ya no puede detener nada: si el ratón entra en la
-  segunda mitad del paso, la tarjeta se le sigue moviendo debajo hasta la
-  parada siguiente. Medido, no deducido (tabla de la sección de decisiones).
-  O sea: T-005-D02 está resuelto **a medias** en Chromium. No lo toqué —esta
-  tarea prueba, no arregla— y la prueba nueva cubre la mitad que sí depende del
-  componente. Si el PM quiere cerrarlo del todo, es una tarea aparte (y
-  probablemente pase por el CSS, no por el efecto).
-- **`MS_ENTRE_PASOS` sigue duplicado** entre `CarruselEquipo.tsx:39` y
-  `carrusel.spec.ts:28`: el componente no lo exporta. Ya reportado en la ronda 1.
-- **Aviso de deprecación en cada build**: *"The `middleware` file convention is
-  deprecated. Please use `proxy` instead"* (`middleware.ts`). Ajeno a esta
-  tarea, pero sale en la salida de toda corrida de navegador.
+- La suite pasó de 16 s a 26 s. Si crece la cantidad de pilotos crecerá más
+  (la ventana es un intervalo por parada). Una salida sería exponer
+  `MS_ENTRE_PASOS` desde el componente y bajarlo bajo un flag de prueba, pero
+  eso toca producción y esta tarea prueba, no arregla —
+  `app/(sitio)/_componentes/CarruselEquipo.tsx:39`.
+- Sigue sin cerrarse el riesgo que QA marcó sobre `recorridoGrabado`: si
+  faltara `window.__recorridoCarrusel` devolvería `[el.scrollLeft]` en vez de
+  fallar. No hay hoy ningún camino que lo borre —
+  `tests/navegador/carrusel.spec.ts:269`.
+- Sigue en pie el límite de la pausa tardía: entrar a los 48 ms corta el paso,
+  pero pasados ~200 ms Chromium termina el desplazamiento por el `scroll-snap`,
+  fuera del alcance de `cancelAnimationFrame`. Es un límite del componente —
+  `app/(sitio)/_componentes/CarruselEquipo.tsx:119-122`.
+- `next build` avisa que el convenio `middleware` está deprecado en favor de
+  `proxy`. Nada que ver con esta tarea — `middleware.ts`.
 
 ## Preguntas / bloqueos
 

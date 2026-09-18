@@ -7,7 +7,7 @@
 | Base | `origin/Inf015/oliver132123-carrusel-equipo` |
 | Tipo | test |
 | Migración | No |
-| Ronda | 2 — defectos de `reporte-qa-r1.md` |
+| Ronda | 3 — defectos de `reporte-qa-r2.md` |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
 este brief.
@@ -126,6 +126,36 @@ falla sin el arreglo**, igual que hiciste con CA-8.
 
 Pegá las dos salidas reales en la entrega, en una sección "Sensibilidad de las
 pruebas nuevas".
+
+## 6.b Defectos a corregir (ronda 3)
+
+De `docs/pm/tareas/T-006/reporte-qa-r2.md` (veredicto **FAIL**). Los dos son la
+misma clase de problema que viene arrastrando esta tarea: **pruebas que no
+pueden fallar**.
+
+| ID | Sev / Pri | Resumen | Esperado |
+| -- | --------- | ------- | -------- |
+| T-006-D01 | S2 / P1 | Sigue abierto. La corrección de la ronda 2 exige los controles cuando hay desborde, pero el salto de escape anterior sigue dependiendo del **mismo atributo que se está probando**: si alguien cambia `aria-roledescription="carrusel"`, `marco.count()` da 0 y las ocho pruebas se omiten atribuyéndolo a «sección apagada o sin pilotos» | La precondición que decide si se omite tiene que ser **independiente** del atributo bajo prueba. Si la portada debería mostrar pilotos, exigí el contenedor en vez de omitir |
+| T-006-D06 | S2 / P1 | `CA-7` (movimiento reducido) mira **solo la posición final** tras la ventana de espera. Con tres paradas alcanzables, tres pasos completan una vuelta y devuelven el scroll al origen: la prueba pasa aunque el carrusel haya rotado. QA lo demostró con `destinos [0,408,816]` → recorrido `[0,408,816,0]` → igualdad final `true` | Observar **todo el recorrido**, no el final: registrar el movimiento durante la ventana entera y exigir que no haya habido ninguno |
+
+### Cómo comprobar que cada fix sirve
+
+Igual que en las rondas anteriores: no alcanza con escribir la prueba, hay que
+**demostrar que falla sin el arreglo**.
+
+- **D01** — cambiá `aria-roledescription="carrusel"` por otro valor en
+  `CarruselEquipo.tsx` y mostrá que la suite **falla**, no que omite. Revertí.
+- **D06** — quitá `sinMovimiento` de la condición del intervalo en
+  `CarruselEquipo.tsx` (dejando la rama de salto instantáneo de `mover`), y
+  mostrá que **CA-7 falla**. Es la mutación exacta que QA describe. Revertí.
+
+Pegá las dos salidas reales en la entrega, en «Sensibilidad de las pruebas
+nuevas».
+
+**Ojo con la geometría**: la mutación de D06 solo se nota si el recorrido puede
+volver al origen dentro de la ventana de espera. Si tu prueba usa una ventana
+corta o una geometría con muchas paradas, podés «demostrar» un fallo que no
+prueba nada. Asegurate de que la prueba nueva falle **por el motivo correcto**.
 
 ## 7. Notas técnicas
 
