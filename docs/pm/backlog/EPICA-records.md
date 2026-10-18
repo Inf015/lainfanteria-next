@@ -1,5 +1,8 @@
 # Épica — Récords
 
+> **Cerrada.** T-001 a T-004 mergeadas (PR #6, #7, #8 y #14). Estado de cada
+> una en [`tablero.md`](../tablero.md).
+
 > Pedido de Oliver (2026-09-15): «añadir en la sección de pilotos un apartado de
 > logros/récords, ya que tenemos varios que tienen récords nacionales y logros
 > increíbles». Aclaraciones del mismo día: hay récords que no tienen que ver con
