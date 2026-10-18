@@ -41,7 +41,8 @@ Diez tablas: `secciones`, `ajustes`, `miembros`, `logros`, `records`, `autos`,
 marcas y los hitos: un título con tiempo y velocidad **opcionales**; sin
 ninguna cifra es un hito («Primer dominicano en…»). Solo suman como récord
 nacional los de alcance `nacional` que siguen vigentes. Un récord puede no
-tener miembro: ésos son del equipo.
+tener miembro: ésos son del equipo, se cargan desde el panel de miembros
+(«Récords del equipo») y se muestran en «Sobre nosotros».
 
 RLS está activo en todas. La anon key **solo lee** lo publicado; no puede
 escribir nada.
@@ -138,5 +139,3 @@ Variables de entorno a cargar en *Project Settings → Environment Variables*:
 - Páginas públicas de Merch y Noticias (sus secciones están apagadas)
 - Datos de contacto reales en `ajustes`
 - Portal de pilotos y sistema de resultados, pospuestos del diseño original
-- Récords del equipo (sin miembro): ya se guardan, falta cargarlos desde el
-  panel y mostrarlos en «Sobre nosotros» — tarea T-004 en `docs/pm/backlog/`
