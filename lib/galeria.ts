@@ -53,3 +53,66 @@ export function normalizarGaleria<T extends FotoOrdenable>(fotos: readonly T[]):
 function enRango(posicion: number, largo: number): boolean {
   return Number.isInteger(posicion) && posicion >= 0 && posicion < largo;
 }
+
+/**
+ * Guardia de exclusión para las operaciones de una galería (subir, mover, ★,
+ * borrar): **una sola a la vez**, y la que llega mientras otra está en vuelo
+ * se rechaza.
+ *
+ * Por qué una sola guardia para todo y no un contador o un flag por tipo de
+ * operación: cada operación arma la lista que publica a partir de la galería
+ * que había cuando empezó. Si otra operación cambia la galería en el medio, la
+ * primera publica una lista vieja y pisa el cambio (T-011-D01: dos subidas
+ * superpuestas; la primera en terminar ponía el contador en cero y habilitaba
+ * reordenar mientras la segunda seguía en vuelo). Con exclusión total, la
+ * galería capturada al empezar es la vigente hasta que la operación publica.
+ *
+ * Es síncrona a propósito: `tomar()` marca el candado en el mismo tick del
+ * clic. Un estado de React recién deshabilita los botones en el render
+ * siguiente, y un doble clic o dos drops pueden llegar antes.
+ */
+export interface Candado {
+  readonly tomado: boolean;
+  /** Toma el candado si está libre. `false` si ya había una operación. */
+  tomar(): boolean;
+  soltar(): void;
+}
+
+/** `alCambiar` se llama en cada transición, para reflejarla en la UI. */
+export function crearCandado(alCambiar?: (tomado: boolean) => void): Candado {
+  let tomado = false;
+  return {
+    get tomado() {
+      return tomado;
+    },
+    tomar() {
+      if (tomado) return false;
+      tomado = true;
+      alCambiar?.(true);
+      return true;
+    },
+    soltar() {
+      if (!tomado) return;
+      tomado = false;
+      alCambiar?.(false);
+    },
+  };
+}
+
+/**
+ * Corre `operacion` con el candado tomado y lo suelta cuando **termina** —bien
+ * o con excepción—, nunca antes. Devuelve `false` sin correrla si había otra
+ * en vuelo. Una excepción de la operación se propaga después de soltar.
+ */
+export async function enExclusiva(
+  candado: Candado,
+  operacion: () => Promise<void>,
+): Promise<boolean> {
+  if (!candado.tomar()) return false;
+  try {
+    await operacion();
+  } finally {
+    candado.soltar();
+  }
+  return true;
+}

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { moverFoto, normalizarGaleria, type FotoOrdenable } from '@/lib/galeria';
+import {
+  crearCandado,
+  enExclusiva,
+  moverFoto,
+  normalizarGaleria,
+  type FotoOrdenable,
+} from '@/lib/galeria';
 
 /** Galería de cuatro fotos tal como la deja la RPC: la 10 es la principal. */
 function galeria(): FotoOrdenable[] {
@@ -147,5 +153,110 @@ describe('normalizarGaleria', () => {
       { id: 1, url: 'https://x/1.jpg', es_principal: true, orden: 0 },
       { id: 2, url: 'https://x/2.jpg', es_principal: false, orden: 1 },
     ]);
+  });
+});
+
+/** Una promesa que se resuelve o rechaza cuando la prueba lo decide. */
+function pendiente() {
+  let resolver!: () => void;
+  let rechazar!: (e: Error) => void;
+  const promesa = new Promise<void>((res, rej) => {
+    resolver = res;
+    rechazar = rej;
+  });
+  return { promesa, resolver, rechazar };
+}
+
+describe('crearCandado', () => {
+  it('se toma una sola vez hasta que se suelta', () => {
+    const candado = crearCandado();
+    expect(candado.tomar()).toBe(true);
+    expect(candado.tomar()).toBe(false);
+    candado.soltar();
+    expect(candado.tomar()).toBe(true);
+  });
+
+  it('avisa cada transición, y soltar dos veces no avisa dos veces', () => {
+    const avisos: boolean[] = [];
+    const candado = crearCandado((tomado) => avisos.push(tomado));
+
+    candado.tomar();
+    candado.tomar(); // rechazado: no es una transición
+    candado.soltar();
+    candado.soltar();
+
+    expect(avisos).toEqual([true, false]);
+  });
+});
+
+describe('enExclusiva', () => {
+  it('toma el candado en el acto, sin esperar un tick (doble clic)', () => {
+    const candado = crearCandado();
+    const primera = pendiente();
+
+    void enExclusiva(candado, () => primera.promesa);
+
+    // Todavía no corrió ningún microtask: el candado ya tiene que estar tomado.
+    expect(candado.tomado).toBe(true);
+    primera.resolver();
+  });
+
+  it('dos subidas superpuestas: la segunda se rechaza y no corre (T-011-D01)', async () => {
+    const candado = crearCandado();
+    const subidaA = pendiente();
+    let corrioB = false;
+
+    const a = enExclusiva(candado, () => subidaA.promesa);
+    const b = await enExclusiva(candado, async () => {
+      corrioB = true;
+    });
+
+    expect(b).toBe(false);
+    expect(corrioB).toBe(false);
+
+    subidaA.resolver();
+    expect(await a).toBe(true);
+  });
+
+  it('el candado sigue tomado hasta que la operación TERMINA, no cuando arranca otra', async () => {
+    // La secuencia del defecto: A en vuelo, B intenta y rebota, y recién
+    // cuando A termina se puede reordenar. Antes, el fin de cualquier subida
+    // liberaba el bloqueo aunque hubiera otra pendiente.
+    const candado = crearCandado();
+    const subidaA = pendiente();
+    const a = enExclusiva(candado, () => subidaA.promesa);
+
+    expect(await enExclusiva(candado, async () => {})).toBe(false);
+    expect(candado.tomado).toBe(true);
+
+    subidaA.resolver();
+    await a;
+
+    expect(candado.tomado).toBe(false);
+    expect(await enExclusiva(candado, async () => {})).toBe(true);
+  });
+
+  it('una operación que lanza suelta el candado y propaga el error', async () => {
+    const candado = crearCandado();
+    const op = pendiente();
+    const corrida = enExclusiva(candado, () => op.promesa);
+
+    op.rechazar(new Error('red caída'));
+
+    await expect(corrida).rejects.toThrow('red caída');
+    expect(candado.tomado).toBe(false);
+  });
+
+  it('un rechazo no suelta el candado de la operación que sí está en vuelo', async () => {
+    const candado = crearCandado();
+    const enVuelo = pendiente();
+    const a = enExclusiva(candado, () => enVuelo.promesa);
+
+    await enExclusiva(candado, async () => {});
+    await enExclusiva(candado, async () => {});
+
+    expect(candado.tomado).toBe(true);
+    enVuelo.resolver();
+    await a;
   });
 });

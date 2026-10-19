@@ -3,7 +3,7 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
-import { moverFoto, normalizarGaleria } from '@/lib/galeria';
+import { crearCandado, enExclusiva, moverFoto, normalizarGaleria } from '@/lib/galeria';
 import s from '../../../admin.module.css';
 
 export interface FotoFila {
@@ -36,6 +36,13 @@ function esArrastreDeFoto(e: DragEvent) {
   return e.dataTransfer.types.includes(MIME_FOTO);
 }
 
+const AVISO_OCUPADO =
+  'Hay una operación de la galería en curso. Esperá a que termine y volvé a intentar.';
+
+function mensaje(e: unknown) {
+  return e instanceof Error ? e.message : String(e);
+}
+
 /**
  * Galería con subida directa a Supabase Storage.
  *
@@ -47,6 +54,12 @@ function esArrastreDeFoto(e: DragEvent) {
  * ◀ ▶, y la ★ manda una foto al primer lugar; todo pasa por la RPC
  * `reordenar_fotos` (migración 0014), que guarda orden y principal juntos en
  * una sola transacción.
+ *
+ * Concurrencia: subir, mover, ★ y borrar pasan todas por un mismo candado
+ * (`enExclusiva`, en `lib/galeria.ts`) y nunca corren dos a la vez. Eso es lo
+ * que permite que cada una arme su lista a partir del `fotos` que había al
+ * empezar, aunque publique después de varios `await`: mientras está en vuelo
+ * nadie más puede cambiar la galería. Ver el comentario de cada operación.
  */
 export default function SubirFotos({
   tabla,
@@ -55,47 +68,54 @@ export default function SubirFotos({
   fotos,
   onCambio,
 }: Props) {
+  /** Cuántas fotos de la subida en curso faltan; solo para el texto. */
   const [subiendo, setSubiendo] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
-  /** Hay un reordenamiento o un borrado esperando respuesta de la base. */
+  /**
+   * Espejo del candado para el render (deshabilitar controles). La fuente de
+   * verdad del bloqueo es el candado, que es síncrono: este estado recién se
+   * ve en el render siguiente.
+   */
   const [ocupado, setOcupado] = useState(false);
   /** Posición de la miniatura que se está arrastrando, y la de destino. */
   const [arrastrada, setArrastrada] = useState<number | null>(null);
   const [destino, setDestino] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // El estado `ocupado` tarda un render en deshabilitar los botones; el ref
-  // corta en el acto un segundo clic que llegue antes.
-  const ocupadoRef = useRef(false);
+  // Uno por galería montada; `setOcupado` es estable, así que no hace falta
+  // recrearlo nunca.
+  const [candado] = useState(() => crearCandado(setOcupado));
 
-  // Una subida en curso también bloquea el orden: `subir` termina con
-  // `onCambio([...fotos, ...nuevas])` sobre la lista que tenía al empezar, y
-  // pisaría un reordenamiento hecho mientras tanto.
-  const bloqueado = ocupado || subiendo > 0;
-
-  function empezar() {
-    if (ocupadoRef.current) return false;
-    ocupadoRef.current = true;
-    setOcupado(true);
-    setError(null);
-    return true;
+  /**
+   * Corre una operación de la galería en exclusiva. Si ya hay otra en vuelo,
+   * no la corre y muestra el aviso. Devuelve si corrió.
+   */
+  async function exclusiva(operacion: () => Promise<void>) {
+    const corrio = await enExclusiva(candado, async () => {
+      setError(null);
+      await operacion();
+    });
+    if (!corrio) setError(AVISO_OCUPADO);
+    return corrio;
   }
 
-  function terminar() {
-    ocupadoRef.current = false;
-    setOcupado(false);
-  }
-
+  /**
+   * Publica las filas nuevas pase lo que pase: aunque una foto posterior
+   * falle o algo lance, las que ya se insertaron existen en la base y la lista
+   * local tiene que mostrarlas.
+   *
+   * `[...fotos, ...nuevas]` usa el `fotos` capturado al empezar. Es la galería
+   * vigente porque el candado no deja correr ninguna otra operación hasta que
+   * esta termine (antes, una segunda subida en paralelo publicaba su captura y
+   * pisaba lo que había hecho la primera y un reordenamiento posterior: D01).
+   */
   async function subir(archivos: FileList | null) {
     if (!archivos?.length) return;
-    // Al revés que arriba: un reordenamiento en vuelo ya mandó su lista a
-    // `onCambio`, y una subida que arranque sobre la anterior la pisaría.
-    if (ocupadoRef.current) {
-      setError('Esperá a que termine de guardarse la galería y volvé a elegir las fotos.');
-      if (inputRef.current) inputRef.current.value = '';
-      return;
-    }
-    setError(null);
+    const corrio = await exclusiva(() => subirArchivos(archivos));
+    if (!corrio && inputRef.current) inputRef.current.value = '';
+  }
+
+  async function subirArchivos(archivos: FileList) {
     setSubiendo(archivos.length);
 
     const db = crearClienteNavegador();
@@ -147,9 +167,10 @@ export default function SubirFotos({
 
         nuevas.push(data as FotoFila);
       }
-
-      if (nuevas.length) onCambio([...fotos, ...nuevas]);
+    } catch (e) {
+      setError(`Se cortó la subida: ${mensaje(e)}`);
     } finally {
+      if (nuevas.length) onCambio([...fotos, ...nuevas]);
       setSubiendo(0);
       if (inputRef.current) inputRef.current.value = '';
     }
@@ -162,34 +183,38 @@ export default function SubirFotos({
    * si la RPC falla vuelve a la lista anterior. La RPC recibe la galería
    * entera y escribe orden y principal en una transacción, así que no hay
    * estado intermedio posible ni en la base ni acá.
+   *
+   * Publica dos veces como mucho: `normalizada` antes del `await`, y
+   * `anterior` si falla. `anterior` es el `fotos` capturado al empezar y sigue
+   * siendo lo que hay en la base, porque el candado no deja que otra operación
+   * cambie la galería mientras la RPC está en vuelo.
    */
   async function mover(desde: number, hasta: number) {
     const anterior = fotos;
     const nueva = moverFoto(anterior, desde, hasta);
     if (nueva.every((f, i) => f.id === anterior[i].id)) return;
-    if (!empezar()) return;
 
-    const normalizada = normalizarGaleria(nueva);
-    onCambio(normalizada);
+    await exclusiva(async () => {
+      const normalizada = normalizarGaleria(nueva);
+      onCambio(normalizada);
 
-    try {
-      const db = crearClienteNavegador();
-      const { error: err } = await db.rpc('reordenar_fotos', {
-        p_tabla: tabla,
-        p_padre_id: registroId,
-        p_ids: normalizada.map((f) => f.id),
-      });
+      try {
+        const db = crearClienteNavegador();
+        const { error: err } = await db.rpc('reordenar_fotos', {
+          p_tabla: tabla,
+          p_padre_id: registroId,
+          p_ids: normalizada.map((f) => f.id),
+        });
 
-      if (err) {
+        if (err) {
+          onCambio(anterior);
+          setError(`No se pudo guardar el orden: ${err.message}`);
+        }
+      } catch (e) {
         onCambio(anterior);
-        setError(`No se pudo guardar el orden: ${err.message}`);
+        setError(`No se pudo guardar el orden: ${mensaje(e)}`);
       }
-    } catch (e) {
-      onCambio(anterior);
-      setError(`No se pudo guardar el orden: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      terminar();
-    }
+    });
   }
 
   function soltarSobre(e: DragEvent, hasta: number) {
@@ -201,21 +226,27 @@ export default function SubirFotos({
     const desde = arrastrada;
     setArrastrada(null);
     setDestino(null);
-    if (!esArrastreDeFoto(e) || desde === null || bloqueado) return;
+    if (!esArrastreDeFoto(e) || desde === null) return;
     mover(desde, hasta);
   }
 
   async function borrar(foto: FotoFila) {
-    if (ocupadoRef.current) return;
-    if (!confirm('¿Borrar esta foto?')) return;
-    if (!empezar()) return;
-    try {
-      await borrarFila(foto);
-    } finally {
-      terminar();
+    if (candado.tomado) {
+      setError(AVISO_OCUPADO);
+      return;
     }
+    if (!confirm('¿Borrar esta foto?')) return;
+    // `confirm` frena el hilo: entre la pregunta y esta línea no pudo arrancar
+    // ninguna otra operación, así que `fotos` sigue vigente.
+    await exclusiva(() => borrarFila(foto));
   }
 
+  /**
+   * DELETE → renormalizar (RPC) → liberar el bucket → publicar.
+   *
+   * `restantes` sale del `fotos` capturado al empezar; sigue vigente porque el
+   * candado está tomado hasta que esta función termina.
+   */
   async function borrarFila(foto: FotoFila) {
     const db = crearClienteNavegador();
     const { error: err } = await db.from(tabla).delete().eq('id', foto.id);
@@ -251,9 +282,7 @@ export default function SubirFotos({
           quedaron = normalizada;
         }
       } catch (e) {
-        setError(
-          `La foto se borró, pero no se pudo reordenar la galería: ${e instanceof Error ? e.message : String(e)}`,
-        );
+        setError(`La foto se borró, pero no se pudo reordenar la galería: ${mensaje(e)}`);
       }
     }
 
@@ -281,7 +310,7 @@ export default function SubirFotos({
                 arrastrada === i ? s.fotoArrastrada : '',
                 destino === i && arrastrada !== i ? s.fotoDestino : '',
               ].join(' ')}
-              draggable={!bloqueado}
+              draggable={!ocupado}
               onDragStart={(e) => {
                 e.dataTransfer.setData(MIME_FOTO, String(foto.id));
                 e.dataTransfer.effectAllowed = 'move';
@@ -314,7 +343,7 @@ export default function SubirFotos({
                   type="button"
                   className={s.btnFoto}
                   onClick={() => mover(i, i - 1)}
-                  disabled={bloqueado || i === 0}
+                  disabled={ocupado || i === 0}
                   title="Mover a la izquierda"
                   aria-label="Mover a la izquierda"
                 >
@@ -325,7 +354,7 @@ export default function SubirFotos({
                     type="button"
                     className={s.btnFoto}
                     onClick={() => mover(i, 0)}
-                    disabled={bloqueado}
+                    disabled={ocupado}
                     title="Mandar al primer lugar"
                     aria-label="Mandar al primer lugar"
                   >
@@ -336,7 +365,7 @@ export default function SubirFotos({
                   type="button"
                   className={s.btnFoto}
                   onClick={() => mover(i, i + 1)}
-                  disabled={bloqueado || i === fotos.length - 1}
+                  disabled={ocupado || i === fotos.length - 1}
                   title="Mover a la derecha"
                   aria-label="Mover a la derecha"
                 >
@@ -346,7 +375,7 @@ export default function SubirFotos({
                   type="button"
                   className={`${s.btnFoto} ${s.btnFotoBorrar}`}
                   onClick={() => borrar(foto)}
-                  disabled={bloqueado}
+                  disabled={ocupado}
                   title="Borrar"
                   aria-label="Borrar"
                 >
