@@ -65,7 +65,14 @@ export default function AutosGrid({
       )}
 
       {detalle && (
-        <DetalleAuto auto={detalle} alCerrar={cerrar} hrefWhatsapp={waLink(detalle)} />
+        // `key`: otro auto es otro detalle, que arranca en su primera foto aunque
+        // se active su tarjeta con el detalle de otro todavía abierto.
+        <DetalleAuto
+          key={detalle.id}
+          auto={detalle}
+          alCerrar={cerrar}
+          hrefWhatsapp={waLink(detalle)}
+        />
       )}
     </>
   );

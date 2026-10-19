@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import Image from 'next/image';
 import { nombreAuto } from '@/lib/formato';
+import { fotoAnterior, fotoSiguiente, indiceValido } from '@/lib/galeria';
 import { ESTADO_CLASE, ESTADO_LABEL } from './estado';
 import { precioMostrable, type AutoMostrable } from './TarjetaAuto';
 import s from './autos.module.css';
@@ -10,9 +11,15 @@ import s from './autos.module.css';
 /**
  * Detalle de un auto: galería + información, en un diálogo sobre la página.
  *
- * Se monta al abrir y se desmonta al cerrar, así que la galería siempre
- * arranca en la primera foto. Mientras está montado, `Escape` lo cierra, ← y →
- * cambian de foto y el scroll del fondo queda bloqueado. Es el único lugar
+ * Se monta al abrir y se desmonta al cerrar, así que la galería arranca en la
+ * primera foto. Para mostrar **otro** auto, quien lo usa le cambia la `key`
+ * (un detalle montado por auto). Si las fotos cambian con el detalle abierto
+ * —terminan de subirse o se borran en la vista previa—, el índice se ajusta
+ * a la galería nueva (`lib/galeria.ts`): nunca se lee una foto inexistente.
+ *
+ * Mientras está montado, `Escape` lo cierra, ← y → cambian de foto y el scroll
+ * del fondo queda bloqueado. Al abrir, el foco entra al botón de cerrar; al
+ * cerrar, vuelve a donde estaba (la tarjeta que lo abrió). Es el único lugar
  * donde vive esa lógica: lo usan `/autos` y la vista previa del panel.
  *
  * `hrefWhatsapp` nulo deja el botón de WhatsApp igual a la vista pero inerte
@@ -27,16 +34,38 @@ export default function DetalleAuto({
   alCerrar: () => void;
   hrefWhatsapp: string | null;
 }) {
-  const [fotoIdx, setFotoIdx] = useState(0);
+  const [fotoGuardada, setFotoGuardada] = useState(0);
   const fotos = auto.auto_fotos;
+  // El índice que se usa siempre es válido para las fotos de este render.
+  const fotoIdx = indiceValido(fotoGuardada, fotos.length);
   const cerrar = useEffectEvent(alCerrar);
+  const botonCerrar = useRef<HTMLButtonElement>(null);
+
+  // El foco entra al diálogo y, al cerrarlo, vuelve a quien lo tenía antes.
+  // Solo se devuelve si el foco quedó en el aire (el elemento enfocado se fue
+  // con el diálogo): si el usuario ya lo llevó a otro lado —p. ej. activó otra
+  // tarjeta—, no se le quita.
+  useEffect(() => {
+    const previo = document.activeElement;
+    botonCerrar.current?.focus({ preventScroll: true });
+    return () => {
+      const actual = document.activeElement;
+      if (
+        previo instanceof HTMLElement &&
+        previo.isConnected &&
+        (actual === null || actual === document.body)
+      ) {
+        previo.focus({ preventScroll: true });
+      }
+    };
+  }, []);
 
   // Escape cierra el modal y se bloquea el scroll del fondo mientras está abierto
   useEffect(() => {
     const alPresionar = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cerrar();
-      if (e.key === 'ArrowLeft') setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length);
-      if (e.key === 'ArrowRight') setFotoIdx((i) => (i + 1) % fotos.length);
+      if (e.key === 'ArrowLeft') setFotoGuardada((i) => fotoAnterior(i, fotos.length));
+      if (e.key === 'ArrowRight') setFotoGuardada((i) => fotoSiguiente(i, fotos.length));
     };
     document.addEventListener('keydown', alPresionar);
 
@@ -73,14 +102,14 @@ export default function DetalleAuto({
                 <>
                   <button
                     className={`${s.galleryBtn} ${s.galleryPrev}`}
-                    onClick={() => setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)}
+                    onClick={() => setFotoGuardada((i) => fotoAnterior(i, fotos.length))}
                     aria-label="Foto anterior"
                   >
                     ‹
                   </button>
                   <button
                     className={`${s.galleryBtn} ${s.galleryNext}`}
-                    onClick={() => setFotoIdx((i) => (i + 1) % fotos.length)}
+                    onClick={() => setFotoGuardada((i) => fotoSiguiente(i, fotos.length))}
                     aria-label="Foto siguiente"
                   >
                     ›
@@ -90,7 +119,7 @@ export default function DetalleAuto({
                       <button
                         key={f.id}
                         className={`${s.dot} ${i === fotoIdx ? s.dotActive : ''}`}
-                        onClick={() => setFotoIdx(i)}
+                        onClick={() => setFotoGuardada(i)}
                         aria-label={`Foto ${i + 1}`}
                       />
                     ))}
@@ -107,7 +136,12 @@ export default function DetalleAuto({
             </div>
           )}
 
-          <button className={s.modalCloseBtn} onClick={alCerrar} aria-label="Cerrar">
+          <button
+            ref={botonCerrar}
+            className={s.modalCloseBtn}
+            onClick={alCerrar}
+            aria-label="Cerrar"
+          >
             ✕
           </button>
         </div>
