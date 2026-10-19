@@ -207,6 +207,48 @@ describe('Storage', () => {
   });
 });
 
+describe('reordenar_fotos está cerrada a anon', () => {
+  // La función es SECURITY DEFINER: corre con los privilegios del owner y
+  // esquiva RLS. Las barreras son dos: EXECUTE revocado a PUBLIC (o sea a
+  // `anon`) y `es_admin()` en la primera línea. Desde la clave pública tiene
+  // que cortar la primera, con 42501 —permiso denegado— y no con cualquier
+  // error: un 404 «la función no existe» o un 400 por parámetros también
+  // harían `ok = false` y la prueba pasaría por el motivo equivocado.
+  type Fila = { id: number; auto_id: number; orden: number; es_principal: boolean };
+
+  async function galeria(autoId: number): Promise<Fila[]> {
+    const r = await rest(
+      `auto_fotos?select=id,auto_id,orden,es_principal&auto_id=eq.${autoId}&order=id`,
+    );
+    return r.json();
+  }
+
+  it('rechaza la llamada con 42501 y la galería no cambia', async () => {
+    // Payload realista: una galería que existe, en el orden inverso. Contra
+    // una galería inexistente un rechazo no probaría que la función no
+    // hubiera escrito algo de haber podido.
+    const [unaFoto]: Fila[] = await (
+      await rest('auto_fotos?select=id,auto_id,orden,es_principal&order=auto_id&limit=1')
+    ).json();
+    const autoId = unaFoto?.auto_id ?? 1;
+    const antes = await galeria(autoId);
+    const idsAlReves = antes.length > 0 ? antes.map((f) => f.id).reverse() : [1];
+
+    const r = await rest('rpc/reordenar_fotos', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_tabla: 'auto_fotos',
+        p_padre_id: autoId,
+        p_ids: idsAlReves,
+      }),
+    });
+
+    expect(r.ok).toBe(false);
+    expect((await r.json()).code).toBe('42501');
+    expect(await galeria(autoId)).toEqual(antes);
+  });
+});
+
 describe('la tabla de miembros conservó sus políticas tras el rename', () => {
   // `pilotos` se renombró a `miembros` en la migración 0009. Un rename arrastra
   // las políticas, pero conviene comprobarlo: perderlas dejaría la tabla
