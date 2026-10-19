@@ -189,9 +189,18 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
 
   function actualizarFotos(fotos: FotoFila[]) {
     if (!editando) return;
-    const conFotos = { ...editando, auto_fotos: fotos } as AutoConFotos;
-    setEditando(conFotos);
-    setAutos((prev) => prev.map((a) => (a.id === editando.id ? conFotos : a)));
+    // La galería puede publicar después de que el modal se cerró o de que se
+    // abrió otro auto (una subida que termina tarde). Por eso la publicación
+    // va al auto de la galería —el `id` de cuando se montó— y con
+    // actualizaciones funcionales: no pisa el auto que se esté editando ahora
+    // ni los demás campos con una copia vieja de `editando` (T-011-D01).
+    const id = editando.id;
+    setEditando((prev) =>
+      prev?.id === id ? ({ ...prev, auto_fotos: fotos } as AutoConFotos) : prev,
+    );
+    setAutos((prev) =>
+      prev.map((a) => (a.id === id ? ({ ...a, auto_fotos: fotos } as AutoConFotos) : a)),
+    );
   }
 
   return (
