@@ -7,7 +7,7 @@
 | Base | `origin/main` |
 | Tipo | feat |
 | Migración | No |
-| Ronda | 1 |
+| Ronda | 2 — ver `reporte-qa-r1.md` (FAIL: D01 P1, D02 P1, D03 P2, D04 P2) |
 | Carril | **Normal** (componente con estado + refactor del sitio público) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
@@ -125,8 +125,38 @@ nada más.
 
 ## 6. Defectos a corregir (solo rondas de fix)
 
+**Ronda 2**, de `reporte-qa-r1.md`. Corregí **las clases**, no solo las
+instancias.
+
+**D01 está confirmado por el PM en el navegador:** en `/autos`, abrir el Mustang
+(3 fotos), →→, Tab hasta la tarjeta del Camaro (1 foto) y Enter. En `main` abre
+el Camaro en «1 / 1»; en esta rama la página revienta con
+`Cannot read properties of undefined (reading 'url')`. Es una regresión del
+sitio público.
+
 | ID | Sev | Resumen | Esperado |
 | -- | --- | ------- | -------- |
+| T-012-D01 + D02 | S2/P1 | **Clase: el índice de foto del detalle puede quedar inválido cuando cambian las fotos con el detalle montado.** Instancias: otro auto (D01), galería vacía + flecha → `NaN` y después llegan fotos (D02). Hay más de la misma forma: con T-011 se pueden **borrar** fotos, y una galería que se achica deja el índice fuera de rango | El índice es **siempre válido** para la galería que se está mostrando, cambie como cambie: otro auto arranca en la primera foto (como en `main`); con 0 fotos las flechas no hacen nada; si la galería se achica, el índice se ajusta; jamás se lee `fotos[i]` con `i` fuera de rango. La lógica del índice va en una función pura con tests de unidad (siguiente/anterior con n = 0, 1, 3; ajuste al achicarse). |
+| T-012-D03 | S2/P2 | **Clase: el diálogo activo no aísla el resto de la página.** Con la vista previa abierta se llega con Shift+Tab a la tabla y a «+ Nuevo auto», que resetea el formulario. Con el detalle abierto encima de la vista previa, la vista previa sigue activa | Mientras la vista previa está abierta, **todo** lo que está detrás (no solo el modal de edición) es inerte. Con el detalle abierto encima, la vista previa también lo es, el foco entra al detalle y al cerrarlo vuelve a la tarjeta que lo abrió. Si para eso hace falta tocar `DetalleAuto`, el cambio también vale para `/autos`: está permitido (es una mejora de accesibilidad, no visual), pero se documenta en la entrega y se cubre con una prueba de navegador en `/autos`. |
+| T-012-D04 | S3/P2 | **Clase: un `skip` que decide con la misma UI que está bajo prueba.** Si desaparece el contador, la prueba se salta en vez de fallar | Revisá **todos** los `test.skip` de `autos.spec.ts`. La precondición de datos (hay autos, hay uno con 2+ fotos, la sección está apagada) se decide con una fuente **independiente de la UI**, por ejemplo la API REST con la clave pública (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` ya están en el entorno de la prueba), y verificando el código de respuesta de cada navegación. Si los datos dicen que hay un auto con 2+ fotos, la UI **tiene** que mostrar el contador y la imagen, o la prueba falla. Demostrá que falla si quitás el contador (mutación temporal, sin commitear) y pegá la salida. |
+
+Pruebas de regresión obligatorias (navegador, `/autos`):
+- D01: A (2+ fotos) → flechas → Tab a otra tarjeta B → Enter → B en «1 / n», sin
+  `pageerror`. Demostrá que falla sin el fix.
+- D03 en `/autos`, si tocaste `DetalleAuto`: el foco entra al detalle y vuelve
+  a la tarjeta al cerrar.
+
+Para correrlas con datos, la sección autos tiene que estar prendida: en
+producción está apagada. El PM las corre contra Supabase local sembrado. Vos
+dejá la prueba correcta y demostrá las mutaciones como en la ronda 1.
+
+**Enmienda de CA-8 (decisión del PM, la valida Oliver en el PR):** con el
+detalle abierto encima de la vista previa, `Escape` cierra primero el detalle y
+el siguiente `Escape` cierra la vista previa. Es el comportamiento del sitio y
+el que ya implementaste; no cambia.
+
+Fuera de esta ronda: el contrato de precio vacío de `guardar()` (riesgo de QA,
+no defecto: el `required` lo cubre).
 
 ## 7. Definición de hecho
 

@@ -1,4 +1,4 @@
-# QA T-012 — Vista previa del auto en el panel — ronda 1
+# QA T-012 — Vista previa del auto en el panel — ronda 2
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -27,9 +27,9 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-012/brief-dev.md` (criterios CA-*) |
 | Entrega del dev | `docs/pm/tareas/T-012/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-012/gate-rN.txt` |
-| Ronda anterior | ninguna |
+| Ronda anterior | `reporte-qa-r1.md` (FAIL: D01, D02 P1; D03, D04 P2) |
 | Carril | **Normal** — una pasada de QA |
-| Verificación manual del PM | `docs/pm/tareas/T-012/pruebas-pm-r1.txt` |
+| Verificación manual del PM | `pruebas-pm-r1.txt` y `pruebas-pm-r2.txt` |
 
 ## Qué hacer
 
@@ -55,6 +55,17 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 6. **Ronda ≥ 2:** *confirmation testing* de cada defecto anterior (FIXED /
    NOT FIXED / PARTIAL) + *regression testing* de lo que el fix tocó. Los fixes
    introducen defectos nuevos seguido: buscalos.
+
+## Ronda 2
+
+Confirmation testing de D01–D04 (sección 6 del brief) y regression testing de
+lo que tocó el fix. El brief pide corregir **clases**: verificá que el índice
+del detalle sea válido en **todo** cambio de fotos (otro auto, 0 fotos, fotos
+que llegan, fotos que se borran), que **todo** lo que está detrás del diálogo
+activo sea inerte, y que **ningún** `skip` de `autos.spec.ts` dependa de la UI
+bajo prueba. Si se tocó `DetalleAuto`, revisá el impacto en `/autos`. La
+enmienda de CA-8 (Escape en dos pasos) es decisión del PM: no la reportes como
+defecto.
 
 ## Puntos centrales de esta tarea
 
