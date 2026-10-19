@@ -1,0 +1,67 @@
+# Gate PM — T-012 ronda 1
+fecha : 2026-10-19 10:31:50 -0400
+rama  : oliver132123/autos-vista-previa
+HEAD  : cc222baad609c3b6be0eaaa73eda32e7cdaf4e19
+base  : origin/main (38141fb)
+
+## Commits
+cc222ba docs(pm): verificación del PM — T-012 r1
+365ea0e docs(pm): entrega de T-012, ronda 1
+103f794 test(navegador): detalle de autos
+344b7ef feat(admin): vista previa del auto
+bd4a358 refactor(autos): tarjeta y detalle como componentes
+a073fac docs(pm): T-011 y T-012 en el tablero
+e18a573 docs(pm): brief T-012
+
+## Archivos
+ app/(admin)/(panel)/admin/autos/AutosAdmin.tsx     |  55 ++--
+ app/(admin)/(panel)/admin/autos/VistaPrevia.tsx    | 111 ++++++++
+ .../(panel)/admin/autos/vista-previa.module.css    |  95 +++++++
+ app/(sitio)/autos/AutosGrid.tsx                    | 203 +--------------
+ app/(sitio)/autos/DetalleAuto.tsx                  | 160 ++++++++++++
+ app/(sitio)/autos/TarjetaAuto.tsx                  |  73 ++++++
+ app/(sitio)/autos/estado.ts                        |  16 ++
+ docs/pm/tablero.md                                 |   2 +
+ docs/pm/tareas/T-012/brief-dev.md                  | 156 ++++++++++++
+ docs/pm/tareas/T-012/brief-qa.md                   | 166 ++++++++++++
+ docs/pm/tareas/T-012/entrega-dev.md                | 215 ++++++++++++++++
+ docs/pm/tareas/T-012/pruebas-pm-r1.txt             |  46 ++++
+ lib/vista-previa.ts                                | 163 ++++++++++++
+ tests/navegador/autos.spec.ts                      | 174 +++++++++++++
+ tests/unidad/vista-previa.test.ts                  | 283 +++++++++++++++++++++
+ 15 files changed, 1705 insertions(+), 213 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/Code/lainfanteria-next-autos-vista-previa
+
+
+ Test Files  12 passed (12)
+      Tests  304 passed (304)
+   Start at  10:31:56
+   Duration  332ms (transform 469ms, setup 0ms, import 570ms, tests 203ms, environment 1ms)
+
+→ OK

@@ -1,0 +1,79 @@
+# Gate PM — T-012 ronda 2
+fecha : 2026-10-19 10:54:05 -0400
+rama  : oliver132123/autos-vista-previa
+HEAD  : d89b2285b8c80c8c8764e32d70277ea993dc1747
+base  : origin/main (38141fb)
+
+## Commits
+d89b228 docs(pm): verificación del PM — T-012 r2
+1efc78b docs(pm): entrega de T-012, ronda 2
+7c8c7a8 test(navegador): precondiciones desde la base y regresión de D01
+e91c7c8 fix(admin): la vista previa deja inerte todo lo de atrás
+335eb88 fix(autos): índice de foto siempre válido y foco en el detalle
+dc640b1 docs(pm): brief de fix T-012 r2
+9bf64fd docs(pm): QA T-012 r1 — FAIL
+cc222ba docs(pm): verificación del PM — T-012 r1
+365ea0e docs(pm): entrega de T-012, ronda 1
+103f794 test(navegador): detalle de autos
+344b7ef feat(admin): vista previa del auto
+bd4a358 refactor(autos): tarjeta y detalle como componentes
+a073fac docs(pm): T-011 y T-012 en el tablero
+e18a573 docs(pm): brief T-012
+
+## Archivos
+ app/(admin)/(panel)/admin/autos/AutosAdmin.tsx     |  38 +--
+ app/(admin)/(panel)/admin/autos/VistaPrevia.tsx    | 135 +++++++++
+ .../(panel)/admin/autos/vista-previa.module.css    |  95 ++++++
+ app/(sitio)/autos/AutosGrid.tsx                    | 210 +------------
+ app/(sitio)/autos/DetalleAuto.tsx                  | 194 ++++++++++++
+ app/(sitio)/autos/TarjetaAuto.tsx                  |  73 +++++
+ app/(sitio)/autos/estado.ts                        |  16 +
+ docs/pm/tablero.md                                 |   2 +
+ docs/pm/tareas/T-012/brief-dev.md                  | 186 ++++++++++++
+ docs/pm/tareas/T-012/brief-qa.md                   | 177 +++++++++++
+ docs/pm/tareas/T-012/entrega-dev.md                | 165 +++++++++++
+ docs/pm/tareas/T-012/gate-r1.txt                   |  67 +++++
+ docs/pm/tareas/T-012/pruebas-pm-r1.txt             |  46 +++
+ docs/pm/tareas/T-012/pruebas-pm-r2.txt             |  38 +++
+ docs/pm/tareas/T-012/reporte-qa-r1.md              | 138 +++++++++
+ lib/galeria.ts                                     |  28 ++
+ lib/vista-previa.ts                                | 163 ++++++++++
+ tests/navegador/autos.spec.ts                      | 328 +++++++++++++++++++++
+ tests/unidad/galeria.test.ts                       | 103 +++++++
+ tests/unidad/vista-previa.test.ts                  | 283 ++++++++++++++++++
+ 20 files changed, 2274 insertions(+), 211 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/Code/lainfanteria-next-autos-vista-previa
+
+
+ Test Files  13 passed (13)
+      Tests  320 passed (320)
+   Start at  10:54:12
+   Duration  439ms (transform 523ms, setup 0ms, import 675ms, tests 241ms, environment 4ms)
+
+→ OK

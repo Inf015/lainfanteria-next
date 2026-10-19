@@ -1,0 +1,95 @@
+/* Vista previa del auto (T-012). Módulo propio: admin.module.css lo toca otra
+   tarea en paralelo, y la tarjeta y el detalle traen sus estilos del sitio
+   (app/(sitio)/autos/autos.module.css). */
+
+.fondo {
+    position: fixed;
+    inset: 0;
+    /* Por encima del modal del panel (200) y del toast (300); por debajo del
+       detalle del sitio (1100), que se abre encima de esta vista previa. */
+    z-index: 1050;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: rgba(0,0,0,0.82);
+}
+
+.panel {
+    width: 100%;
+    max-width: 440px;
+    margin: auto 0;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-top: 3px solid var(--color-primary);
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem 1.6rem;
+    min-width: 0;
+}
+
+.cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #eee;
+    margin: 0;
+}
+
+.cerrar {
+    background: transparent;
+    border: none;
+    color: #777;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.cerrar:hover { color: #fff; }
+
+.avisos {
+    list-style: none;
+    margin: 0 0 0.9rem;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.aviso {
+    background: rgba(120,80,0,0.35);
+    border: 1px solid #f9a825;
+    color: #ffe082;
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.ayuda {
+    font-size: 0.78rem;
+    color: #777;
+    margin: 0 0 0.9rem;
+}
+
+/* El ancho de una columna de la grilla de /autos en escritorio (~370 px). */
+.tarjeta {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+@media (max-width: 480px) {
+    .fondo { padding: 1rem; }
+    .panel { padding: 1rem; }
+}

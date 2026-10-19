@@ -1,0 +1,18 @@
+# Ronda 3 — cerrada por el PM (2026-10-19 11:41, HEAD 9075bb0)
+Oliver pidió cerrar rápido por consumo: el dev se detuvo con el fix de D06 escrito y sin commitear; el PM lo revisó, agregó el test de
+unidad de vistaPreviaTras y lo commiteó. Sin pasada de Codex en esta ronda (autorizado por Oliver).
+
+## Gate
+  typegen + tsc OK · lint OK
+   Test Files  13 passed (13)
+        Tests  326 passed (326)
+  next build OK
+
+## D06 en el navegador (misma secuencia que la reproducción de r2)
+  Vista previa habilitada con el guardado en vuelo: false | abierta: false
+  tras guardar → modal de edición abierto: false | vista previa abierta: false | elementos inert: 0
+  abrir Camaro → vista previa reaparece sola: false | errores: 0
+
+## Regresión D02/D03 y recorrido de r1
+  D02/D03: TODO OK · r1: 21 ✓ + las 2 comparaciones de HTML de /autos, que dieron ✗ por tiempo de carga del script
+  y repetidas con espera: <main> idéntico a main (131 líneas) y diálogo idéntico (41 líneas).

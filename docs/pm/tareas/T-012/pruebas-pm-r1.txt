@@ -1,0 +1,46 @@
+# Verificación del PM — T-012 ronda 1
+fecha: 2026-10-19 10:31:49 -0400  ·  HEAD: 365ea0e  ·  main: 38141fb
+Entorno: Supabase LOCAL (0001..0013, como producción), sección autos ACTIVA y 4 autos sembrados:
+  Mustang (3 fotos, disponible) · Camaro (1 foto, reservado) · Challenger (vendido) · Wrangler (sin fotos, DOP).
+  Fotos con URLs de demo de Cloudinary (host ya permitido en next.config y CSP). Admin local con contraseña.
+Servidores: next build && next start de main (3022) y de esta rama (3021), los dos contra la base local.
+
+## test:navegador contra la base local (en producción /autos está apagada y las 3 pruebas nuevas se saltan)
+    ✓   1 [chromium] › tests/navegador/autos.spec.ts:107:7 › /autos — detalle de un auto › abre el detalle, bloquea el scroll del fondo y Escape lo cierra (778ms)
+    ✓   2 [chromium] › tests/navegador/autos.spec.ts:127:7 › /autos — detalle de un auto › → y ← cambian de foto, dan la vuelta, y Escape cierra (815ms)
+    ✓   3 [chromium] › tests/navegador/autos.spec.ts:152:7 › /autos — detalle de un auto › las flechas y los puntos cambian de foto, y al reabrir arranca en la primera (1.1s)
+    15 skipped
+    3 passed (8.7s)
+  (las 15 del carrusel se saltan acá porque la base local no tiene pilotos; el dev las corrió verdes contra producción)
+
+## Recorrido automatizado (Playwright, script del PM fuera del repo)
+  ✓ 1280px: HTML de /autos con el detalle abierto idéntico a main
+  ✓ 1280px: HTML del diálogo de detalle idéntico a main
+  ✓ 375px: HTML de /autos con el detalle abierto idéntico a main
+  ✓ 375px: HTML del diálogo de detalle idéntico a main
+  ✓ auto guardado sin cambios → sin avisos ([])
+  ✓ el foco entra a la vista previa
+  ✓ el detalle de la vista previa muestra la galería (1 / 3)
+  ✓ → cambia de foto dentro de la vista previa
+  ✓ WhatsApp sin href (inerte)
+  ✓ clic en WhatsApp no abre pestaña ni navega
+  ✓ Escape 1 → cierra el detalle, la vista previa sigue
+  ✓ Escape 2 → cierra la vista previa
+  ✓ el modal de edición sigue abierto
+  ✓ el formulario quedó intacto
+  ✓ el foco vuelve al botón «Vista previa»
+  ✓ avisos combinados: ["Cambios sin guardar","No visible en el sitio","Vendido: no aparece en el sitio","Precio inválido"]
+  ✓ precio vacío no muestra un precio inventado («Ver detalle ›VendidoFord Mustang GT20205.0L V8 Coyote—45,000 km»)
+  ✓ cerrar con ✕ no toca el formulario
+  ✓ auto nuevo: ["Cambios sin guardar","Sin fotos","Precio inválido"]
+  ✓ 360px: sin scroll horizontal
+  ✓ 360px detalle: sin scroll horizontal
+  ✓ consola del panel sin errores/CSP (0) 
+  ✓ sin imágenes rotas en el panel (0)
+
+## Revisión visual de capturas
+- /autos de la rama a 1280 y 375: igual a main (además del HTML idéntico de arriba).
+- Vista previa en el panel a 1280: tarjeta con foto, badge, precio y km como en el sitio. La primera captura salió con la foto vacía:
+  era la carga diferida (loading=lazy); el img estaba complete, naturalWidth 422, visible. Recapturada después de cargar: OK.
+- Detalle a 360: OK. Se ve un rectángulo celeste: es el resaltado de toque de la emulación móvil (tap highlight), no del componente.
+- CSP del panel: img-src 'self' … — next/image sale por /_next/image (self); 0 violaciones en consola.
