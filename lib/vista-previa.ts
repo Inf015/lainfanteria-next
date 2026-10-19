@@ -161,3 +161,42 @@ export function armarVistaPrevia(
 
   return { auto, avisos };
 }
+
+/**
+ * Lo que le pasa al editor de autos del panel. Decide si la vista previa queda
+ * abierta (T-012-D06).
+ */
+export type TransicionEditor =
+  /** Clic en «Vista previa». */
+  | 'abrir-vista-previa'
+  /** ✕ o `Escape` de la vista previa. */
+  | 'cerrar-vista-previa'
+  /** «+ Nuevo auto». */
+  | 'abrir-nuevo'
+  /** «Editar» en una fila de la tabla. */
+  | 'abrir-edicion'
+  /** Se cierra el editor: «Cerrar», ✕, clic en el fondo, o guardar con éxito una edición. */
+  | 'cerrar-editor'
+  /** Se creó el auto: el editor sigue abierto, pero ya sobre otro registro. */
+  | 'guardado';
+
+/**
+ * ¿La vista previa queda abierta después de `transicion`?
+ *
+ * Solo la abre su botón, y solo si no se está guardando: previsualizar algo a
+ * mitad de guardado no tiene sentido, y era la puerta de entrada de D06. Todo
+ * lo demás —cerrar el editor, cambiar de registro, cerrarla— la deja cerrada,
+ * así ningún estado de la vista previa sobrevive al editor que la abrió.
+ */
+export function vistaPreviaTras(transicion: TransicionEditor, guardando: boolean): boolean {
+  switch (transicion) {
+    case 'abrir-vista-previa':
+      return !guardando;
+    case 'cerrar-vista-previa':
+    case 'abrir-nuevo':
+    case 'abrir-edicion':
+    case 'cerrar-editor':
+    case 'guardado':
+      return false;
+  }
+}

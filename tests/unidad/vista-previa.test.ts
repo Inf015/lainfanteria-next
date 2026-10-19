@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Auto, EstadoAuto } from '@/lib/types';
 import {
+  vistaPreviaTras,
   armarVistaPrevia,
   precioDeFormulario,
   TEXTO_AVISO,
@@ -280,4 +281,19 @@ describe('TEXTO_AVISO', () => {
       'precio-invalido': 'Precio inválido',
     });
   });
+});
+
+describe('vistaPreviaTras (T-012-D06)', () => {
+  it('solo su botón la abre, y no mientras se guarda', () => {
+    expect(vistaPreviaTras('abrir-vista-previa', false)).toBe(true);
+    expect(vistaPreviaTras('abrir-vista-previa', true)).toBe(false);
+  });
+
+  it.each(['cerrar-vista-previa', 'abrir-nuevo', 'abrir-edicion', 'cerrar-editor', 'guardado'] as const)(
+    '«%s» la deja cerrada, se esté guardando o no',
+    (t) => {
+      expect(vistaPreviaTras(t, false)).toBe(false);
+      expect(vistaPreviaTras(t, true)).toBe(false);
+    },
+  );
 });

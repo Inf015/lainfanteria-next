@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { AutoConFotos, EstadoAuto, Moneda } from '@/lib/types';
-import type { FormAuto } from '@/lib/vista-previa';
+import { vistaPreviaTras, type FormAuto, type TransicionEditor } from '@/lib/vista-previa';
 import SubirFotos, { type FotoFila } from '../_componentes/SubirFotos';
 import s from '../../../admin.module.css';
 import { formatPrecio } from '@/lib/formato';
@@ -63,6 +63,9 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   // La vista previa se aísla sola (todo el <body> detrás queda `inert`) y
   // devuelve el foco al botón que la abrió: ver VistaPrevia.tsx.
   const [vistaPrevia, setVistaPrevia] = useState(false);
+  // Toda transición del editor pasa por acá: ninguna deja la vista previa
+  // abierta salvo su propio botón (T-012-D06).
+  const transicion = (t: TransicionEditor) => setVistaPrevia(vistaPreviaTras(t, guardando));
 
   function avisar(msg: string) {
     setToast(msg);
@@ -70,6 +73,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   }
 
   function abrirNuevo() {
+    transicion('abrir-nuevo');
     setEditando(null);
     setForm(VACIO);
     setError(null);
@@ -77,6 +81,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   }
 
   function abrirEdicion(a: AutoConFotos) {
+    transicion('abrir-edicion');
     setEditando(a);
     setForm(aForm(a));
     setError(null);
@@ -84,6 +89,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   }
 
   function cerrar() {
+    transicion('cerrar-editor');
     setAbierto(false);
     setEditando(null);
     // La lista puede haber cambiado por fotos subidas dentro del modal.
@@ -151,6 +157,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
       setAutos((prev) => [...prev, nuevo]);
       // Se queda abierto en modo edición para poder cargarle las fotos.
       setEditando(nuevo);
+      transicion('guardado');
       avisar('Auto creado — ahora podés subirle fotos');
       setGuardando(false);
     }
@@ -464,7 +471,8 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
               <button
                 type="button"
                 className={s.btnSecundario}
-                onClick={() => setVistaPrevia(true)}
+                onClick={() => transicion('abrir-vista-previa')}
+                disabled={guardando}
               >
                 Vista previa
               </button>
@@ -486,7 +494,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
           form={form}
           fotos={editando?.auto_fotos ?? []}
           guardado={editando}
-          alCerrar={() => setVistaPrevia(false)}
+          alCerrar={() => transicion('cerrar-vista-previa')}
         />
       )}
 
