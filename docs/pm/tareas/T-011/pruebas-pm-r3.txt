@@ -1,0 +1,17 @@
+# Pruebas a cargo del PM — T-011 ronda 3
+
+## Antes del fix de r3 (HEAD cac4d12): reproducción de D01 cerrar/reabrir en el navegador
+  inicio      base: cld-sample-2.jpg* sample.jpg | pantalla: cld-sample-2.jpg* sample.jpg
+  reabierto con la subida en vuelo: ★ deshabilitada = false
+  tras ★      base: sample.jpg* cld-sample-2.jpg | pantalla: sample.jpg* cld-sample-2.jpg
+  subida fin  base: sample.jpg* cld-sample-2.jpg <A>.png | pantalla: cld-sample-2.jpg* sample.jpg <A>.png  ← D01 confirmado
+
+## D02 (r2) ejecutado contra Supabase local
+  con galería de 2+ fotos visible:
+     Test Files  1 passed (1)
+          Tests  50 passed (50)
+  sin ninguna (autos 1 y 2 ocultos):
+    ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+     FAIL  tests/seguridad/rls.test.ts > reordenar_fotos está cerrada a anon > rechaza la llamada con 42501 y la galería no cambia
+    Error: Precondición: hace falta al menos un auto con 2 o más fotos visibles para anon (en local, sembrarlas antes de correr la suite).
+          Tests  1 failed | 49 passed (50)

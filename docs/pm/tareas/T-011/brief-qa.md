@@ -1,4 +1,4 @@
-# QA T-011 — Reordenar las fotos de una galería — ronda 2
+# QA T-011 — Reordenar las fotos de una galería — ronda 3
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -27,9 +27,9 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-011/brief-dev.md` (criterios CA-*) |
 | Entrega del dev | `docs/pm/tareas/T-011/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-011/gate-rN.txt` |
-| Ronda anterior | `reporte-qa-r1.md` (FAIL: D01 S2/P1, D02 S3/P3) |
+| Ronda anterior | `reporte-qa-r2.md` (FAIL: D01 PARTIAL; D02 y D03 FIXED) |
 | Carril | **Estricto** — RPC `security definer` nueva (0014) |
-| Pruebas del PM | `pruebas-pm-r1.txt` y `pruebas-pm-r2.txt` (SQL contra Supabase local) |
+| Pruebas del PM | `pruebas-pm-r1.txt`, `pruebas-pm-r2.txt` y `pruebas-pm-r3.txt` |
 
 ## Qué hacer
 
@@ -56,7 +56,16 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
    NOT FIXED / PARTIAL) + *regression testing* de lo que el fix tocó. Los fixes
    introducen defectos nuevos seguido: buscalos.
 
-## Ronda 2
+## Ronda 3 (última)
+
+Confirmation testing de D01 según la sección 7 del brief (ronda 3): el candado
+tiene que sobrevivir al desmontaje y remontaje, y el padre tiene que aplicar
+cada publicación al registro correcto. Regression testing de D02/D03 y de lo
+que tocó el fix. Se autorizó tocar **solo** `actualizarFotos` en
+`AutosAdmin.tsx` y `ProductosAdmin.tsx`: cualquier otro cambio en esos archivos
+es defecto. La ejecución en navegador del PM está en `pruebas-pm-r3.txt`.
+
+## Ronda 2 (histórico)
 
 Confirmation testing de D01, D02 y D03 (sección 7 del brief) y regression
 testing de todo lo que tocó el fix. El brief pide corregir **la clase** de D01:
@@ -94,8 +103,9 @@ en r1 (multidimensional, límite inferior 0, productos) están en
    aceptado en el brief; verificá que la entrega lo documente y que el panel no
    lo empeore (p. ej. revertir la lista local mostrando una foto que ya no
    existe).
-7. **Fuera de alcance:** `marcar_foto_principal`, `AutosAdmin.tsx`,
-   `ProductosAdmin.tsx` y `lib/datos.ts` no deberían aparecer en el diff.
+7. **Fuera de alcance:** `marcar_foto_principal` y `lib/datos.ts` no deberían
+   aparecer en el diff; de `AutosAdmin.tsx` y `ProductosAdmin.tsx`, solo
+   `actualizarFotos` (ronda 3).
 
 ## Checklist del proyecto (error guessing)
 

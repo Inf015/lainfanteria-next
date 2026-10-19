@@ -7,7 +7,7 @@
 | Base | `origin/main` |
 | Tipo | feat |
 | Migración | **Sí** — `0014_reordenar_fotos.sql` |
-| Ronda | 2 — ver `reporte-qa-r1.md` (FAIL: D01 P1, D02 P3) |
+| Ronda | **3 (última)** — ver `reporte-qa-r2.md` (FAIL: D01 PARTIAL) |
 | Carril | **Estricto** (RPC `security definer` que muta galerías) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
@@ -173,6 +173,31 @@ decisión.
 | T-011-D01 | S2/P1 | Dos subidas superpuestas liberan el bloqueo antes de tiempo (`setSubiendo(0)` incondicional) y la segunda publica una lista capturada al empezar, que pisa un reordenamiento ya guardado | **Clase:** toda operación de la galería (subir, mover, ★, borrar) pasa por **una sola guardia síncrona** (`ocupadoRef` o equivalente). Mientras una está en vuelo, cualquier otra, **incluida otra subida**, se rechaza con el aviso que ya existe. No pueden quedar dos fuentes de verdad del bloqueo (`ocupado` vs. `subiendo`). Revisá **cada** `onCambio(...)`: ninguno puede publicar una lista armada desde un `fotos` capturado antes de un `await` si en el medio pudo cambiar. Con la guardia única eso no debería pasar; dejalo explicado en un comentario y en la entrega, función por función. |
 | T-011-D02 | S3/P3 | La prueba de seguridad pasa en vacío si no hay fotos visibles (fallback `autoId = 1`, ids `[1]`) y no verifica que las lecturas salgan bien | Las lecturas exigen `r.ok`. La prueba busca una galería con **al menos 2 fotos** visibles para `anon` y, si no existe, **falla** con un mensaje explícito de precondición (producción tiene datos; el PM siembra la base local). Los ids se mandan invertidos, así que un `200` cambiaría el orden de verdad. |
 | T-011-D03 | S3/P2 | Riesgo de QA, misma familia que D01 (la lista local deja de reflejar la base): en `borrar()`, si `borrarDelBucket` lanza, no llega a ejecutarse `onCambio` y la foto borrada sigue en pantalla | Después de que el `DELETE` salió bien, la lista local refleja el borrado **pase lo que pase** con la renormalización o con el bucket (`try/finally` o publicar antes de liberar el bucket; elegí y justificá). |
+
+**Ronda 3 (última que permite el proceso).** De `reporte-qa-r2.md`: D02 y D03
+FIXED; **D01 PARTIAL**. El PM lo reprodujo en el navegador:
+
+```
+inicio      base: cld-sample-2* sample        | pantalla: cld-sample-2* sample
+(subida en vuelo → Cerrar → reabrir el mismo auto: la ★ está HABILITADA)
+tras ★      base: sample* cld-sample-2        | pantalla: sample* cld-sample-2
+subida fin  base: sample* cld-sample-2 <A>    | pantalla: cld-sample-2* sample <A>   ← principal distinta
+```
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-011-D01 (r3) | S2/P1 | El candado vive en la **instancia** de `SubirFotos`: cerrar el modal la desmonta, al reabrir se monta otra con el candado libre, y la operación vieja sigue viva y publica su captura por un callback del padre que ya no corresponde | **(a) El candado es de la galería, no del componente.** Vive fuera de la instancia (registro de módulo con clave `tabla:registroId`, con suscripción, p. ej. `useSyncExternalStore`), así que cualquier instancia que muestre esa galería la ve ocupada mientras haya una operación en vuelo, aunque se haya desmontado y vuelto a montar. Con eso nada puede cambiar la galería entre la captura y la publicación. **(b) El padre aplica cada publicación al registro correcto.** En `AutosAdmin.tsx` y `ProductosAdmin.tsx`, **solo** `actualizarFotos`: actualizaciones funcionales con la clave del registro (`setAutos(prev => …id === id ? { ...a, auto_fotos: fotos } : a)` y `setEditando(prev => prev?.id === id ? { ...prev, auto_fotos: fotos } : prev)`). Así una subida que termina con el modal cerrado o con **otro** auto abierto actualiza la fila de su auto y no pisa el auto que se está editando ni los demás campos con una copia vieja. **Autorizado tocar esas dos funciones y nada más de esos archivos**: T-012 modifica otras partes de `AutosAdmin.tsx` en paralelo. |
+
+Pruebas: tests de unidad del registro (dos «instancias» comparten el candado de
+la misma galería; galerías distintas no se bloquean entre sí; una excepción lo
+libera para todas; desuscribirse no lo libera). Las mutaciones (candado por
+instancia de nuevo, clave que ignore `registroId`) tienen que hacerlas fallar;
+pegá la salida. El PM repite en el navegador: cerrar/reabrir el mismo auto con
+subida en vuelo (★ deshabilitada hasta que termina, pantalla = base al final) y
+cerrar/abrir **otro** auto con subida en vuelo (el otro auto no cambia; la
+subida aparece en el suyo).
+
+---
 
 Pruebas: si extraés lógica pura para la guardia (p. ej. un reductor de estado
 de la galería), cubrila en `tests/unidad`. Si no, describí en la entrega la
