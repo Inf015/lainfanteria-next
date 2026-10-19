@@ -1,0 +1,64 @@
+# Gate PM — T-011 ronda 1
+fecha : 2026-10-19 10:19:43 -0400
+rama  : oliver132123/fotos-orden
+HEAD  : 453888099eb9d143816151611a3b119d779a264a
+base  : origin/main (38141fb)
+
+## Commits
+4538880 docs(pm): pruebas del PM contra Supabase local — T-011 r1
+36c63cb docs(pm): entrega de dev de T-011 ronda 1
+a7ae83e test(seguridad): reordenar_fotos cerrada a anon
+f82a264 fix(admin): borrar la principal promueve la siguiente
+625c77e feat(admin): reordenar fotos de la galería
+7d70f6f feat(db): reordenar_fotos
+82f21d5 docs(pm): T-011 y T-012 en el tablero
+bae88a4 docs(pm): brief T-011
+
+## Archivos
+ .../(panel)/admin/_componentes/SubirFotos.tsx      | 237 ++++++++++++++++++---
+ app/(admin)/admin.module.css                       |  34 ++-
+ docs/pm/tablero.md                                 |   2 +
+ docs/pm/tareas/T-011/brief-dev.md                  | 203 ++++++++++++++++++
+ docs/pm/tareas/T-011/brief-qa.md                   | 172 +++++++++++++++
+ docs/pm/tareas/T-011/entrega-dev.md                | 169 +++++++++++++++
+ docs/pm/tareas/T-011/pruebas-pm-r1.txt             |  67 ++++++
+ lib/galeria.ts                                     |  55 +++++
+ supabase/migrations/0014_reordenar_fotos.sql       | 208 ++++++++++++++++++
+ tests/seguridad/rls.test.ts                        |  42 ++++
+ tests/unidad/galeria.test.ts                       | 151 +++++++++++++
+ 11 files changed, 1308 insertions(+), 32 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/Code/lainfanteria-next-fotos-orden
+
+
+ Test Files  12 passed (12)
+      Tests  253 passed (253)
+   Start at  10:19:49
+   Duration  301ms (transform 410ms, setup 0ms, import 526ms, tests 183ms, environment 1ms)
+
+→ OK
