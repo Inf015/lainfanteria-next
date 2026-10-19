@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
+import { moverFoto, normalizarGaleria } from '@/lib/galeria';
 import s from '../../../admin.module.css';
 
 export interface FotoFila {
@@ -24,11 +25,28 @@ interface Props {
 }
 
 /**
+ * Tipo de dato propio que viaja en el `dataTransfer` al arrastrar una
+ * miniatura. Es lo que distingue un reordenamiento de un archivo que viene del
+ * sistema: la zona de subida ignora los arrastres que lo traen, y la grilla
+ * ignora los que no.
+ */
+const MIME_FOTO = 'application/x-lainfanteria-foto';
+
+function esArrastreDeFoto(e: DragEvent) {
+  return e.dataTransfer.types.includes(MIME_FOTO);
+}
+
+/**
  * Galería con subida directa a Supabase Storage.
  *
  * Sube el archivo, crea la fila en la tabla de fotos y devuelve la lista
  * actualizada. Reemplaza el flujo manual de subir a Storage, copiar la URL y
  * crear la fila a mano en el Table Editor.
+ *
+ * La primera foto de la galería es la principal. Se reordena arrastrando o con
+ * ◀ ▶, y la ★ manda una foto al primer lugar; todo pasa por la RPC
+ * `reordenar_fotos` (migración 0014), que guarda orden y principal juntos en
+ * una sola transacción.
  */
 export default function SubirFotos({
   tabla,
@@ -40,10 +58,43 @@ export default function SubirFotos({
   const [subiendo, setSubiendo] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
+  /** Hay un reordenamiento o un borrado esperando respuesta de la base. */
+  const [ocupado, setOcupado] = useState(false);
+  /** Posición de la miniatura que se está arrastrando, y la de destino. */
+  const [arrastrada, setArrastrada] = useState<number | null>(null);
+  const [destino, setDestino] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // El estado `ocupado` tarda un render en deshabilitar los botones; el ref
+  // corta en el acto un segundo clic que llegue antes.
+  const ocupadoRef = useRef(false);
+
+  // Una subida en curso también bloquea el orden: `subir` termina con
+  // `onCambio([...fotos, ...nuevas])` sobre la lista que tenía al empezar, y
+  // pisaría un reordenamiento hecho mientras tanto.
+  const bloqueado = ocupado || subiendo > 0;
+
+  function empezar() {
+    if (ocupadoRef.current) return false;
+    ocupadoRef.current = true;
+    setOcupado(true);
+    setError(null);
+    return true;
+  }
+
+  function terminar() {
+    ocupadoRef.current = false;
+    setOcupado(false);
+  }
 
   async function subir(archivos: FileList | null) {
     if (!archivos?.length) return;
+    // Al revés que arriba: un reordenamiento en vuelo ya mandó su lista a
+    // `onCambio`, y una subida que arranque sobre la anterior la pisaría.
+    if (ocupadoRef.current) {
+      setError('Esperá a que termine de guardarse la galería y volvé a elegir las fotos.');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
     setError(null);
     setSubiendo(archivos.length);
 
@@ -104,36 +155,68 @@ export default function SubirFotos({
     }
   }
 
-  async function marcarPrincipal(id: number) {
-    setError(null);
+  /**
+   * Mueve la foto de `desde` a `hasta` y lo guarda al instante.
+   *
+   * Optimista: la galería cambia en pantalla antes de que conteste la base, y
+   * si la RPC falla vuelve a la lista anterior. La RPC recibe la galería
+   * entera y escribe orden y principal en una transacción, así que no hay
+   * estado intermedio posible ni en la base ni acá.
+   */
+  async function mover(desde: number, hasta: number) {
+    const anterior = fotos;
+    const nueva = moverFoto(anterior, desde, hasta);
+    if (nueva.every((f, i) => f.id === anterior[i].id)) return;
+    if (!empezar()) return;
 
-    const anterior = fotos.find((f) => f.es_principal);
-    if (anterior?.id === id) return;
+    const normalizada = normalizarGaleria(nueva);
+    onCambio(normalizada);
 
-    const db = crearClienteNavegador();
+    try {
+      const db = crearClienteNavegador();
+      const { error: err } = await db.rpc('reordenar_fotos', {
+        p_tabla: tabla,
+        p_padre_id: registroId,
+        p_ids: normalizada.map((f) => f.id),
+      });
 
-    // El swap va entero del lado del servidor (migración 0012): bajar la
-    // principal actual y subir la nueva desde acá serían dos UPDATE sueltos, y
-    // si el segundo falla la galería queda sin principal. La función corre en
-    // una transacción, así que o cambian las dos filas o no cambia ninguna.
-    const { error: err } = await db.rpc('marcar_foto_principal', {
-      p_tabla: tabla,
-      p_padre_id: registroId,
-      p_foto_id: id,
-    });
-
-    if (err) {
-      setError(err.message);
-      return;
+      if (err) {
+        onCambio(anterior);
+        setError(`No se pudo guardar el orden: ${err.message}`);
+      }
+    } catch (e) {
+      onCambio(anterior);
+      setError(`No se pudo guardar el orden: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      terminar();
     }
+  }
 
-    onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
+  function soltarSobre(e: DragEvent, hasta: number) {
+    // Siempre se cancela el default: un archivo del sistema soltado sobre la
+    // grilla haría que el navegador lo abra y se pierda el panel. Pero solo un
+    // arrastre de miniatura reordena; los archivos se suben en la zona de
+    // abajo.
+    e.preventDefault();
+    const desde = arrastrada;
+    setArrastrada(null);
+    setDestino(null);
+    if (!esArrastreDeFoto(e) || desde === null || bloqueado) return;
+    mover(desde, hasta);
   }
 
   async function borrar(foto: FotoFila) {
+    if (ocupadoRef.current) return;
     if (!confirm('¿Borrar esta foto?')) return;
-    setError(null);
+    if (!empezar()) return;
+    try {
+      await borrarFila(foto);
+    } finally {
+      terminar();
+    }
+  }
 
+  async function borrarFila(foto: FotoFila) {
     const db = crearClienteNavegador();
     const { error: err } = await db.from(tabla).delete().eq('id', foto.id);
     if (err) {
@@ -156,30 +239,83 @@ export default function SubirFotos({
 
       {fotos.length > 0 && (
         <div className={s.grillaFotos}>
-          {fotos.map((foto) => (
+          {fotos.map((foto, i) => (
             <div
               key={foto.id}
-              className={`${s.fotoItem} ${foto.es_principal ? s.fotoPrincipal : ''}`}
+              className={[
+                s.fotoItem,
+                foto.es_principal ? s.fotoPrincipal : '',
+                arrastrada === i ? s.fotoArrastrada : '',
+                destino === i && arrastrada !== i ? s.fotoDestino : '',
+              ].join(' ')}
+              draggable={!bloqueado}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(MIME_FOTO, String(foto.id));
+                e.dataTransfer.effectAllowed = 'move';
+                setArrastrada(i);
+              }}
+              onDragEnd={() => {
+                setArrastrada(null);
+                setDestino(null);
+              }}
+              onDragOver={(e) => {
+                // preventDefault siempre (ver `soltarSobre`); el efecto solo se
+                // anuncia como «mover» para las miniaturas.
+                e.preventDefault();
+                if (esArrastreDeFoto(e)) {
+                  e.dataTransfer.dropEffect = 'move';
+                  if (destino !== i) setDestino(i);
+                } else {
+                  e.dataTransfer.dropEffect = 'none';
+                }
+              }}
+              onDrop={(e) => soltarSobre(e, i)}
             >
+              {/* La imagen no se arrastra sola: el que se arrastra es el
+                  recuadro, que es el que lleva el tipo propio de dato. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={foto.url} alt="" />
+              <img src={foto.url} alt="" draggable={false} />
               {foto.es_principal && <span className={s.badgePrincipal}>PRINCIPAL</span>}
               <div className={s.fotoAcciones}>
-                {!foto.es_principal && (
+                <button
+                  type="button"
+                  className={s.btnFoto}
+                  onClick={() => mover(i, i - 1)}
+                  disabled={bloqueado || i === 0}
+                  title="Mover a la izquierda"
+                  aria-label="Mover a la izquierda"
+                >
+                  ◀
+                </button>
+                {i > 0 && (
                   <button
                     type="button"
                     className={s.btnFoto}
-                    onClick={() => marcarPrincipal(foto.id)}
-                    title="Usar como principal"
+                    onClick={() => mover(i, 0)}
+                    disabled={bloqueado}
+                    title="Mandar al primer lugar"
+                    aria-label="Mandar al primer lugar"
                   >
                     ★
                   </button>
                 )}
                 <button
                   type="button"
+                  className={s.btnFoto}
+                  onClick={() => mover(i, i + 1)}
+                  disabled={bloqueado || i === fotos.length - 1}
+                  title="Mover a la derecha"
+                  aria-label="Mover a la derecha"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
                   className={`${s.btnFoto} ${s.btnFotoBorrar}`}
                   onClick={() => borrar(foto)}
+                  disabled={bloqueado}
                   title="Borrar"
+                  aria-label="Borrar"
                 >
                   ✕
                 </button>
@@ -193,12 +329,19 @@ export default function SubirFotos({
         className={`${s.dropZona} ${arrastrando ? s.dropZonaActiva : ''}`}
         onDragOver={(e) => {
           e.preventDefault();
+          // Una miniatura arrastrada hasta acá no es una subida: ni se ilumina
+          // la zona ni se acepta el drop.
+          if (esArrastreDeFoto(e)) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+          }
           setArrastrando(true);
         }}
         onDragLeave={() => setArrastrando(false)}
         onDrop={(e) => {
           e.preventDefault();
           setArrastrando(false);
+          if (esArrastreDeFoto(e)) return;
           subir(e.dataTransfer.files);
         }}
       >
@@ -218,8 +361,9 @@ export default function SubirFotos({
       </div>
 
       <p className={s.ayuda}>
-        La marcada como principal (★) es la que aparece en la tarjeta del sitio. La
-        primera que subas queda como principal automáticamente.
+        La primera foto es la principal: es la que aparece en la tarjeta del sitio, y
+        las demás salen en este mismo orden. Arrastralas o usá ◀ ▶ para
+        reordenarlas; la ★ manda una foto al primer lugar.
       </p>
     </div>
   );

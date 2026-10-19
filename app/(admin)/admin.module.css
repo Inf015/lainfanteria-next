@@ -644,6 +644,10 @@
 
 .fotoPrincipal { border-color: var(--color-primary); }
 
+.fotoItem[draggable="true"] { cursor: grab; }
+.fotoArrastrada { opacity: 0.4; }
+.fotoDestino { outline: 2px dashed var(--color-primary); outline-offset: 2px; }
+
 .badgePrincipal {
     position: absolute;
     top: 3px;
@@ -664,12 +668,27 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 0.3rem;
     opacity: 0;
     transition: opacity 0.15s;
 }
 
-.fotoItem:hover .fotoAcciones { opacity: 1; }
+.fotoItem:hover .fotoAcciones,
+.fotoItem:focus-within .fotoAcciones { opacity: 1; }
+
+/* Sin hover (celular, tablet) los controles tienen que estar siempre: no hay
+   forma de hacerlos aparecer. Van en una franja abajo para no tapar la foto. */
+@media (hover: none) {
+    .fotoAcciones {
+        opacity: 1;
+        inset: auto 0 0 0;
+        padding: 0.25rem;
+        gap: 0.25rem;
+        background: rgba(0,0,0,0.65);
+    }
+}
 
 .btnFoto {
     background: rgba(255,255,255,0.16);
@@ -684,6 +703,17 @@
 
 .btnFoto:hover { background: rgba(255,255,255,0.32); }
 .btnFotoBorrar:hover { background: rgba(211,47,47,0.75); }
+
+/* Controles de la galería: cuatro botones (◀ ★ ▶ ✕) en una miniatura de
+   110 px. Si no entran en una fila, bajan a la segunda en vez de cortarse. */
+.fotoAcciones .btnFoto { padding: 0.25rem 0.4rem; }
+.fotoAcciones .btnFoto:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.fotoAcciones .btnFoto:disabled,
+.fotoAcciones .btnFoto:disabled:hover {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: rgba(255,255,255,0.16);
+}
 
 .subiendo {
     font-size: 0.8rem;
