@@ -216,23 +216,44 @@ describe('reordenar_fotos está cerrada a anon', () => {
   // harían `ok = false` y la prueba pasaría por el motivo equivocado.
   type Fila = { id: number; auto_id: number; orden: number; es_principal: boolean };
 
-  async function galeria(autoId: number): Promise<Fila[]> {
-    const r = await rest(
-      `auto_fotos?select=id,auto_id,orden,es_principal&auto_id=eq.${autoId}&order=id`,
-    );
+  /** Una lectura fallida no puede pasar por «no hay datos». */
+  async function leer<T>(path: string): Promise<T> {
+    const r = await rest(path);
+    expect(r.ok, `GET ${path} respondió ${r.status}`).toBe(true);
     return r.json();
   }
 
+  /** La galería en el orden en que la muestra el sitio. */
+  function galeria(autoId: number) {
+    return leer<Fila[]>(
+      `auto_fotos?select=id,auto_id,orden,es_principal&auto_id=eq.${autoId}` +
+        '&order=es_principal.desc,orden.asc,id.asc',
+    );
+  }
+
   it('rechaza la llamada con 42501 y la galería no cambia', async () => {
-    // Payload realista: una galería que existe, en el orden inverso. Contra
-    // una galería inexistente un rechazo no probaría que la función no
-    // hubiera escrito algo de haber podido.
-    const [unaFoto]: Fila[] = await (
-      await rest('auto_fotos?select=id,auto_id,orden,es_principal&order=auto_id&limit=1')
-    ).json();
-    const autoId = unaFoto?.auto_id ?? 1;
+    // Precondición: una galería real con al menos dos fotos. Con una sola (o
+    // ninguna) invertir el orden no cambia nada, y la comparación de abajo
+    // pasaría aunque la función hubiera escrito. Si no existe, la prueba falla
+    // en vez de pasar en vacío.
+    const todas = await leer<Pick<Fila, 'auto_id'>[]>('auto_fotos?select=auto_id&order=auto_id');
+    const porAuto = new Map<number, number>();
+    for (const { auto_id } of todas) porAuto.set(auto_id, (porAuto.get(auto_id) ?? 0) + 1);
+    const autoId = [...porAuto].find(([, n]) => n >= 2)?.[0];
+
+    if (autoId === undefined) {
+      throw new Error(
+        'Precondición: hace falta al menos un auto con 2 o más fotos visibles para anon ' +
+          '(en local, sembrarlas antes de correr la suite).',
+      );
+    }
+
     const antes = await galeria(autoId);
-    const idsAlReves = antes.length > 0 ? antes.map((f) => f.id).reverse() : [1];
+    expect(antes.length).toBeGreaterThanOrEqual(2);
+
+    // El orden visible invertido: con dos o más fotos siempre es distinto del
+    // actual, así que si la llamada pasara, el orden cambiaría de verdad.
+    const idsAlReves = antes.map((f) => f.id).reverse();
 
     const r = await rest('rpc/reordenar_fotos', {
       method: 'POST',
