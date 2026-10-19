@@ -1,4 +1,4 @@
-# QA T-012 — Vista previa del auto en el panel — ronda 2
+# QA T-012 — Vista previa del auto en el panel — ronda 3
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -27,9 +27,9 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-012/brief-dev.md` (criterios CA-*) |
 | Entrega del dev | `docs/pm/tareas/T-012/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-012/gate-rN.txt` |
-| Ronda anterior | `reporte-qa-r1.md` (FAIL: D01, D02 P1; D03, D04 P2) |
+| Ronda anterior | `reporte-qa-r2.md` (PASS-WITH-RESERVATIONS; D05 cerrado por el PM; D06 confirmado por el PM) |
 | Carril | **Normal** — una pasada de QA |
-| Verificación manual del PM | `pruebas-pm-r1.txt` y `pruebas-pm-r2.txt` |
+| Verificación manual del PM | `pruebas-pm-r1.txt`, `pruebas-pm-r2.txt` y `pruebas-pm-r3.txt` |
 
 ## Qué hacer
 
@@ -56,7 +56,16 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
    NOT FIXED / PARTIAL) + *regression testing* de lo que el fix tocó. Los fixes
    introducen defectos nuevos seguido: buscalos.
 
-## Ronda 2
+## Ronda 3 (última)
+
+Confirmation testing de D06 (sección 6 del brief, bloque «Ronda 3»): **ningún**
+camino que cierre el editor o cambie de registro puede dejar la vista previa
+abierta para la próxima edición, y «Vista previa» queda deshabilitado mientras
+se guarda. Regression testing de D01–D04 sobre lo que tocó el fix. D05 lo cerró
+el PM con mutaciones contra Supabase real (`pruebas-pm-r2.txt`): confirmalo con
+esa evidencia, no lo reabras salvo que la evidencia no corresponda.
+
+## Ronda 2 (histórico)
 
 Confirmation testing de D01–D04 (sección 6 del brief) y regression testing de
 lo que tocó el fix. El brief pide corregir **clases**: verificá que el índice

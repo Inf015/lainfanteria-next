@@ -7,7 +7,7 @@
 | Base | `origin/main` |
 | Tipo | feat |
 | Migración | No |
-| Ronda | 2 — ver `reporte-qa-r1.md` (FAIL: D01 P1, D02 P1, D03 P2, D04 P2) |
+| Ronda | **3 (última)** — `reporte-qa-r2.md` PASS-WITH-RESERVATIONS + defecto confirmado por el PM (D06) |
 | Carril | **Normal** (componente con estado + refactor del sitio público) |
 
 **Antes de empezar leé `docs/pm/contexto.md` entero.** Sus reglas ganan sobre
@@ -139,6 +139,28 @@ sitio público.
 | T-012-D01 + D02 | S2/P1 | **Clase: el índice de foto del detalle puede quedar inválido cuando cambian las fotos con el detalle montado.** Instancias: otro auto (D01), galería vacía + flecha → `NaN` y después llegan fotos (D02). Hay más de la misma forma: con T-011 se pueden **borrar** fotos, y una galería que se achica deja el índice fuera de rango | El índice es **siempre válido** para la galería que se está mostrando, cambie como cambie: otro auto arranca en la primera foto (como en `main`); con 0 fotos las flechas no hacen nada; si la galería se achica, el índice se ajusta; jamás se lee `fotos[i]` con `i` fuera de rango. La lógica del índice va en una función pura con tests de unidad (siguiente/anterior con n = 0, 1, 3; ajuste al achicarse). |
 | T-012-D03 | S2/P2 | **Clase: el diálogo activo no aísla el resto de la página.** Con la vista previa abierta se llega con Shift+Tab a la tabla y a «+ Nuevo auto», que resetea el formulario. Con el detalle abierto encima de la vista previa, la vista previa sigue activa | Mientras la vista previa está abierta, **todo** lo que está detrás (no solo el modal de edición) es inerte. Con el detalle abierto encima, la vista previa también lo es, el foco entra al detalle y al cerrarlo vuelve a la tarjeta que lo abrió. Si para eso hace falta tocar `DetalleAuto`, el cambio también vale para `/autos`: está permitido (es una mejora de accesibilidad, no visual), pero se documenta en la entrega y se cubre con una prueba de navegador en `/autos`. |
 | T-012-D04 | S3/P2 | **Clase: un `skip` que decide con la misma UI que está bajo prueba.** Si desaparece el contador, la prueba se salta en vez de fallar | Revisá **todos** los `test.skip` de `autos.spec.ts`. La precondición de datos (hay autos, hay uno con 2+ fotos, la sección está apagada) se decide con una fuente **independiente de la UI**, por ejemplo la API REST con la clave pública (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` ya están en el entorno de la prueba), y verificando el código de respuesta de cada navegación. Si los datos dicen que hay un auto con 2+ fotos, la UI **tiene** que mostrar el contador y la imagen, o la prueba falla. Demostrá que falla si quitás el contador (mutación temporal, sin commitear) y pegá la salida. |
+
+**Ronda 3.** QA r2 dio PASS-WITH-RESERVATIONS (D01–D04 FIXED). La reserva de
+testware D05 la cerró el PM repitiendo las mutaciones contra Supabase local real
+(`pruebas-pm-r2.txt`). QA dejó un riesgo que el PM **confirmó en el navegador**:
+
+```
+Editar Mustang → cambiar precio → «Guardar cambios» (PATCH demorado 2 s)
+→ dentro de la latencia: «Vista previa» (está habilitado) → se abre
+→ termina el guardado: el modal se cierra, la vista previa también (se desmonta)
+→ Editar Camaro → la vista previa REAPARECE SOLA
+```
+
+| ID | Sev | Resumen | Esperado |
+| -- | --- | ------- | -------- |
+| T-012-D06 | S3/P2 | **Clase: estado de la vista previa que sobrevive al editor que la abrió.** `vistaPrevia` no se resetea cuando el editor se cierra o cambia de registro (cerrar, guardar con éxito, «+ Nuevo auto», «Editar» otro), así que la próxima edición abre con la vista previa ya puesta | **Todo** camino que cierra el editor o cambia de registro deja la vista previa cerrada, y el foco no queda apuntando a un botón desmontado. Revisá cada uno: `cerrar()`, el éxito de `guardar()`, `abrirNuevo()`, `abrirEdicion()`. Además, mientras `guardando` es `true`, «Vista previa» queda deshabilitado (no tiene sentido previsualizar algo que se está guardando y es la puerta de entrada de la carrera). |
+
+Pruebas: si extraés la transición a una función pura, cubrila en unidad. Si no,
+dejá en la entrega la secuencia exacta para el PM (la de arriba más «+ Nuevo
+auto» y «Editar» otro con la vista previa abierta). No hagas mutaciones contra
+un servidor que imite Supabase: el PM las corre contra Supabase local.
+
+---
 
 Pruebas de regresión obligatorias (navegador, `/autos`):
 - D01: A (2+ fotos) → flechas → Tab a otra tarjeta B → Enter → B en «1 / n», sin
