@@ -1,0 +1,38 @@
+# Verificación del PM — T-012 ronda 2
+fecha: 2026-10-19 10:54:04 -0400  ·  HEAD: 1efc78b
+Entorno: el mismo de pruebas-pm-r1.txt (Supabase local 0001..0013 reiniciada y sembrada; build de la rama en 3021 y de main en 3022).
+
+## test:navegador con datos locales (en producción las 4 de /autos se saltan: sección apagada)
+    ✓   2 [chromium] › tests/navegador/autos.spec.ts:198:7 › /autos — detalle de un auto › abre en la primera foto, el foco entra, bloquea el scroll, y Escape cierra y devuelve el foco (1.5s)
+    ✓   3 [chromium] › tests/navegador/autos.spec.ts:226:7 › /autos — detalle de un auto › → y ← cambian de foto y dan la vuelta, y Escape cierra (1.5s)
+    ✓   1 [chromium] › tests/navegador/autos.spec.ts:247:7 › /autos — detalle de un auto › las flechas y los puntos cambian de foto; ✕ cierra, devuelve el foco y al reabrir arranca en la primera (1.8s)
+    ✓   4 [chromium] › tests/navegador/autos.spec.ts:271:7 › /autos — detalle de un auto › D01: activar otra tarjeta con un detalle abierto la abre en su primera foto, sin errores (1.8s)
+    15 skipped
+    4 passed (10.9s)
+
+## D01 — reproducción del PM (Mustang →→, Tab hasta la tarjeta del Camaro, Enter)
+  main: Mustang tras →→ 3 / 3 · Tab llegó al Camaro: true · diálogo: «1 / 1 ✕ RESERVADO 2018 Chevrolet Camaro US$ 38,000 MOTOR 6.2» · errores: ninguno
+  rama: Mustang tras →→ 3 / 3 · Tab llegó al Camaro: true · diálogo: «1 / 1 ✕ RESERVADO 2018 Chevrolet Camaro US$ 38,000 MOTOR 6.2» · errores: ninguno
+  (r1: la rama reventaba con «Cannot read properties of undefined (reading 'url')»)
+
+## D02 / D03 — recorrido en el panel real (Playwright, script del PM fuera del repo)
+  ✓ D03: 50 Tab/Shift+Tab con la vista previa abierta, el foco nunca sale ()
+  ✓ D03: «+ Nuevo auto» está dentro de algo inerte
+  ✓ D03: con el detalle abierto el foco entra al detalle
+  ✓ D03: la vista previa queda inerte debajo del detalle
+  ✓ D03: Tab dentro del detalle no sale ()
+  ✓ D03: al cerrar el detalle el foco vuelve a la tarjeta
+  ✓ D03: al cerrar la vista previa no queda ningún inert
+  ✓ D03: el formulario sigue intacto
+  ✓ D02: al llegar la foto el detalle la muestra («1 / 1 ✕ DISPONIBLE 2021 Jeep Wrangler RD»)
+  ✓ sin errores de página ()
+  
+  TODO OK
+  Criterio de «el foco nunca sale»: ningún elemento de la página fuera del diálogo recibe foco. Que activeElement sea <body> al pasar
+  el último control es el foco yendo a la interfaz del navegador, lo normal con inert; no cuenta como fuga.
+
+## Regresión: recorrido de r1 completo sobre r2
+  23 ✓, 0 ✗ (HTML de /autos y del detalle idéntico a main a 1280 y 375; panel, avisos, WhatsApp inerte, Escape, foco, 360 px, CSP)
+
+## Nota sobre la decisión del dev de no volver inerte el fondo del detalle en /autos
+  Aceptada por el PM: es el comportamiento de main y la prueba de D01 del brief lo presupone. Aislar el detalle público sería otra tarea.
