@@ -116,3 +116,76 @@ export async function enExclusiva(
   }
   return true;
 }
+
+/**
+ * Candados por galería, compartidos por todas las instancias que la muestren.
+ *
+ * El candado no puede vivir en el componente (T-011-D01, ronda 3): cerrar el
+ * modal desmonta `SubirFotos`, al reabrir se monta otra instancia con un
+ * candado nuevo y libre, y la operación de la instancia vieja sigue viva y
+ * termina publicando la lista que capturó al empezar. La galería es la misma;
+ * lo que cambió es el componente. Por eso el candado se indexa por galería
+ * (`tabla:registroId`) y vive a nivel de módulo, más allá de cualquier montaje.
+ *
+ * Expone `suscribir`/`tomado` con la forma que pide `useSyncExternalStore`, así
+ * cada instancia se entera de que su galería se ocupó o se liberó aunque la
+ * operación la haya empezado otra instancia.
+ *
+ * Desuscribirse **no** suelta el candado: una instancia que se desmonta deja
+ * de mirar, pero su operación sigue en vuelo y la galería sigue ocupada hasta
+ * que termine.
+ */
+export interface RegistroCandados {
+  /** Vista del candado de esa galería. Dos llamadas con la misma clave comparten estado. */
+  candado(clave: string): Candado;
+  tomado(clave: string): boolean;
+  /** Avisa cada vez que esa galería se ocupa o se libera. Devuelve cómo desuscribirse. */
+  suscribir(clave: string, oyente: () => void): () => void;
+}
+
+/** Clave de una galería: la tabla de fotos y el registro padre. */
+export function claveGaleria(tabla: string, registroId: number): string {
+  return `${tabla}:${registroId}`;
+}
+
+export function crearRegistroCandados(): RegistroCandados {
+  const candados = new Map<string, Candado>();
+  const oyentes = new Map<string, Set<() => void>>();
+
+  function avisar(clave: string) {
+    // Copia: un oyente que se desuscribe al recibir el aviso no tiene que
+    // saltear al siguiente.
+    for (const oyente of [...(oyentes.get(clave) ?? [])]) oyente();
+  }
+
+  function candado(clave: string): Candado {
+    let c = candados.get(clave);
+    if (!c) {
+      c = crearCandado(() => avisar(clave));
+      candados.set(clave, c);
+    }
+    return c;
+  }
+
+  return {
+    candado,
+    tomado: (clave) => candados.get(clave)?.tomado ?? false,
+    suscribir(clave, oyente) {
+      let set = oyentes.get(clave);
+      if (!set) {
+        set = new Set();
+        oyentes.set(clave, set);
+      }
+      set.add(oyente);
+      return () => {
+        set.delete(oyente);
+      };
+    },
+  };
+}
+
+/**
+ * El registro que usa el panel. Uno solo por pestaña: es lo que hace que dos
+ * montajes de la misma galería vean el mismo candado.
+ */
+export const candadosDeGaleria = crearRegistroCandados();

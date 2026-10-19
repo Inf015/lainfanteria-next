@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  candadosDeGaleria,
+  claveGaleria,
   crearCandado,
+  crearRegistroCandados,
   enExclusiva,
   moverFoto,
   normalizarGaleria,
@@ -258,5 +261,131 @@ describe('enExclusiva', () => {
     expect(candado.tomado).toBe(true);
     enVuelo.resolver();
     await a;
+  });
+});
+
+describe('claveGaleria', () => {
+  it('distingue el registro padre y la tabla', () => {
+    expect(claveGaleria('auto_fotos', 1)).not.toBe(claveGaleria('auto_fotos', 2));
+    expect(claveGaleria('auto_fotos', 1)).not.toBe(claveGaleria('producto_fotos', 1));
+    expect(claveGaleria('auto_fotos', 7)).toBe(claveGaleria('auto_fotos', 7));
+  });
+});
+
+describe('crearRegistroCandados', () => {
+  // Cada «instancia» de SubirFotos pide su candado al registro con la clave de
+  // su galería. Las pruebas simulan dos montajes pidiendo dos veces la vista.
+  const AUTO_1 = claveGaleria('auto_fotos', 1);
+  const AUTO_2 = claveGaleria('auto_fotos', 2);
+  const PRODUCTO_1 = claveGaleria('producto_fotos', 1);
+
+  it('dos instancias de la misma galería comparten el candado (cerrar y reabrir el modal)', async () => {
+    const registro = crearRegistroCandados();
+    const montajeViejo = registro.candado(AUTO_1);
+    const subida = pendiente();
+    const enVuelo = enExclusiva(montajeViejo, () => subida.promesa);
+
+    // El modal se cerró y se volvió a abrir: el montaje nuevo pide su candado.
+    const montajeNuevo = registro.candado(AUTO_1);
+    expect(montajeNuevo.tomado).toBe(true);
+    expect(registro.tomado(AUTO_1)).toBe(true);
+
+    let corrioLaEstrella = false;
+    expect(
+      await enExclusiva(montajeNuevo, async () => {
+        corrioLaEstrella = true;
+      }),
+    ).toBe(false);
+    expect(corrioLaEstrella).toBe(false);
+
+    subida.resolver();
+    await enVuelo;
+    expect(montajeNuevo.tomado).toBe(false);
+    expect(await enExclusiva(montajeNuevo, async () => {})).toBe(true);
+  });
+
+  it('galerías distintas no se bloquean entre sí', async () => {
+    const registro = crearRegistroCandados();
+    const subida = pendiente();
+    const enVuelo = enExclusiva(registro.candado(AUTO_1), () => subida.promesa);
+
+    expect(registro.tomado(AUTO_2)).toBe(false);
+    expect(registro.tomado(PRODUCTO_1)).toBe(false);
+    expect(await enExclusiva(registro.candado(AUTO_2), async () => {})).toBe(true);
+    expect(await enExclusiva(registro.candado(PRODUCTO_1), async () => {})).toBe(true);
+    expect(registro.tomado(AUTO_1)).toBe(true);
+
+    subida.resolver();
+    await enVuelo;
+  });
+
+  it('una excepción lo libera para todas las instancias', async () => {
+    const registro = crearRegistroCandados();
+    const op = pendiente();
+    const corrida = enExclusiva(registro.candado(AUTO_1), () => op.promesa);
+
+    op.rechazar(new Error('sesión vencida'));
+    await expect(corrida).rejects.toThrow('sesión vencida');
+
+    expect(registro.tomado(AUTO_1)).toBe(false);
+    expect(registro.candado(AUTO_1).tomado).toBe(false);
+  });
+
+  it('desuscribirse no lo libera: el componente se desmonta, la operación sigue', async () => {
+    const registro = crearRegistroCandados();
+    let avisos = 0;
+    const desuscribir = registro.suscribir(AUTO_1, () => avisos++);
+    const subida = pendiente();
+    const enVuelo = enExclusiva(registro.candado(AUTO_1), () => subida.promesa);
+
+    desuscribir(); // se cerró el modal
+    expect(registro.tomado(AUTO_1)).toBe(true);
+
+    subida.resolver();
+    await enVuelo;
+    expect(registro.tomado(AUTO_1)).toBe(false);
+    expect(avisos).toBe(1); // solo el «se ocupó»: después ya no estaba mirando
+  });
+
+  it('avisa a todos los suscriptores de esa galería, y solo de esa', async () => {
+    const registro = crearRegistroCandados();
+    const vistos: string[] = [];
+    registro.suscribir(AUTO_1, () => vistos.push(`a:${registro.tomado(AUTO_1)}`));
+    registro.suscribir(AUTO_1, () => vistos.push(`b:${registro.tomado(AUTO_1)}`));
+    registro.suscribir(AUTO_2, () => vistos.push('otra'));
+
+    await enExclusiva(registro.candado(AUTO_1), async () => {});
+
+    expect(vistos).toEqual(['a:true', 'b:true', 'a:false', 'b:false']);
+  });
+
+  it('un suscriptor que se va al recibir el aviso no hace saltear al siguiente', async () => {
+    const registro = crearRegistroCandados();
+    const vistos: string[] = [];
+    const desuscribirA = registro.suscribir(AUTO_1, () => {
+      vistos.push('a');
+      desuscribirA();
+    });
+    registro.suscribir(AUTO_1, () => vistos.push('b'));
+
+    await enExclusiva(registro.candado(AUTO_1), async () => {});
+
+    expect(vistos).toEqual(['a', 'b', 'b']);
+  });
+
+  it('una galería que nunca se usó figura libre', () => {
+    expect(crearRegistroCandados().tomado(AUTO_1)).toBe(false);
+  });
+
+  it('el registro del panel es uno solo: lo comparten todos los que lo importan', async () => {
+    const clave = claveGaleria('auto_fotos', -1); // un id que no existe en la base
+    const subida = pendiente();
+    const enVuelo = enExclusiva(candadosDeGaleria.candado(clave), () => subida.promesa);
+
+    expect(candadosDeGaleria.tomado(clave)).toBe(true);
+
+    subida.resolver();
+    await enVuelo;
+    expect(candadosDeGaleria.tomado(clave)).toBe(false);
   });
 });

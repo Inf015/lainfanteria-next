@@ -1,9 +1,15 @@
 'use client';
 
-import { useRef, useState, type DragEvent } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
-import { crearCandado, enExclusiva, moverFoto, normalizarGaleria } from '@/lib/galeria';
+import {
+  candadosDeGaleria,
+  claveGaleria,
+  enExclusiva,
+  moverFoto,
+  normalizarGaleria,
+} from '@/lib/galeria';
 import s from '../../../admin.module.css';
 
 export interface FotoFila {
@@ -60,6 +66,11 @@ function mensaje(e: unknown) {
  * que permite que cada una arme su lista a partir del `fotos` que había al
  * empezar, aunque publique después de varios `await`: mientras está en vuelo
  * nadie más puede cambiar la galería. Ver el comentario de cada operación.
+ *
+ * El candado es **de la galería**, no de esta instancia (`candadosDeGaleria`,
+ * con clave `tabla:registroId`): cerrar el modal desmonta el componente pero
+ * no corta la operación, y la instancia que se monte al reabrir tiene que ver
+ * la galería ocupada hasta que esa operación termine (T-011-D01, ronda 3).
  */
 export default function SubirFotos({
   tabla,
@@ -72,26 +83,29 @@ export default function SubirFotos({
   const [subiendo, setSubiendo] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
-  /**
-   * Espejo del candado para el render (deshabilitar controles). La fuente de
-   * verdad del bloqueo es el candado, que es síncrono: este estado recién se
-   * ve en el render siguiente.
-   */
-  const [ocupado, setOcupado] = useState(false);
   /** Posición de la miniatura que se está arrastrando, y la de destino. */
   const [arrastrada, setArrastrada] = useState<number | null>(null);
   const [destino, setDestino] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Uno por galería montada; `setOcupado` es estable, así que no hace falta
-  // recrearlo nunca.
-  const [candado] = useState(() => crearCandado(setOcupado));
+
+  const clave = claveGaleria(tabla, registroId);
+  /**
+   * Si la galería tiene una operación en vuelo, la haya empezado esta
+   * instancia u otra ya desmontada. Es el espejo del candado para el render
+   * (deshabilitar controles); la fuente de verdad es el candado, síncrono.
+   */
+  const ocupado = useSyncExternalStore(
+    useCallback((avisar: () => void) => candadosDeGaleria.suscribir(clave, avisar), [clave]),
+    () => candadosDeGaleria.tomado(clave),
+    () => false,
+  );
 
   /**
    * Corre una operación de la galería en exclusiva. Si ya hay otra en vuelo,
    * no la corre y muestra el aviso. Devuelve si corrió.
    */
   async function exclusiva(operacion: () => Promise<void>) {
-    const corrio = await enExclusiva(candado, async () => {
+    const corrio = await enExclusiva(candadosDeGaleria.candado(clave), async () => {
       setError(null);
       await operacion();
     });
@@ -231,7 +245,7 @@ export default function SubirFotos({
   }
 
   async function borrar(foto: FotoFila) {
-    if (candado.tomado) {
+    if (candadosDeGaleria.tomado(clave)) {
       setError(AVISO_OCUPADO);
       return;
     }
