@@ -15,7 +15,7 @@ import s from './autos.module.css';
  * primera foto. Para mostrar **otro** auto, quien lo usa le cambia la `key`
  * (un detalle montado por auto). Si las fotos cambian con el detalle abierto
  * —terminan de subirse o se borran en la vista previa—, el índice se ajusta
- * a la galería nueva (`lib/galeria.ts`): nunca se lee una foto inexistente.
+ * a la galería nueva (`lib/indice-foto.ts`): nunca se lee una foto inexistente.
  *
  * Mientras está montado, `Escape` lo cierra, ← y → cambian de foto y el scroll
  * del fondo queda bloqueado. Al abrir, el foco entra al botón de cerrar; al
