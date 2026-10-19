@@ -1,120 +1,125 @@
-# Entrega T-012 — ronda 1
+# Entrega T-012 — ronda 2
 
 **Estado:** LISTA PARA QA
 
-## Qué hice
+La ronda 1 quedó en FAIL con D01–D04. En esta ronda corregí **las clases**, como
+pide la sección 6 del brief, y no solo cada caso puntual. No toqué nada fuera de
+la sección 6. La enmienda de CA-8 (con el detalle abierto, el primer `Escape`
+cierra el detalle y el segundo la vista previa) ya era el comportamiento: no
+cambia.
 
-- **Refactor del sitio, sin cambio visual:** `AutosGrid` queda con los filtros y
-  el auto abierto; la tarjeta y el detalle pasan a componentes propios.
-  - `app/(sitio)/autos/TarjetaAuto.tsx`: la tarjeta de la grilla, el tipo
-    `AutoMostrable` (`:12`) y `precioMostrable` (`:21`).
-  - `app/(sitio)/autos/DetalleAuto.tsx`: el diálogo con la galería y la info.
-    Es **el único lugar** con el índice de foto, el teclado (`Escape`, ← →) y
-    el bloqueo del scroll (`:35-50`). Recibe `hrefWhatsapp`; si es `null`, el
-    botón se pinta igual pero sin `href` (`:143-155`).
-  - `app/(sitio)/autos/estado.ts`: `ESTADO_LABEL` / `ESTADO_CLASE`, que antes
-    vivían en `AutosGrid` y ahora usan los dos componentes.
-  - `app/(sitio)/autos/AutosGrid.tsx:62` y `:68`: monta `TarjetaAuto` y
-    `DetalleAuto`.
-- **Función pura** `lib/vista-previa.ts`: `armarVistaPrevia(form, fotos, guardado)`
-  (`:129`) → `{ auto, avisos }`; `precioDeFormulario` (`:84`); `TEXTO_AVISO`;
-  y el tipo `FormAuto`, que se mudó acá desde `AutosAdmin.tsx` para que lo usen
-  los dos lados.
-- **Panel:**
-  - `app/(admin)/(panel)/admin/autos/VistaPrevia.tsx`: el diálogo de vista
-    previa (avisos + tarjeta; al hacer clic en la tarjeta, el detalle).
-  - `app/(admin)/(panel)/admin/autos/vista-previa.module.css`: estilos propios,
-    módulo nuevo (no toqué `admin.module.css`).
-  - `app/(admin)/(panel)/admin/autos/AutosAdmin.tsx`: botón «Vista previa» en el
-    pie (`:476-483`), montaje del diálogo (`:497-504`), foco de vuelta al botón
-    (`:67-77`), `inert` en el modal de edición mientras la vista previa está
-    abierta (`:288`).
-- **Pruebas:** `tests/unidad/vista-previa.test.ts` (68 casos) y
-  `tests/navegador/autos.spec.ts` (3 pruebas).
+## Defecto → fix → test / evidencia
 
-## Trazabilidad
+| Defecto | Clase corregida | Fix | Test / evidencia |
+| ------- | --------------- | --- | ---------------- |
+| **D01** (S2/P1): otro auto con el detalle montado heredaba el índice de foto y `/autos` reventaba | El índice del detalle puede quedar inválido cuando cambian las fotos con el detalle montado | (1) `lib/galeria.ts:12-28`: `indiceValido`, `fotoSiguiente` y `fotoAnterior` devuelven siempre un índice dentro de `[0, n-1]`, o 0 sin fotos; nunca `NaN`. (2) `DetalleAuto.tsx:40`: el índice que se renderiza es `indiceValido(guardado, fotos.length)`, así que nunca se lee `fotos[i]` fuera de rango, cambie como cambie la galería. Las flechas y los puntos parten de ese índice ya ajustado. (3) `AutosGrid.tsx:71`: `key={detalle.id}`, un detalle por auto; el de otro auto arranca en su primera foto, como en `main`. | **Unidad:** `tests/unidad/galeria.test.ts` (16 casos: siguiente y anterior con n = 0, 1 y 3, ajuste al achicarse, `NaN`/±∞/negativos, fotos que llegan a una galería vacía, barrido de entradas para n = 0, 1, 3). **Navegador:** `autos.spec.ts:271` › «D01: activar otra tarjeta con un detalle abierto la abre en su primera foto, sin errores». Mutaciones M1, M1b, M2 y M6, abajo. |
+| **D02** (S2/P1): galería vacía + flecha → `NaN`; al llegar las fotos, `fotos[NaN].url` | La misma clase que D01 | La misma: con 0 fotos las flechas devuelven 0, y al llegar fotos el índice se ajusta con `indiceValido` | **Unidad:** `galeria.test.ts` › «sin fotos no hace nada: 0, nunca NaN», «con fotos que llegan a una galería vacía, arranca en la primera», «si la galería se achica…». **Harness de la vista previa** (no commiteado, abajo): flechas sin fotos → llegan 3 → «1 / 3», sin errores; → → «3 / 3»; se achica a 1 → «1 / 1». Con el `DetalleAuto` de la ronda 1, al llegar las fotos: `["Cannot read properties of undefined (reading 'url')"]`. |
+| **D03** (S2/P2): con la vista previa abierta se llegaba con Shift+Tab a la tabla y a «+ Nuevo auto»; con el detalle encima, la vista previa seguía activa | El diálogo activo no aísla el resto de la página | (1) `VistaPrevia.tsx:77`: la vista previa va en un portal directo en `<body>`. Mientras está abierta, **todos** los demás hijos de `<body>` quedan `inert` (`:50-65`); se restauran al cerrar y solo se tocan los que no eran inertes ya. (2) `VistaPrevia.tsx:81`: con el detalle encima, la vista previa también queda `inert`. (3) `DetalleAuto.tsx:48-61`: el foco entra al ✕ del detalle al abrir y, al cerrar, vuelve a quien lo tenía (la tarjeta que lo abrió); solo lo devuelve si quedó en el aire, para no quitárselo a otra tarjeta que el usuario activó. (4) Al cerrar la vista previa, el foco vuelve al botón «Vista previa» (`VistaPrevia.tsx:61-64`). Eso reemplaza el `inert` del modal y el efecto de foco que tenía `AutosAdmin` en la ronda 1, que quitamos. | **Navegador en `/autos`** (toqué `DetalleAuto`): `autos.spec.ts:198` › «…el foco entra… Escape cierra y devuelve el foco», `:247` › «…✕ cierra, devuelve el foco…», `:271` › «…al cerrarlo, el foco vuelve a la tarjeta que lo abrió: la de B». **Harness de la vista previa:** con Shift+Tab ×25 el foco nunca sale (`["body","dentro"]`; `body` es la vuelta del ciclo de Tab), los 17 hijos de `<body>` quedan inertes salvo la capa, «+ Nuevo auto» no se alcanza, la vista previa queda inerte con el detalle encima, el foco vuelve a la tarjeta y después al botón, y al final quedan 0 `[inert]`. Mutación M7, abajo. |
+| **D04** (S3/P2): el `skip` decidía con el contador, que es la UI bajo prueba | Un `skip` que decide con la misma UI que está bajo prueba | Revisé **todos** los `skip` de `autos.spec.ts`. Ahora la precondición sale de la API REST con la clave pública (`autos.spec.ts:63-101`): `secciones.activa`, y los autos activos no vendidos con sus fotos, con el mismo filtro, orden y orden de fotos que `getAutos()`. Las variables salen del entorno o, si no están, de `.env.local` (`:31`, sin pisar las del entorno, igual que Next). Con eso: sección apagada ⇒ `/autos` **tiene** que dar 404, y se salta; sin autos ⇒ **tiene** que verse el estado vacío, y se salta; con autos ⇒ una tarjeta por auto, en orden y con su título. Si la base dice que un auto tiene n fotos, el detalle **tiene** que mostrar «k / n» y la imagen con **esa** URL (`esperarFoto`, `:176`). Esto también resuelve el riesgo de QA de suponer que las fotos tienen URLs distintas. Ya no hay ningún salto decidido por la UI, y la portada ya no se usa como señal. | Mutación M4 (sin el contador): las 4 pruebas **fallan**, ninguna se salta. En producción hoy: 4 saltadas con «La sección "autos" está apagada en la base (secciones.activa = false)». |
 
-| CA | Cómo se cumple | Test / evidencia |
-| -- | -------------- | ---------------- |
-| CA-1 | Mismo JSX, mismas clases y atributos movidos a `TarjetaAuto`/`DetalleAuto`. El único cambio de expresión es `precioMostrable(auto)` en vez de `formatPrecio(...)`, que da lo mismo cuando el precio es un número (siempre en el sitio). | (a) **HTML idéntico byte a byte**: con un test descartable (no commiteado) rendericé con `renderToStaticMarkup` el `AutosGrid` de `origin/main` y el nuevo, los dos forzados a arrancar con el detalle abierto, en 3 conjuntos de autos (3 fotos / sin fotos / reservado en DOP / vendido / opcionales nulos y vacíos): `expect(nuevo).toBe(viejo)` → 3/3 en verde, con las clases de CSS Module y el `href` de WhatsApp presentes. (b) `tests/navegador/autos.spec.ts` › las 3 pruebas pasan **igual** contra el `AutosGrid` de `origin/main` y contra el nuevo (ver «Prueba de navegador» abajo). |
-| CA-2 | Índice de foto, teclado y bloqueo de scroll solo en `DetalleAuto.tsx:31-50`. `AutosGrid` y `VistaPrevia` no tienen nada de eso; el `Escape` de `VistaPrevia` (`:46-54`) solo cierra la vista previa y se apaga mientras el detalle está abierto. | Lectura del diff; `grep -n keydown app/` muestra un solo listener por diálogo. |
-| CA-3 | El botón está en el pie del modal, fuera de la condición `editando`: aparece al crear y al editar. | `AutosAdmin.tsx:476-483` |
-| CA-4 | `VistaPrevia` recibe `form` (el estado vivo) y `editando?.auto_fotos`; `armarVistaPrevia` recorta como `guardar()` (`trim`, vacío → `null`; marca y modelo → texto recortado). Fotos: en el orden de la galería, con la principal adelante (ver Decisiones). | `vista-previa.test.ts` › «armarVistaPrevia — el auto» › «recorta los textos con espacios…», «los opcionales vacíos… quedan sin dato», «respeta el orden de la galería», «pone la principal primero…» |
-| CA-5 | La tarjeta en el diálogo; al hacer clic, el `DetalleAuto` del sitio encima. Ancho máximo 440 px y padding de 16 px a ≤ 480 px. | Harness descartable en Playwright a 360 px y 1280 px: `document.documentElement.scrollWidth` = ancho del viewport (360/360, 1280/1280); capturas revisadas a mano. |
-| CA-6 | `armarVistaPrevia` arma la lista; `VistaPrevia` la pinta como `<ul aria-label="Avisos">` con los textos de `TEXTO_AVISO`. Precio inválido → `precio: null` → la tarjeta y el detalle muestran «—» (`precioMostrable`). | `vista-previa.test.ts` › «tabla de decisión de los avisos» (24 combinaciones visible × estado × fotos × sin guardar), «cambios sin guardar» (14 campos + auto nuevo + espacios que no cuentan), `precioDeFormulario` (`''`, `'abc'`, `'-1'`, `'0'`, `'45000'`, `'1e3'` y más), «con precio … no inventa un precio». Harness: avisos `['Cambios sin guardar','No visible en el sitio','Vendido: no aparece en el sitio','Precio inválido']`, tarjeta con «—». |
-| CA-7 | Con `hrefWhatsapp={null}` el botón es `<a role="link" aria-disabled="true">` con la misma clase, sin `href` ni `target`. | Harness: `href` = `null`, clic forzado → misma URL y 1 sola pestaña. |
-| CA-8 | `Escape` y ✕ de la vista previa llaman a `setVistaPrevia(false)`: no tocan `form`, `editando`, `abierto` ni `router.refresh()`. El diálogo va fuera del `modalFondo`, así que sus clics no llegan al `onClick={cerrar}` del modal. Con el detalle abierto, `Escape` cierra primero el detalle (como en el sitio) y el siguiente, la vista previa. | Harness: `Escape` → se cierra el detalle y la vista previa sigue visible; `Escape` → se cierra la vista previa. `vista-previa.test.ts` › «no muta las entradas». |
-| CA-9 | z-index 1050: arriba del modal del panel (200) y del toast (300), abajo del detalle del sitio (1100). Imágenes con `next/image` → `/_next/image` (origen propio, `img-src 'self'`); los estilos en línea de `next/image` entran por `style-src 'unsafe-inline'`, que ya está. No hizo falta tocar `lib/csp.ts` ni `next.config.ts`. | Harness: `elementFromPoint` en el centro con el detalle abierto cae dentro del detalle; consola sin errores de CSP (solo los 404 de las URLs de prueba inventadas). La CSP con nonce del panel no la pude ejercitar (requiere login): queda para la verificación del PM. |
-| CA-10 | `role="dialog"`, `aria-modal="true"`, `aria-labelledby` → «Vista previa». Al abrir, foco en «Cerrar vista previa»; al cerrar, vuelve a «Vista previa». El modal de edición queda `inert` mientras tanto, para que el `aria-modal` sea cierto. | Harness: `toBeFocused()` sobre los dos botones, en 360 y 1280 px. |
+## Cómo demostré las mutaciones
 
-**Sobre el «harness»:** el panel exige login y no hay fixture (brief §5), así que
-para ejercitar `VistaPrevia` en un navegador real la monté **temporalmente** en
-`/autos` con datos fijos, y con un spec de Playwright descartable. Nada de eso
-está commiteado (`git status` limpio); es evidencia mía, no reemplaza la
-verificación manual del PM en el panel.
-
-## Prueba de navegador
-
-En la base de hoy la sección `autos` está **apagada**: `/autos` da 404 y la
-portada no la enlaza, así que las 3 pruebas nuevas se **saltan con motivo**:
+Producción tiene la sección apagada y no tengo Supabase local (requiere sembrar
+datos, y el brief no lo autoriza). Para correr la prueba con datos levanté un
+**servidor HTTP descartable** en mi scratchpad, fuera del repo, que imita la API
+REST de Supabase. Sirve 4 autos: Mustang con 3 fotos, la principal fuera de
+orden; Camaro con 1; Wrangler con 0; y Supra con 3. Lo apunté con
+`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54399` en el entorno, que manda sobre
+`.env.local` tanto en el build como en la prueba. Para la vista previa del
+panel, que exige login, monté `VistaPrevia` un rato en `/autos` con un spec de
+Playwright descartable. No commiteé nada de eso: `git status` está limpio. El PM
+corre la suite con su Supabase local.
 
 ```
-skipped | ['La sección "autos" está apagada hoy (/autos da 404 y la portada no la enlaza)']   ×3
-```
+# Con el fix (base simulada, 4 autos)
+  ✓ abre en la primera foto, el foco entra, bloquea el scroll, y Escape cierra y devuelve el foco
+  ✓ → y ← cambian de foto y dan la vuelta, y Escape cierra
+  ✓ D01: activar otra tarjeta con un detalle abierto la abre en su primera foto, sin errores
+  ✓ las flechas y los puntos cambian de foto; ✕ cierra, devuelve el foco y al reabrir arranca en la primera
+  4 passed (8.6s)
 
-Si `/autos` diera 404 con la portada todavía enlazándola, la prueba **falla**
-(sección prendida y página rota). Sin autos → se salta por el estado vacío que
-pinta el servidor. Ningún auto con 2+ fotos → se saltan las 2 de cambio de foto.
+# M1 — DetalleAuto y AutosGrid de la ronda 1 (103f794); B = Supra (3 fotos)
+  ✓ → y ← cambian de foto y dan la vuelta, y Escape cierra
+  ✘ abre en la primera foto, el foco entra, …            Expected: focused  Received: inactive   (:208)
+  ✘ D01: activar otra tarjeta …                          La base dice que «Toyota Supra 2020» tiene 3 foto(s)…
+                                                         Expected: "1 / 3"  Received: "3 / 3"    (:186)
+  ✘ las flechas y los puntos …; ✕ cierra, devuelve el foco … Expected: focused  Received: inactive (:265)
+  3 failed, 1 passed
 
-Para demostrar que pueden fallar reemplacé **temporalmente** la consulta de
-`app/(sitio)/autos/page.tsx` por 3 autos fijos (0, 1 y 3 fotos), sin commitearlo:
-
-```
-# con el código de esta rama
-  ✓ abre el detalle, bloquea el scroll del fondo y Escape lo cierra (557ms)
-  ✓ → y ← cambian de foto, dan la vuelta, y Escape cierra (675ms)
-  ✓ las flechas y los puntos cambian de foto, y al reabrir arranca en la primera (889ms)
-  3 passed (7.5s)
-
-# con el AutosGrid de origin/main (antes del refactor)
-  3 passed (11.4s)
-
-# sin el handler de teclado (comentado document.addEventListener('keydown', …))
-  ✘ abre el detalle, bloquea el scroll del fondo y Escape lo cierra (5.6s)
-  ✘ → y ← cambian de foto, dan la vuelta, y Escape cierra (5.6s)
-  ✘ las flechas y los puntos cambian de foto, y al reabrir arranca en la primera (5.6s)
-    Error: expect(locator).toBeHidden() failed
-    Expected: hidden
-    Received: visible
-    > 123 |     await expect(detalle).toBeHidden();
-  3 failed
-
-# solo sin ArrowRight
-  ✘ → y ← cambian de foto, dan la vuelta, y Escape cierra (5.7s)
-    Error: expect(locator).toHaveText(expected) failed
-    Expected: "2 / 3"
-    Received: "1 / 3"
-    > 137 |     await expect(contador).toHaveText(`2 / ${total}`);
+# M1b — ronda 1, base sin el Supra: B = Camaro (1 foto), el caso del PM
+  ✘ D01: activar otra tarjeta con un detalle abierto la abre en su primera foto, sin errores
+    Error: expect(locator).toBeVisible() failed
+    Errores de la página: ["Cannot read properties of undefined (reading 'url')"]
   1 failed
-  2 passed (11.3s)
+  (con el fix y la misma base: ✓ 1 passed)
 
-# sin el bloqueo de scroll (document.body.style.overflow = 'hidden' comentado)
-  ✘ abre el detalle, bloquea el scroll del fondo y Escape lo cierra (384ms)
-    Error: expect(received).toBe(expected) // Object.is equality
-    Expected: "hidden"
-    Received: ""
-    > 116 |     expect(await overflowDelBody(page)).toBe('hidden');
-  1 failed
-  2 passed (6.2s)
+# M2 — sin key={detalle.id} en AutosGrid (el índice se ajusta, pero no se reinicia)
+  ✘ D01: …   Expected: "1 / 3"  Received: "3 / 3"
+  1 failed, 3 passed
+
+# M4 (D04) — sin el contador de la galería
+  ✘ ×4   Error: La base dice que «Ford Mustang 2020» tiene 3 foto(s): el detalle tiene que mostrar el contador
+         Expected: "1 / 3" | "2 / 3" | "3 / 3"
+  4 failed                              (ninguna saltada)
+
+# M5 (D03 en /autos) — DetalleAuto sin mover ni devolver el foco
+  ✘ abre en la primera foto, el foco entra, …       Expected: focused  Received: inactive  (:208)
+  ✘ las flechas y los puntos …; ✕ cierra, devuelve el foco …  Expected: focused  Received: inactive  (:265)
+  2 failed, 2 passed
+
+# M6 (unidad) — lib/galeria.ts con las fórmulas viejas ((i ± 1 + n) % n, sin ajuste)
+  × sin fotos no hace nada: 0, nunca NaN                      (fotoSiguiente y fotoAnterior)
+  × parte de un índice fuera de rango ya ajustado…            (fotoSiguiente y fotoAnterior)
+  × si la galería se achica, se ajusta a la última foto
+  × NaN, infinito o negativo vuelven a un índice válido (D02)
+  × con fotos que llegan a una galería vacía, arranca en la primera
+  × para 0 / 1 / 3 fotos, cualquier entrada da un índice usable
+  Tests  10 failed | 6 passed (16)       (restaurado: 16 passed)
+
+# M7 (D03 en la vista previa, harness) — VistaPrevia sin poner `inert` al resto del <body>
+  D03 Shift+Tab con la vista previa: ["FUERA:Escríbenos", …tarjetas…, "FUERA:Reservados 1",
+    "FUERA:Disponibles 3", "FUERA:Todos 4", "FUERA:+ Nuevo auto"]
+  D03 se reseteó el formulario de atrás: true        (con el fix: false, y nunca "FUERA")
 ```
 
-**Para el PM:** con la sección apagada, la prueba no ejercita nada en CI ni en el
-gate. Cuando haya autos visibles (o prendiendo la sección con al menos un auto de
-2+ fotos) conviene correr `npm run test:navegador` una vez.
+## Decisiones tomadas
+
+- **En `/autos` el fondo del detalle no queda `inert`** — porque la regresión
+  obligatoria de D01 del brief exige llegar con el teclado a otra tarjeta con un
+  detalle abierto, y eso es imposible con el fondo inerte. Lo que sí cambió en
+  `/autos` es lo que pide D03: el foco entra al detalle y vuelve a la tarjeta.
+  Es una mejora de accesibilidad: no agrega atributos ni clases, así que el HTML
+  sigue igual. En la vista previa del panel, en cambio, todo lo de atrás queda
+  inerte, como pide D03. Si se quiere aislar también el detalle de `/autos`, es
+  otra tarea, y la prueba de D01 tendría que cambiar.
+- **Índice ajustado al renderizar, no sincronizado con un efecto** — el estado
+  guarda el último índice elegido y lo que se muestra es siempre
+  `indiceValido(guardado, n)`. Así no hay un render intermedio con un índice
+  inválido, que con un efecto sí lo habría.
+- **`key` en `AutosGrid` para «otro auto»** — es la forma idiomática de que
+  otro auto sea otro detalle, que arranca en la primera foto. La vista previa
+  muestra siempre un solo auto: ahí lo que cambia son sus fotos, y eso lo cubre
+  el ajuste del índice.
+- **Portal + `inert` en los hermanos de `<body>`** en vez de una trampa de
+  foco a mano — `inert` corta teclado, mouse y lectores de pantalla de una vez.
+  Limitación: un elemento que alguien agregue a `<body>` **después** de abrir la
+  vista previa no queda inerte. Hoy el panel no lo hace.
+- **Precondiciones por REST con la clave pública** — es la misma fuente y el
+  mismo filtro que usa el sitio, con RLS y solo lectura. Riesgo: `/autos` es
+  estática (revalidación de 60 s), así que si la base cambia entre el build y la
+  prueba, pueden diferir; dentro de una corrida (build + test) no pasa. Si
+  faltan las variables, la prueba falla diciéndolo: no se salta.
 
 ## Commits
 
 ```
+7c8c7a8 test(navegador): precondiciones desde la base y regresión de D01
+e91c7c8 fix(admin): la vista previa deja inerte todo lo de atrás
+335eb88 fix(autos): índice de foto siempre válido y foco en el detalle
+dc640b1 docs(pm): brief de fix T-012 r2
+9bf64fd docs(pm): QA T-012 r1 — FAIL
+cc222ba docs(pm): verificación del PM — T-012 r1
+365ea0e docs(pm): entrega de T-012, ronda 1
 103f794 test(navegador): detalle de autos
 344b7ef feat(admin): vista previa del auto
 bd4a358 refactor(autos): tarjeta y detalle como componentes
@@ -122,93 +127,38 @@ a073fac docs(pm): T-011 y T-012 en el tablero
 e18a573 docs(pm): brief T-012
 ```
 
-(Los dos primeros son del PM; más el commit de esta entrega.)
+(Sumale el commit de esta entrega.)
 
 ## Verificación (salida real, recortada)
 
 ```
 $ npx next typegen && npx tsc --noEmit && echo "tsc OK"
 tsc OK
-
 $ npm run lint && echo "lint OK"
-> eslint
 lint OK
-
 $ npm test
- Test Files  12 passed (12)
-      Tests  304 passed (304)
-
+ Test Files  13 passed (13)
+      Tests  320 passed (320)
 $ npm run build
 ✓ Compiled successfully
 ✓ Generating static pages using 7 workers (24/24)
-
-$ npx playwright install chromium && npm run test:navegador
-  -  /autos — detalle de un auto › → y ← cambian de foto, dan la vuelta, y Escape cierra
-  -  /autos — detalle de un auto › las flechas y los puntos cambian de foto, y al reabrir arranca en la primera
-  -  /autos — detalle de un auto › abre el detalle, bloquea el scroll del fondo y Escape lo cierra
-  ✓  … 15 pruebas del carrusel …
-  3 skipped
-  15 passed (28.8s)
+$ npm run test:navegador          (contra la base de .env.local: producción)
+  -  /autos — detalle de un auto › ×4   La sección "autos" está apagada en la base (secciones.activa = false)
+  ✓  … 15 del carrusel …
+  4 skipped
+  15 passed (29.5s)
 ```
 
 ## Migraciones
 
 Ninguna.
 
-## Decisiones tomadas
-
-- **Layout: la tarjeta y, al hacer clic, el detalle, como en el sitio** — porque
-  así se reusa el `DetalleAuto` real, con su comportamiento de hoja inferior en
-  celular, sin inventar una variante «en línea» que el público nunca ve.
-  Descartado: lado a lado, que con un detalle de hasta 880 px no entra junto a
-  la tarjeta en escritorio y obligaba a otra variante del detalle (y a decidir
-  qué hace su ✕).
-- **Con el detalle abierto, `Escape` cierra el detalle y no la vista previa** —
-  es lo que pasa en el sitio, y así cada diálogo tiene un solo listener. El
-  siguiente `Escape` cierra la vista previa. Nunca llega al modal de edición
-  (no tiene `Escape`, y además está `inert`).
-- **Fotos: el orden de la galería, con la principal adelante** (`sort` estable
-  por `es_principal`, `lib/vista-previa.ts:137`) — hoy `marcarPrincipal` cambia
-  la bandera sin mover la foto en el array, así que la galería del panel puede
-  tener la principal en el medio, mientras el sitio la pone primera (es la foto
-  de la tarjeta). Con T-011 («la primera foto es la principal») el sort no hace
-  nada y se ve el orden nuevo tal cual, como pide el brief. Descartado:
-  `ordenarFotos` de `lib/formato.ts` (principal + `orden`), porque si T-011
-  reordena el array sin reescribir el campo `orden` de cada fila, deshacería
-  ese orden.
-- **«Cambios sin guardar» compara lo que guardaría `guardar()` con la base**,
-  campo por campo y ya recortado — así `' Ford '` o `'45000.0'` no avisan de un
-  cambio que en realidad no cambia nada. Las fotos no cuentan: `SubirFotos` las
-  guarda en el momento. Un precio inválido siempre cuenta como cambio.
-- **Precio `''` es inválido** (el `guardar()` actual haría `Number('') = 0`,
-  pero el input es `required` y el navegador no deja enviarlo vacío). Sin precio
-  válido la tarjeta y el detalle muestran «—».
-- **El recorte vive duplicado** en `guardar()` y en `lib/vista-previa.ts` — no
-  toqué `guardar()` para no cambiar el guardado en esta tarea. Los tests fijan
-  el comportamiento de la vista previa, no el de `guardar()`.
-- **Componentes en `app/(sitio)/autos/`** — al lado de `autos.module.css`, que
-  es de donde sacan sus estilos; el panel los importa desde ahí. Descartado
-  `components/`, que hoy solo tiene el navbar y el pie, y obligaba a mover el
-  CSS del sitio o a importarlo desde lejos.
-- **`useEffectEvent`** (React 19.2) para que `DetalleAuto` llame a `alCerrar`
-  desde el listener sin volver a registrarlo (ni reaplicar el bloqueo de
-  scroll) en cada render del padre. Mismo comportamiento que antes, que
-  dependía de `[detalle, fotos.length]`.
-- **`inert` en el modal de edición** mientras la vista previa está abierta —
-  sin eso, `Tab` salía del diálogo hacia el formulario de atrás y el
-  `aria-modal` mentía. Por eso el foco vuelve al botón en un efecto, después del
-  render que saca el `inert`.
-
 ## Fuera de alcance que vi (no tocado)
 
-- `guardar()` acepta precio vacío como 0 si se saltea la validación del
-  navegador (`Number('') === 0`) — `app/(admin)/(panel)/admin/autos/AutosAdmin.tsx:109`.
-- El modal de edición del panel no se cierra con `Escape` (no tiene listener) —
-  `AutosAdmin.tsx:288`. Preexistente.
-- El build avisa que la convención `middleware` está deprecada en Next 16 y
-  pide `proxy` — `middleware.ts`.
-- La sección `autos` está apagada en la base actual: ninguna prueba de
-  navegador de `/autos` ejercita nada hasta que se prenda.
+- En `/autos` el detalle no aísla el fondo (preexistente; ver Decisiones).
+- Sigue igual lo de la ronda 1: el contrato de precio vacío de `guardar()`
+  (fuera de esta ronda, según el brief) y el aviso de Next 16 de que
+  `middleware` está deprecado en favor de `proxy`.
 
 ## Preguntas / bloqueos
 
