@@ -60,7 +60,7 @@ tests/{unidad,seguridad,humo}/
 | **CSP con nonce** en el panel | `middleware.ts`, `lib/csp.ts` | Host externo nuevo (imágenes, scripts, iframes) ⇒ agregarlo en `lib/csp.ts` y en `next.config.ts` si es imagen |
 | **Hora dominicana** (`America/Santo_Domingo`) | `lib/formato.ts` | Nunca `toLocaleString` suelto ni `new Date(input)` de un `datetime-local`: usar los helpers |
 | **Slugs estables y únicos** | `lib/formato.ts` | Editar no recalcula el slug (rompe URLs indexadas) |
-| **Foto principal: exactamente una** por galería | `auto_fotos`, `producto_fotos` | No hacer el swap con dos UPDATE desde el navegador |
+| **La primera foto es la principal: exactamente una** por galería | `auto_fotos`, `producto_fotos`, RPC `reordenar_fotos` (0014) | Orden y principal se cambian **solo** con `reordenar_fotos`, nunca con UPDATE desde el navegador. Toda operación de una galería pasa por el candado de galería de `lib/galeria.ts` |
 | **Fotos en bucket `fotos`**; heredadas en Cloudinary como URL completa | `next.config.ts` | Reemplazar/borrar una foto ⇒ liberar el objeto del bucket |
 | **Migraciones solo por CLI**, numeradas y nunca editadas una vez mergeadas | `supabase/migrations/` | Cambio de schema ⇒ archivo nuevo `00NN_`; marcar en la entrega `REQUIERE db push` |
 

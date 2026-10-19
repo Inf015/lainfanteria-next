@@ -207,6 +207,69 @@ describe('Storage', () => {
   });
 });
 
+describe('reordenar_fotos está cerrada a anon', () => {
+  // La función es SECURITY DEFINER: corre con los privilegios del owner y
+  // esquiva RLS. Las barreras son dos: EXECUTE revocado a PUBLIC (o sea a
+  // `anon`) y `es_admin()` en la primera línea. Desde la clave pública tiene
+  // que cortar la primera, con 42501 —permiso denegado— y no con cualquier
+  // error: un 404 «la función no existe» o un 400 por parámetros también
+  // harían `ok = false` y la prueba pasaría por el motivo equivocado.
+  type Fila = { id: number; auto_id: number; orden: number; es_principal: boolean };
+
+  /** Una lectura fallida no puede pasar por «no hay datos». */
+  async function leer<T>(path: string): Promise<T> {
+    const r = await rest(path);
+    expect(r.ok, `GET ${path} respondió ${r.status}`).toBe(true);
+    return r.json();
+  }
+
+  /** La galería en el orden en que la muestra el sitio. */
+  function galeria(autoId: number) {
+    return leer<Fila[]>(
+      `auto_fotos?select=id,auto_id,orden,es_principal&auto_id=eq.${autoId}` +
+        '&order=es_principal.desc,orden.asc,id.asc',
+    );
+  }
+
+  it('rechaza la llamada con 42501 y la galería no cambia', async () => {
+    // Precondición: una galería real con al menos dos fotos. Con una sola (o
+    // ninguna) invertir el orden no cambia nada, y la comparación de abajo
+    // pasaría aunque la función hubiera escrito. Si no existe, la prueba falla
+    // en vez de pasar en vacío.
+    const todas = await leer<Pick<Fila, 'auto_id'>[]>('auto_fotos?select=auto_id&order=auto_id');
+    const porAuto = new Map<number, number>();
+    for (const { auto_id } of todas) porAuto.set(auto_id, (porAuto.get(auto_id) ?? 0) + 1);
+    const autoId = [...porAuto].find(([, n]) => n >= 2)?.[0];
+
+    if (autoId === undefined) {
+      throw new Error(
+        'Precondición: hace falta al menos un auto con 2 o más fotos visibles para anon ' +
+          '(en local, sembrarlas antes de correr la suite).',
+      );
+    }
+
+    const antes = await galeria(autoId);
+    expect(antes.length).toBeGreaterThanOrEqual(2);
+
+    // El orden visible invertido: con dos o más fotos siempre es distinto del
+    // actual, así que si la llamada pasara, el orden cambiaría de verdad.
+    const idsAlReves = antes.map((f) => f.id).reverse();
+
+    const r = await rest('rpc/reordenar_fotos', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_tabla: 'auto_fotos',
+        p_padre_id: autoId,
+        p_ids: idsAlReves,
+      }),
+    });
+
+    expect(r.ok).toBe(false);
+    expect((await r.json()).code).toBe('42501');
+    expect(await galeria(autoId)).toEqual(antes);
+  });
+});
+
 describe('la tabla de miembros conservó sus políticas tras el rename', () => {
   // `pilotos` se renombró a `miembros` en la migración 0009. Un rename arrastra
   // las políticas, pero conviene comprobarlo: perderlas dejaría la tabla

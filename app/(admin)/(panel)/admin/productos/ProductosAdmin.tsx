@@ -166,9 +166,18 @@ export default function ProductosAdmin({ inicial }: { inicial: ProductoConFotos[
 
   function actualizarFotos(fotos: FotoFila[]) {
     if (!editando) return;
-    const conFotos = { ...editando, producto_fotos: fotos } as ProductoConFotos;
-    setEditando(conFotos);
-    setProductos((prev) => prev.map((p) => (p.id === editando.id ? conFotos : p)));
+    // La galería puede publicar después de que el modal se cerró o de que se
+    // abrió otro producto (una subida que termina tarde). Por eso la
+    // publicación va al producto de la galería —el `id` de cuando se montó— y
+    // con actualizaciones funcionales: no pisa el producto que se esté
+    // editando ahora ni los demás campos con una copia vieja (T-011-D01).
+    const id = editando.id;
+    setEditando((prev) =>
+      prev?.id === id ? ({ ...prev, producto_fotos: fotos } as ProductoConFotos) : prev,
+    );
+    setProductos((prev) =>
+      prev.map((p) => (p.id === id ? ({ ...p, producto_fotos: fotos } as ProductoConFotos) : p)),
+    );
   }
 
   return (

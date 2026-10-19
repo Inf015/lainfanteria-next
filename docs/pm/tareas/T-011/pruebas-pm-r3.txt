@@ -1,0 +1,86 @@
+# Pruebas a cargo del PM — T-011 ronda 3
+
+## Antes del fix de r3 (HEAD cac4d12): reproducción de D01 cerrar/reabrir en el navegador
+  inicio      base: cld-sample-2.jpg* sample.jpg | pantalla: cld-sample-2.jpg* sample.jpg
+  reabierto con la subida en vuelo: ★ deshabilitada = false
+  tras ★      base: sample.jpg* cld-sample-2.jpg | pantalla: sample.jpg* cld-sample-2.jpg
+  subida fin  base: sample.jpg* cld-sample-2.jpg <A>.png | pantalla: cld-sample-2.jpg* sample.jpg <A>.png  ← D01 confirmado
+
+## D02 (r2) ejecutado contra Supabase local
+  con galería de 2+ fotos visible:
+     Test Files  1 passed (1)
+          Tests  50 passed (50)
+  sin ninguna (autos 1 y 2 ocultos):
+    ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+     FAIL  tests/seguridad/rls.test.ts > reordenar_fotos está cerrada a anon > rechaza la llamada con 42501 y la galería no cambia
+    Error: Precondición: hace falta al menos un auto con 2 o más fotos visibles para anon (en local, sembrarlas antes de correr la suite).
+          Tests  1 failed | 49 passed (50)
+
+## Después del fix de r3 (HEAD 38705a8, 2026-10-19 10:50)
+Entorno: build de la rama (3023) contra Supabase local 0001..0014 reiniciada y sembrada antes de cada recorrido.
+Recorrido nuevo (Playwright, script del PM fuera del repo). Validado ANTES contra el build de r2: 10 fallas (A, B y C encadenado),
+o sea que la prueba discrimina. Con r3:
+  ✓ A: reabierto con la subida en vuelo → ★ deshabilitada
+  ✓ A: … y Borrar deshabilitado
+  ✓ A: una segunda subida desde la instancia nueva se rechaza («Hay una operación de la galería en curso. Esperá a que termine y volvé a intentar.»)
+  ✓ A: se agregó exactamente una foto (cld-sample-2.jpg* sample.jpg beach-boat.jpg → cld-sample-2.jpg* sample.jpg beach-boat.jpg 85594b68-6e09-4ecf-a6e2-1e4c243c725c.png)
+  ✓ A: al terminar, pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg 85594b68-6e09-4ecf-a6e2-1e4c243c725c.png)
+  ✓ A: al terminar, se puede reordenar
+  ✓ B: el Camaro (otra galería) no queda bloqueado
+  ✓ B: el modal sigue mostrando el Camaro (Chevrolet Camaro)
+  ✓ B: la galería del Camaro no cambió (pantalla cld-sample-2.jpg* | base cld-sample-2.jpg*)
+  ✓ B: la subida quedó en el Mustang y se ve al reabrirlo (cld-sample-2.jpg* sample.jpg beach-boat.jpg 85594b68-6e09-4ecf-a6e2-1e4c243c725c.png a1b5afa1-587a-44f6-a8a4-7608ec04b404.png)
+  ✓ C: la fila se borró
+  ✓ C: la borrada no vuelve a la pantalla (sample.jpg beach-boat.jpg 85594b68-6e09-4ecf-a6e2-1e4c243c725c.png a1b5afa1-587a-44f6-a8a4-7608ec04b404.png)
+  ✓ C: se muestra un aviso («La foto se borró, pero no se pudo reordenar la galería: falla inyectada»)
+    C: estado residual aceptado (borrado no atómico): base sample.jpg beach-boat.jpg 85594b68-6e09-4ecf-a6e2-1e4c243c725c.png a1b5afa1-587a-44f6-a8a4-7608ec04b404.png
+  ✓ C: el siguiente reordenamiento deja una sola principal
+  ✓ D: galería vacía + 2 fotos → la primera es la principal (bc845823-b6a7-48b3-bd75-a4508d50e72e.png* d1e3ced3-fe44-4de0-a289-ddc717842b9e.png)
+  ✓ D: pantalla = base (bc845823-b6a7-48b3-bd75-a4508d50e72e.png* d1e3ced3-fe44-4de0-a289-ddc717842b9e.png)
+  ✓ E: se registró la primera, la segunda no (cld-sample-2.jpg* 8afe2521-fd30-4467-80cc-4f704856bc91.png)
+  ✓ E: la pantalla muestra la que sí entró (cld-sample-2.jpg* 8afe2521-fd30-4467-80cc-4f704856bc91.png)
+  ✓ E: aviso del fallo («No se pudo registrar "B.png": insert caído»)
+  ✓ sin errores de página ()
+  
+  TODO OK
+
+Casos: A = mismo auto, subida en vuelo → Cerrar → reabrir · B = subida en vuelo en Mustang → Cerrar → abrir Camaro
+C = DELETE ok + RPC de renormalización caída (pendiente de QA r2) · D = subida a galería vacía · E = tanda con el 2º INSERT caído
+
+## Regresión: recorrido completo de r2 sobre r3
+  inicio  dom: cld-sample-2.jpg* sample.jpg beach-boat.jpg | base: cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2
+  ✓ ▶ en la primera → base: sample.jpg*:0 cld-sample-2.jpg:1 beach-boat.jpg:2
+  ✓ ▶ pantalla = base (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ ★ en la última → base: beach-boat.jpg*:0 sample.jpg:1 cld-sample-2.jpg:2
+  ✓ arrastrar 1ª → 3ª → base: sample.jpg*:0 cld-sample-2.jpg:1 beach-boat.jpg:2
+  ✓ arrastre: pantalla = base (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ RPC 500 → la pantalla vuelve al orden anterior (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ RPC 500 → aviso: «No se pudo guardar el orden: falla inyectada por el PM»
+  ✓ RPC 500 → la base no cambió
+  ✓ con un movimiento en vuelo, ▶ y Borrar quedan deshabilitados
+  ✓ un solo RPC con un clic extra en vuelo (llamadas: 1)
+  ✓ tras el vuelo: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg | cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2)
+  ✓ D01: con una subida en vuelo, reordenar queda deshabilitado
+  ✓ D01: la segunda subida se rechaza con aviso («Hay una operación de la galería en curso. Esperá a que termine y volvé a intentar.»)
+  ✓ D01: se subió un solo archivo (1)
+  ✓ D01: base y pantalla con 4 fotos (base 4, pantalla 4)
+  ✓ D01: al terminar la subida se puede reordenar de nuevo
+  ✓ la foto subida, mandada al primer lugar, es la principal (5a538a45-90c0-4546-9d63-d6398dbb8b69.png*:0 cld-sample-2.jpg:1 sample.jpg:2 beach-boat.jpg:3)
+  ✓ pantalla = base tras mover la subida
+  ✓ soltar una miniatura en la zona de subida no sube nada
+  ✓ y el orden sigue igual a la base (5a538a45-90c0-4546-9d63-d6398dbb8b69.png* cld-sample-2.jpg sample.jpg beach-boat.jpg)
+  ✓ D03: la fila se borró
+  ✓ D03: con el bucket caído, la foto borrada sale de la pantalla (3 miniaturas)
+  ✓ borrar la principal promueve la siguiente (5a538a45-90c0-4546-9d63-d6398dbb8b69.png*:0 → cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2)
+  ✓ D03: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg)
+  ✓ tras recargar: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg)
+  ✓ productos: ▶ → dessert.jpg*:0 cat.jpg:1
+  ✓ táctil: controles visibles sin hover (opacity 1)
+  ✓ teclado: con foco, los controles se ven (opacity 1)
+  ✓ teclado: Enter sobre ▶ reordena (cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2 → cld-sample-2.jpg*:0 beach-boat.jpg:1 sample.jpg:2)
+  ✓ sin errores de página ()
+  
+  TODO OK
+
+## Alcance de padres: git diff 3348a93..HEAD en AutosAdmin.tsx y ProductosAdmin.tsx = solo el cuerpo de actualizarFotos (un hunk por archivo).
+No probado en navegador: el recorrido A/B en productos (mismo componente y mismo cambio simétrico en el padre).

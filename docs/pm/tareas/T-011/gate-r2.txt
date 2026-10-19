@@ -1,0 +1,74 @@
+# Gate PM — T-011 ronda 2
+fecha : 2026-10-19 10:36:38 -0400
+rama  : oliver132123/fotos-orden
+HEAD  : 160eab5814738e04d1d7906a05c31974685c904b
+base  : origin/main (38141fb)
+
+## Commits
+160eab5 docs(pm): verificación del panel — T-011 r2
+7c44922 docs(pm): entrega de dev de T-011 ronda 2
+fd568ba test(seguridad): reordenar_fotos exige una galería real de 2+ fotos
+2ddcc32 fix(admin): después de un DELETE exitoso la lista siempre refleja el borrado
+eb2fa3b fix(admin): una sola guardia síncrona para toda operación de la galería
+5b1ddaa docs(pm): brief de fix T-011 r2
+9884ec0 docs(pm): QA T-011 r1 — FAIL
+4538880 docs(pm): pruebas del PM contra Supabase local — T-011 r1
+36c63cb docs(pm): entrega de dev de T-011 ronda 1
+a7ae83e test(seguridad): reordenar_fotos cerrada a anon
+f82a264 fix(admin): borrar la principal promueve la siguiente
+625c77e feat(admin): reordenar fotos de la galería
+7d70f6f feat(db): reordenar_fotos
+82f21d5 docs(pm): T-011 y T-012 en el tablero
+bae88a4 docs(pm): brief T-011
+
+## Archivos
+ .../(panel)/admin/_componentes/SubirFotos.tsx      | 292 ++++++++++++++++++---
+ app/(admin)/admin.module.css                       |  34 ++-
+ docs/pm/tablero.md                                 |   2 +
+ docs/pm/tareas/T-011/brief-dev.md                  | 213 +++++++++++++++
+ docs/pm/tareas/T-011/brief-qa.md                   | 182 +++++++++++++
+ docs/pm/tareas/T-011/entrega-dev.md                | 232 ++++++++++++++++
+ docs/pm/tareas/T-011/gate-r1.txt                   |  64 +++++
+ docs/pm/tareas/T-011/pruebas-pm-r1.txt             |  67 +++++
+ docs/pm/tareas/T-011/pruebas-pm-r2.txt             |  57 ++++
+ docs/pm/tareas/T-011/reporte-qa-r1.md              | 122 +++++++++
+ lib/galeria.ts                                     | 118 +++++++++
+ supabase/migrations/0014_reordenar_fotos.sql       | 208 +++++++++++++++
+ tests/seguridad/rls.test.ts                        |  63 +++++
+ tests/unidad/galeria.test.ts                       | 262 ++++++++++++++++++
+ 14 files changed, 1878 insertions(+), 38 deletions(-)
+
+## typegen
+$ npx next typegen
+Generating route types...
+✓ Types generated successfully
+→ OK
+
+## tsc
+$ npx tsc --noEmit
+→ OK
+
+## lint
+$ npm run lint
+
+> lainfanteria-next@0.1.0 lint
+> eslint
+
+→ OK
+
+## unidad
+$ npm test
+
+> lainfanteria-next@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/oliverinfante/Code/lainfanteria-next-fotos-orden
+
+
+ Test Files  12 passed (12)
+      Tests  260 passed (260)
+   Start at  10:36:44
+   Duration  417ms (transform 591ms, setup 0ms, import 757ms, tests 309ms, environment 1ms)
+
+→ OK

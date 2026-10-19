@@ -1,8 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import { BUCKET_FOTOS as BUCKET, borrarDelBucket } from '@/lib/storage';
+import {
+  candadosDeGaleria,
+  claveGaleria,
+  enExclusiva,
+  moverFoto,
+  normalizarGaleria,
+} from '@/lib/galeria';
 import s from '../../../admin.module.css';
 
 export interface FotoFila {
@@ -24,11 +31,46 @@ interface Props {
 }
 
 /**
+ * Tipo de dato propio que viaja en el `dataTransfer` al arrastrar una
+ * miniatura. Es lo que distingue un reordenamiento de un archivo que viene del
+ * sistema: la zona de subida ignora los arrastres que lo traen, y la grilla
+ * ignora los que no.
+ */
+const MIME_FOTO = 'application/x-lainfanteria-foto';
+
+function esArrastreDeFoto(e: DragEvent) {
+  return e.dataTransfer.types.includes(MIME_FOTO);
+}
+
+const AVISO_OCUPADO =
+  'Hay una operación de la galería en curso. Esperá a que termine y volvé a intentar.';
+
+function mensaje(e: unknown) {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/**
  * Galería con subida directa a Supabase Storage.
  *
  * Sube el archivo, crea la fila en la tabla de fotos y devuelve la lista
  * actualizada. Reemplaza el flujo manual de subir a Storage, copiar la URL y
  * crear la fila a mano en el Table Editor.
+ *
+ * La primera foto de la galería es la principal. Se reordena arrastrando o con
+ * ◀ ▶, y la ★ manda una foto al primer lugar; todo pasa por la RPC
+ * `reordenar_fotos` (migración 0014), que guarda orden y principal juntos en
+ * una sola transacción.
+ *
+ * Concurrencia: subir, mover, ★ y borrar pasan todas por un mismo candado
+ * (`enExclusiva`, en `lib/galeria.ts`) y nunca corren dos a la vez. Eso es lo
+ * que permite que cada una arme su lista a partir del `fotos` que había al
+ * empezar, aunque publique después de varios `await`: mientras está en vuelo
+ * nadie más puede cambiar la galería. Ver el comentario de cada operación.
+ *
+ * El candado es **de la galería**, no de esta instancia (`candadosDeGaleria`,
+ * con clave `tabla:registroId`): cerrar el modal desmonta el componente pero
+ * no corta la operación, y la instancia que se monte al reabrir tiene que ver
+ * la galería ocupada hasta que esa operación termine (T-011-D01, ronda 3).
  */
 export default function SubirFotos({
   tabla,
@@ -37,14 +79,57 @@ export default function SubirFotos({
   fotos,
   onCambio,
 }: Props) {
+  /** Cuántas fotos de la subida en curso faltan; solo para el texto. */
   const [subiendo, setSubiendo] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
+  /** Posición de la miniatura que se está arrastrando, y la de destino. */
+  const [arrastrada, setArrastrada] = useState<number | null>(null);
+  const [destino, setDestino] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const clave = claveGaleria(tabla, registroId);
+  /**
+   * Si la galería tiene una operación en vuelo, la haya empezado esta
+   * instancia u otra ya desmontada. Es el espejo del candado para el render
+   * (deshabilitar controles); la fuente de verdad es el candado, síncrono.
+   */
+  const ocupado = useSyncExternalStore(
+    useCallback((avisar: () => void) => candadosDeGaleria.suscribir(clave, avisar), [clave]),
+    () => candadosDeGaleria.tomado(clave),
+    () => false,
+  );
+
+  /**
+   * Corre una operación de la galería en exclusiva. Si ya hay otra en vuelo,
+   * no la corre y muestra el aviso. Devuelve si corrió.
+   */
+  async function exclusiva(operacion: () => Promise<void>) {
+    const corrio = await enExclusiva(candadosDeGaleria.candado(clave), async () => {
+      setError(null);
+      await operacion();
+    });
+    if (!corrio) setError(AVISO_OCUPADO);
+    return corrio;
+  }
+
+  /**
+   * Publica las filas nuevas pase lo que pase: aunque una foto posterior
+   * falle o algo lance, las que ya se insertaron existen en la base y la lista
+   * local tiene que mostrarlas.
+   *
+   * `[...fotos, ...nuevas]` usa el `fotos` capturado al empezar. Es la galería
+   * vigente porque el candado no deja correr ninguna otra operación hasta que
+   * esta termine (antes, una segunda subida en paralelo publicaba su captura y
+   * pisaba lo que había hecho la primera y un reordenamiento posterior: D01).
+   */
   async function subir(archivos: FileList | null) {
     if (!archivos?.length) return;
-    setError(null);
+    const corrio = await exclusiva(() => subirArchivos(archivos));
+    if (!corrio && inputRef.current) inputRef.current.value = '';
+  }
+
+  async function subirArchivos(archivos: FileList) {
     setSubiendo(archivos.length);
 
     const db = crearClienteNavegador();
@@ -96,44 +181,94 @@ export default function SubirFotos({
 
         nuevas.push(data as FotoFila);
       }
-
-      if (nuevas.length) onCambio([...fotos, ...nuevas]);
+    } catch (e) {
+      setError(`Se cortó la subida: ${mensaje(e)}`);
     } finally {
+      if (nuevas.length) onCambio([...fotos, ...nuevas]);
       setSubiendo(0);
       if (inputRef.current) inputRef.current.value = '';
     }
   }
 
-  async function marcarPrincipal(id: number) {
-    setError(null);
+  /**
+   * Mueve la foto de `desde` a `hasta` y lo guarda al instante.
+   *
+   * Optimista: la galería cambia en pantalla antes de que conteste la base, y
+   * si la RPC falla vuelve a la lista anterior. La RPC recibe la galería
+   * entera y escribe orden y principal en una transacción, así que no hay
+   * estado intermedio posible ni en la base ni acá.
+   *
+   * Publica dos veces como mucho: `normalizada` antes del `await`, y
+   * `anterior` si falla. `anterior` es el `fotos` capturado al empezar y sigue
+   * siendo lo que hay en la base, porque el candado no deja que otra operación
+   * cambie la galería mientras la RPC está en vuelo.
+   */
+  async function mover(desde: number, hasta: number) {
+    const anterior = fotos;
+    const nueva = moverFoto(anterior, desde, hasta);
+    if (nueva.every((f, i) => f.id === anterior[i].id)) return;
 
-    const anterior = fotos.find((f) => f.es_principal);
-    if (anterior?.id === id) return;
+    await exclusiva(async () => {
+      const normalizada = normalizarGaleria(nueva);
+      onCambio(normalizada);
 
-    const db = crearClienteNavegador();
+      try {
+        const db = crearClienteNavegador();
+        const { error: err } = await db.rpc('reordenar_fotos', {
+          p_tabla: tabla,
+          p_padre_id: registroId,
+          p_ids: normalizada.map((f) => f.id),
+        });
 
-    // El swap va entero del lado del servidor (migración 0012): bajar la
-    // principal actual y subir la nueva desde acá serían dos UPDATE sueltos, y
-    // si el segundo falla la galería queda sin principal. La función corre en
-    // una transacción, así que o cambian las dos filas o no cambia ninguna.
-    const { error: err } = await db.rpc('marcar_foto_principal', {
-      p_tabla: tabla,
-      p_padre_id: registroId,
-      p_foto_id: id,
+        if (err) {
+          onCambio(anterior);
+          setError(`No se pudo guardar el orden: ${err.message}`);
+        }
+      } catch (e) {
+        onCambio(anterior);
+        setError(`No se pudo guardar el orden: ${mensaje(e)}`);
+      }
     });
+  }
 
-    if (err) {
-      setError(err.message);
-      return;
-    }
-
-    onCambio(fotos.map((f) => ({ ...f, es_principal: f.id === id })));
+  function soltarSobre(e: DragEvent, hasta: number) {
+    // Siempre se cancela el default: un archivo del sistema soltado sobre la
+    // grilla haría que el navegador lo abra y se pierda el panel. Pero solo un
+    // arrastre de miniatura reordena; los archivos se suben en la zona de
+    // abajo.
+    e.preventDefault();
+    const desde = arrastrada;
+    setArrastrada(null);
+    setDestino(null);
+    if (!esArrastreDeFoto(e) || desde === null) return;
+    mover(desde, hasta);
   }
 
   async function borrar(foto: FotoFila) {
+    if (candadosDeGaleria.tomado(clave)) {
+      setError(AVISO_OCUPADO);
+      return;
+    }
     if (!confirm('¿Borrar esta foto?')) return;
-    setError(null);
+    // `confirm` frena el hilo: entre la pregunta y esta línea no pudo arrancar
+    // ninguna otra operación, así que `fotos` sigue vigente.
+    await exclusiva(() => borrarFila(foto));
+  }
 
+  /**
+   * DELETE → renormalizar (RPC) → liberar el bucket → publicar.
+   *
+   * Una vez que el DELETE salió bien, la lista local refleja el borrado pase
+   * lo que pase después (T-011-D03): la publicación va en un `finally`, así
+   * que ni una RPC que lanza ni un bucket que lanza dejan la foto borrada en
+   * pantalla. Se eligió `finally` y no publicar antes del bucket para no
+   * mover el orden de CA-9 (el bucket se libera después de renormalizar) y
+   * para que la lista que se publica sea la final, con o sin renormalizar.
+   *
+   * `restantes` sale del `fotos` capturado al empezar; sigue vigente porque el
+   * candado está tomado hasta que esta función termina.
+   */
+  async function borrarFila(foto: FotoFila) {
     const db = crearClienteNavegador();
     const { error: err } = await db.from(tabla).delete().eq('id', foto.id);
     if (err) {
@@ -141,11 +276,49 @@ export default function SubirFotos({
       return;
     }
 
-    // El archivo se borra después: si esto falla queda un huérfano en Storage,
-    // molesto pero inofensivo. Al revés dejaría una foto rota en el sitio.
-    await borrarDelBucket(db, foto.url);
+    // Borrar la principal dejaba la galería sin principal. Ahora, con la fila
+    // ya borrada, se renormaliza lo que queda: la que era segunda pasa a ser
+    // la primera y la principal, y el `orden` queda sin huecos.
+    //
+    // Si esta RPC falla la fila igual ya no existe, así que la lista local
+    // queda sin ella y con los valores que de verdad tiene la base (sin
+    // normalizar). Si la borrada era la principal, la galería queda sin
+    // principal hasta el próximo reordenamiento: ese riesgo lo cierra un
+    // borrado atómico (borrar + renormalizar en una transacción), que es otra
+    // tarea.
+    const restantes = fotos.filter((f) => f.id !== foto.id);
+    let quedaron = restantes;
 
-    onCambio(fotos.filter((f) => f.id !== foto.id));
+    try {
+      if (restantes.length > 0) {
+        const normalizada = normalizarGaleria(restantes);
+        try {
+          const { error: errOrden } = await db.rpc('reordenar_fotos', {
+            p_tabla: tabla,
+            p_padre_id: registroId,
+            p_ids: normalizada.map((f) => f.id),
+          });
+          if (errOrden) {
+            setError(`La foto se borró, pero no se pudo reordenar la galería: ${errOrden.message}`);
+          } else {
+            quedaron = normalizada;
+          }
+        } catch (e) {
+          setError(`La foto se borró, pero no se pudo reordenar la galería: ${mensaje(e)}`);
+        }
+      }
+
+      // El archivo se borra después: si esto falla queda un huérfano en
+      // Storage, molesto pero inofensivo. Al revés dejaría una foto rota en el
+      // sitio. Por eso un fallo acá se registra y no se muestra como error.
+      try {
+        await borrarDelBucket(db, foto.url);
+      } catch (e) {
+        console.error(`No se pudo liberar ${foto.url} del bucket:`, mensaje(e));
+      }
+    } finally {
+      onCambio(quedaron);
+    }
   }
 
   return (
@@ -156,30 +329,83 @@ export default function SubirFotos({
 
       {fotos.length > 0 && (
         <div className={s.grillaFotos}>
-          {fotos.map((foto) => (
+          {fotos.map((foto, i) => (
             <div
               key={foto.id}
-              className={`${s.fotoItem} ${foto.es_principal ? s.fotoPrincipal : ''}`}
+              className={[
+                s.fotoItem,
+                foto.es_principal ? s.fotoPrincipal : '',
+                arrastrada === i ? s.fotoArrastrada : '',
+                destino === i && arrastrada !== i ? s.fotoDestino : '',
+              ].join(' ')}
+              draggable={!ocupado}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(MIME_FOTO, String(foto.id));
+                e.dataTransfer.effectAllowed = 'move';
+                setArrastrada(i);
+              }}
+              onDragEnd={() => {
+                setArrastrada(null);
+                setDestino(null);
+              }}
+              onDragOver={(e) => {
+                // preventDefault siempre (ver `soltarSobre`); el efecto solo se
+                // anuncia como «mover» para las miniaturas.
+                e.preventDefault();
+                if (esArrastreDeFoto(e)) {
+                  e.dataTransfer.dropEffect = 'move';
+                  if (destino !== i) setDestino(i);
+                } else {
+                  e.dataTransfer.dropEffect = 'none';
+                }
+              }}
+              onDrop={(e) => soltarSobre(e, i)}
             >
+              {/* La imagen no se arrastra sola: el que se arrastra es el
+                  recuadro, que es el que lleva el tipo propio de dato. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={foto.url} alt="" />
+              <img src={foto.url} alt="" draggable={false} />
               {foto.es_principal && <span className={s.badgePrincipal}>PRINCIPAL</span>}
               <div className={s.fotoAcciones}>
-                {!foto.es_principal && (
+                <button
+                  type="button"
+                  className={s.btnFoto}
+                  onClick={() => mover(i, i - 1)}
+                  disabled={ocupado || i === 0}
+                  title="Mover a la izquierda"
+                  aria-label="Mover a la izquierda"
+                >
+                  ◀
+                </button>
+                {i > 0 && (
                   <button
                     type="button"
                     className={s.btnFoto}
-                    onClick={() => marcarPrincipal(foto.id)}
-                    title="Usar como principal"
+                    onClick={() => mover(i, 0)}
+                    disabled={ocupado}
+                    title="Mandar al primer lugar"
+                    aria-label="Mandar al primer lugar"
                   >
                     ★
                   </button>
                 )}
                 <button
                   type="button"
+                  className={s.btnFoto}
+                  onClick={() => mover(i, i + 1)}
+                  disabled={ocupado || i === fotos.length - 1}
+                  title="Mover a la derecha"
+                  aria-label="Mover a la derecha"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
                   className={`${s.btnFoto} ${s.btnFotoBorrar}`}
                   onClick={() => borrar(foto)}
+                  disabled={ocupado}
                   title="Borrar"
+                  aria-label="Borrar"
                 >
                   ✕
                 </button>
@@ -193,12 +419,19 @@ export default function SubirFotos({
         className={`${s.dropZona} ${arrastrando ? s.dropZonaActiva : ''}`}
         onDragOver={(e) => {
           e.preventDefault();
+          // Una miniatura arrastrada hasta acá no es una subida: ni se ilumina
+          // la zona ni se acepta el drop.
+          if (esArrastreDeFoto(e)) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+          }
           setArrastrando(true);
         }}
         onDragLeave={() => setArrastrando(false)}
         onDrop={(e) => {
           e.preventDefault();
           setArrastrando(false);
+          if (esArrastreDeFoto(e)) return;
           subir(e.dataTransfer.files);
         }}
       >
@@ -218,8 +451,9 @@ export default function SubirFotos({
       </div>
 
       <p className={s.ayuda}>
-        La marcada como principal (★) es la que aparece en la tarjeta del sitio. La
-        primera que subas queda como principal automáticamente.
+        La primera foto es la principal: es la que aparece en la tarjeta del sitio, y
+        las demás salen en este mismo orden. Arrastralas o usá ◀ ▶ para
+        reordenarlas; la ★ manda una foto al primer lugar.
       </p>
     </div>
   );

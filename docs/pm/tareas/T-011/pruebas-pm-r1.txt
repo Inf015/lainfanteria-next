@@ -1,0 +1,67 @@
+# Pruebas a cargo del PM — T-011 ronda 1
+fecha: 2026-10-19 10:19:24 -0400
+código de migración: 7d70f6f  ·  HEAD: 36c63cb
+Entorno: Supabase LOCAL. Base reiniciada vacía, permisos por defecto de anon/authenticated revocados y registro público apagado (como producción),
+migraciones 0001..0014 de HEAD aplicadas con psql. Usuarios: admin@local.test (en admins) y comun@local.test (no admin).
+Casos SQL dentro de BEGIN … ROLLBACK; usuario simulado con request.jwt.claims + set role.
+
+  ## anon y no admin
+  anon                                         → ERROR 42501: permission denied for function reordenar_fotos
+  authenticated no admin                       → ERROR 42501: No autorizado
+  estado 900: a*:0 b:1 c:2
+  ## entradas inválidas (admin) — la galería 900 no debe cambiar
+  tabla autos                                  → ERROR 22023: Tabla de fotos no permitida: autos
+  tabla miembros                               → ERROR 22023: Tabla de fotos no permitida: miembros
+  p_ids nulo                                   → ERROR 22004: La lista de fotos no puede ser nula ni tener nulos
+  con null                                     → ERROR 22004: La lista de fotos no puede ser nula ni tener nulos
+  repetidos (mismo largo)                      → ERROR 23505: La lista de fotos tiene ids repetidos
+  repetidos (más largo)                        → ERROR 23505: La lista de fotos tiene ids repetidos
+  falta una                                    → ERROR 23514: Faltan fotos del registro 900 de auto_fotos: se esperaban 3, llegaron 2
+  sobra una (otro auto)                        → ERROR 23503: Hay fotos que no pertenecen al registro 900 de auto_fotos
+  cambia una por otro auto                     → ERROR 23503: Hay fotos que no pertenecen al registro 900 de auto_fotos
+  id de producto_fotos                         → ERROR 23503: Hay fotos que no pertenecen al registro 900 de auto_fotos
+  id inexistente                               → ERROR 23503: Hay fotos que no pertenecen al registro 900 de auto_fotos
+  vacío con galería llena                      → ERROR 23514: Faltan fotos del registro 900 de auto_fotos: se esperaban 3, llegaron 0
+  padre inexistente                            → ERROR 23503: Hay fotos que no pertenecen al registro 99999 de auto_fotos
+  padre nulo                                   → ERROR 22004: Falta el registro padre
+  estado 900: a*:0 b:1 c:2   (esperado: a*:0 b:1 c:2)
+  estado 901: x*:0   (esperado: x*:0)
+  producto 900: p*   (esperado: p*)
+  ## casos válidos (admin)
+  invertir                                     → OK
+    c*:0 b:1 a:2   (esperado: c*:0 b:1 a:2)
+  mismo orden otra vez                         → OK
+    c*:0 b:1 a:2   (esperado: c*:0 b:1 a:2)
+  principal al final                           → OK
+    b*:0 a:1 c:2   (esperado: b*:0 a:1 c:2)
+  galería de 1                                 → OK
+    solo*:0   (esperado: solo*:0)
+  galería vacía con {}                         → OK
+    (vacía)   (esperado: (vacía))
+  producto_fotos                               → OK
+  principales en 900: 1
+  ## sin principal de partida (datos viejos) → la primera queda principal
+  galería sin principal                        → OK
+    a*:0 b:1 c:2   (esperado: a*:0 b:1 c:2)
+  ## definición
+  security definer: true · config: search_path=public
+  EXECUTE: authenticated,postgres,service_role
+
+## Concurrencia (dos sesiones reales, datos commiteados y borrados al final)
+  A: begin; marcar_foto_principal('auto_fotos',950,9502); pg_sleep(4); commit
+  B (1 s después): reordenar_fotos('auto_fotos',950,[9501,9502])
+  espera de B mientras A retiene: Lock/advisory
+  B terminó junto con A (10:16:27), no antes
+  estado final: a*:0 b:1  → B corrió después de A: misma clave de advisory lock que 0012 (CA-3)
+
+## test:seguridad contra Supabase local
+  $ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon local> npx vitest run --config vitest.seguridad.config.mts
+   Test Files  1 passed (1)
+        Tests  50 passed (50)
+     Start at  10:18:50
+     Duration  405ms (transform 16ms, setup 0ms, import 26ms, tests 287ms, environment 0ms)
+  
+
+## Notas
+- La prueba de seguridad nueva exige 42501, pero es_admin() también responde 42501: no distingue si cortó el EXECUTE revocado o el chequeo de admin. Las dos son barreras válidas; la del EXECUTE queda verificada arriba (anon → 'permission denied for function').
+- a7ae83e se commiteó con ALLOW_COMMIT=1: el hook global marcó la contraseña ficticia de la prueba de registro (rls.test.ts:274, ya presente en main). No es un secreto.
