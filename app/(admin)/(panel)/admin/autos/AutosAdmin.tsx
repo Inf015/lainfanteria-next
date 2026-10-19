@@ -1,35 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { AutoConFotos, EstadoAuto, Moneda } from '@/lib/types';
+import type { FormAuto } from '@/lib/vista-previa';
 import SubirFotos, { type FotoFila } from '../_componentes/SubirFotos';
 import s from '../../../admin.module.css';
 import { formatPrecio } from '@/lib/formato';
+import VistaPrevia from './VistaPrevia';
 
 const ESTADOS: { valor: EstadoAuto; label: string; clase: string }[] = [
   { valor: 'disponible', label: 'Disponible', clase: 'pillVerde' },
   { valor: 'reservado', label: 'Reservado', clase: 'pillAmarillo' },
   { valor: 'vendido', label: 'Vendido', clase: 'pillGris' },
 ];
-
-/** Campos editables; el resto los pone la base. */
-interface FormAuto {
-  marca: string;
-  modelo: string;
-  version: string;
-  anio: string;
-  motor: string;
-  descripcion: string;
-  kilometraje: string;
-  precio: string;
-  moneda: Moneda;
-  estado: EstadoAuto;
-  es_del_equipo: boolean;
-  orden: string;
-  activo: boolean;
-}
 
 const VACIO: FormAuto = {
   marca: '',
@@ -75,6 +60,21 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [vistaPrevia, setVistaPrevia] = useState(false);
+  const botonVistaPrevia = useRef<HTMLButtonElement>(null);
+  const vistaPreviaAbierta = useRef(false);
+
+  // Al cerrar la vista previa el foco vuelve al botón que la abrió. Va en un
+  // efecto porque el modal de edición recién deja de ser `inert` al
+  // renderizar, y un elemento dentro de algo `inert` no puede recibir foco.
+  useEffect(() => {
+    if (vistaPrevia) {
+      vistaPreviaAbierta.current = true;
+    } else if (vistaPreviaAbierta.current) {
+      vistaPreviaAbierta.current = false;
+      botonVistaPrevia.current?.focus();
+    }
+  }, [vistaPrevia]);
 
   function avisar(msg: string) {
     setToast(msg);
@@ -285,7 +285,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
       </div>
 
       {abierto && (
-        <div className={s.modalFondo} onClick={cerrar}>
+        <div className={s.modalFondo} onClick={cerrar} inert={vistaPrevia}>
           <div className={s.modal} onClick={(e) => e.stopPropagation()}>
             <div className={s.modalCabecera}>
               <h2 className={s.modalTitulo}>
@@ -474,6 +474,14 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
                 Cerrar
               </button>
               <button
+                ref={botonVistaPrevia}
+                type="button"
+                className={s.btnSecundario}
+                onClick={() => setVistaPrevia(true)}
+              >
+                Vista previa
+              </button>
+              <button
                 type="submit"
                 form="form-auto"
                 className={s.btnNuevo}
@@ -484,6 +492,15 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
             </div>
           </div>
         </div>
+      )}
+
+      {abierto && vistaPrevia && (
+        <VistaPrevia
+          form={form}
+          fotos={editando?.auto_fotos ?? []}
+          guardado={editando}
+          alCerrar={() => setVistaPrevia(false)}
+        />
       )}
 
       {toast && <div className={s.toast}>{toast}</div>}
