@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearClienteNavegador } from '@/lib/supabase/navegador';
 import type { AutoConFotos, EstadoAuto, Moneda } from '@/lib/types';
@@ -60,21 +60,9 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // La vista previa se aísla sola (todo el <body> detrás queda `inert`) y
+  // devuelve el foco al botón que la abrió: ver VistaPrevia.tsx.
   const [vistaPrevia, setVistaPrevia] = useState(false);
-  const botonVistaPrevia = useRef<HTMLButtonElement>(null);
-  const vistaPreviaAbierta = useRef(false);
-
-  // Al cerrar la vista previa el foco vuelve al botón que la abrió. Va en un
-  // efecto porque el modal de edición recién deja de ser `inert` al
-  // renderizar, y un elemento dentro de algo `inert` no puede recibir foco.
-  useEffect(() => {
-    if (vistaPrevia) {
-      vistaPreviaAbierta.current = true;
-    } else if (vistaPreviaAbierta.current) {
-      vistaPreviaAbierta.current = false;
-      botonVistaPrevia.current?.focus();
-    }
-  }, [vistaPrevia]);
 
   function avisar(msg: string) {
     setToast(msg);
@@ -285,7 +273,7 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
       </div>
 
       {abierto && (
-        <div className={s.modalFondo} onClick={cerrar} inert={vistaPrevia}>
+        <div className={s.modalFondo} onClick={cerrar}>
           <div className={s.modal} onClick={(e) => e.stopPropagation()}>
             <div className={s.modalCabecera}>
               <h2 className={s.modalTitulo}>
@@ -474,7 +462,6 @@ export default function AutosAdmin({ inicial }: { inicial: AutoConFotos[] }) {
                 Cerrar
               </button>
               <button
-                ref={botonVistaPrevia}
                 type="button"
                 className={s.btnSecundario}
                 onClick={() => setVistaPrevia(true)}
