@@ -244,6 +244,13 @@ export default function SubirFotos({
   /**
    * DELETE → renormalizar (RPC) → liberar el bucket → publicar.
    *
+   * Una vez que el DELETE salió bien, la lista local refleja el borrado pase
+   * lo que pase después (T-011-D03): la publicación va en un `finally`, así
+   * que ni una RPC que lanza ni un bucket que lanza dejan la foto borrada en
+   * pantalla. Se eligió `finally` y no publicar antes del bucket para no
+   * mover el orden de CA-9 (el bucket se libera después de renormalizar) y
+   * para que la lista que se publica sea la final, con o sin renormalizar.
+   *
    * `restantes` sale del `fotos` capturado al empezar; sigue vigente porque el
    * candado está tomado hasta que esta función termina.
    */
@@ -268,29 +275,36 @@ export default function SubirFotos({
     const restantes = fotos.filter((f) => f.id !== foto.id);
     let quedaron = restantes;
 
-    if (restantes.length > 0) {
-      const normalizada = normalizarGaleria(restantes);
-      try {
-        const { error: errOrden } = await db.rpc('reordenar_fotos', {
-          p_tabla: tabla,
-          p_padre_id: registroId,
-          p_ids: normalizada.map((f) => f.id),
-        });
-        if (errOrden) {
-          setError(`La foto se borró, pero no se pudo reordenar la galería: ${errOrden.message}`);
-        } else {
-          quedaron = normalizada;
+    try {
+      if (restantes.length > 0) {
+        const normalizada = normalizarGaleria(restantes);
+        try {
+          const { error: errOrden } = await db.rpc('reordenar_fotos', {
+            p_tabla: tabla,
+            p_padre_id: registroId,
+            p_ids: normalizada.map((f) => f.id),
+          });
+          if (errOrden) {
+            setError(`La foto se borró, pero no se pudo reordenar la galería: ${errOrden.message}`);
+          } else {
+            quedaron = normalizada;
+          }
+        } catch (e) {
+          setError(`La foto se borró, pero no se pudo reordenar la galería: ${mensaje(e)}`);
         }
-      } catch (e) {
-        setError(`La foto se borró, pero no se pudo reordenar la galería: ${mensaje(e)}`);
       }
+
+      // El archivo se borra después: si esto falla queda un huérfano en
+      // Storage, molesto pero inofensivo. Al revés dejaría una foto rota en el
+      // sitio. Por eso un fallo acá se registra y no se muestra como error.
+      try {
+        await borrarDelBucket(db, foto.url);
+      } catch (e) {
+        console.error(`No se pudo liberar ${foto.url} del bucket:`, mensaje(e));
+      }
+    } finally {
+      onCambio(quedaron);
     }
-
-    // El archivo se borra después: si esto falla queda un huérfano en Storage,
-    // molesto pero inofensivo. Al revés dejaría una foto rota en el sitio.
-    await borrarDelBucket(db, foto.url);
-
-    onCambio(quedaron);
   }
 
   return (
