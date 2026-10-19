@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import Image from 'next/image';
 import { nombreAuto } from '@/lib/formato';
-import { fotoAnterior, fotoSiguiente, indiceValido } from '@/lib/galeria';
+import { fotoAnterior, fotoSiguiente, indiceValido } from '@/lib/indice-foto';
 import { ESTADO_CLASE, ESTADO_LABEL } from './estado';
 import { precioMostrable, type AutoMostrable } from './TarjetaAuto';
 import s from './autos.module.css';

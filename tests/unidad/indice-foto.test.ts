@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fotoAnterior, fotoSiguiente, indiceValido } from '@/lib/galeria';
+import { fotoAnterior, fotoSiguiente, indiceValido } from '@/lib/indice-foto';
 
 /**
  * T-012-D01/D02: el índice de foto del detalle tiene que ser siempre válido
