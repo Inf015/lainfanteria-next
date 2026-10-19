@@ -224,11 +224,44 @@ export default function SubirFotos({
       return;
     }
 
+    // Borrar la principal dejaba la galería sin principal. Ahora, con la fila
+    // ya borrada, se renormaliza lo que queda: la que era segunda pasa a ser
+    // la primera y la principal, y el `orden` queda sin huecos.
+    //
+    // Si esta RPC falla la fila igual ya no existe, así que la lista local
+    // queda sin ella y con los valores que de verdad tiene la base (sin
+    // normalizar). Si la borrada era la principal, la galería queda sin
+    // principal hasta el próximo reordenamiento: ese riesgo lo cierra un
+    // borrado atómico (borrar + renormalizar en una transacción), que es otra
+    // tarea.
+    const restantes = fotos.filter((f) => f.id !== foto.id);
+    let quedaron = restantes;
+
+    if (restantes.length > 0) {
+      const normalizada = normalizarGaleria(restantes);
+      try {
+        const { error: errOrden } = await db.rpc('reordenar_fotos', {
+          p_tabla: tabla,
+          p_padre_id: registroId,
+          p_ids: normalizada.map((f) => f.id),
+        });
+        if (errOrden) {
+          setError(`La foto se borró, pero no se pudo reordenar la galería: ${errOrden.message}`);
+        } else {
+          quedaron = normalizada;
+        }
+      } catch (e) {
+        setError(
+          `La foto se borró, pero no se pudo reordenar la galería: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+
     // El archivo se borra después: si esto falla queda un huérfano en Storage,
     // molesto pero inofensivo. Al revés dejaría una foto rota en el sitio.
     await borrarDelBucket(db, foto.url);
 
-    onCambio(fotos.filter((f) => f.id !== foto.id));
+    onCambio(quedaron);
   }
 
   return (
