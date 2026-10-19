@@ -1,4 +1,4 @@
-# QA T-011 — Reordenar las fotos de una galería — ronda 1
+# QA T-011 — Reordenar las fotos de una galería — ronda 2
 
 Sos un **Test Analyst independiente** con criterio ISTQB. No implementaste este
 cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
@@ -27,9 +27,9 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 | Base de prueba | `docs/pm/tareas/T-011/brief-dev.md` (criterios CA-*) |
 | Entrega del dev | `docs/pm/tareas/T-011/entrega-dev.md` |
 | Gate del PM | `docs/pm/tareas/T-011/gate-rN.txt` |
-| Ronda anterior | ninguna |
+| Ronda anterior | `reporte-qa-r1.md` (FAIL: D01 S2/P1, D02 S3/P3) |
 | Carril | **Estricto** — RPC `security definer` nueva (0014) |
-| Pruebas del PM | `docs/pm/tareas/T-011/pruebas-pm-r1.txt` (SQL contra Supabase local) |
+| Pruebas del PM | `pruebas-pm-r1.txt` y `pruebas-pm-r2.txt` (SQL contra Supabase local) |
 
 ## Qué hacer
 
@@ -55,6 +55,16 @@ cambio y no tenés que defenderlo: tu trabajo es encontrar dónde falla.
 6. **Ronda ≥ 2:** *confirmation testing* de cada defecto anterior (FIXED /
    NOT FIXED / PARTIAL) + *regression testing* de lo que el fix tocó. Los fixes
    introducen defectos nuevos seguido: buscalos.
+
+## Ronda 2
+
+Confirmation testing de D01, D02 y D03 (sección 7 del brief) y regression
+testing de todo lo que tocó el fix. El brief pide corregir **la clase** de D01:
+verificá que **ninguna** operación de la galería quede fuera de la guardia
+única, y que ningún `onCambio` publique una lista vieja. Buscá otras
+instancias de la misma forma, no solo la del reporte. Los casos SQL que pediste
+en r1 (multidimensional, límite inferior 0, productos) están en
+`pruebas-pm-r2.txt`.
 
 ## Puntos centrales de esta tarea
 

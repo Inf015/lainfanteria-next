@@ -1,0 +1,12 @@
+# Pruebas a cargo del PM — T-011, casos SQL pedidos por QA en r1
+Entorno: el mismo Supabase local de pruebas-pm-r1.txt (0001..0014, migración sin cambios desde 7d70f6f). Todo dentro de BEGIN … ROLLBACK, como admin@local.test.
+
+multidimensional                             → ERROR 2202E: La lista de fotos tiene que ser de una dimensión
+multidimensional 3x1                         → ERROR 2202E: La lista de fotos tiene que ser de una dimensión
+límite inferior 0  '[0:2]={9003,9001,9002}'  → OK
+  c*:0 a:1 b:2   (esperado: c*:0 a:1 b:2 — la primera posición real queda principal)
+productos invertir                           → OK
+productos invertir otra vez                  → OK
+  r*:0 q:1 p:2   (esperado: r*:0 q:1 p:2)
+
+Pendiente para después del fix de r2: reproducción manual de D01 y D03 en el panel local (login de admin local).
