@@ -10,3 +10,48 @@ productos invertir otra vez                  → OK
   r*:0 q:1 p:2   (esperado: r*:0 q:1 p:2)
 
 Pendiente para después del fix de r2: reproducción manual de D01 y D03 en el panel local (login de admin local).
+
+# Panel real — T-011 ronda 2 (HEAD 7c44922, 2026-10-19 10:36)
+Entorno: next build && next start de la rama (3023) contra Supabase local 0001..0014, admin local con contraseña.
+Sembrado: Mustang con 3 fotos, producto «Gorra» con 2. Recorrido con Playwright (script del PM fuera del repo):
+fallas inyectadas con page.route: RPC 500, RPC lenta (2 s), upload lento (2.5 s), DELETE del bucket abortado. La base se lee con psql después de cada paso.
+
+  inicio  dom: cld-sample-2.jpg* sample.jpg beach-boat.jpg | base: cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2
+  ✓ ▶ en la primera → base: sample.jpg*:0 cld-sample-2.jpg:1 beach-boat.jpg:2
+  ✓ ▶ pantalla = base (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ ★ en la última → base: beach-boat.jpg*:0 sample.jpg:1 cld-sample-2.jpg:2
+  ✓ arrastrar 1ª → 3ª → base: sample.jpg*:0 cld-sample-2.jpg:1 beach-boat.jpg:2
+  ✓ arrastre: pantalla = base (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ RPC 500 → la pantalla vuelve al orden anterior (sample.jpg* cld-sample-2.jpg beach-boat.jpg)
+  ✓ RPC 500 → aviso: «No se pudo guardar el orden: falla inyectada por el PM»
+  ✓ RPC 500 → la base no cambió
+  ✓ con un movimiento en vuelo, ▶ y Borrar quedan deshabilitados
+  ✓ un solo RPC con un clic extra en vuelo (llamadas: 1)
+  ✓ tras el vuelo: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg | cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2)
+  ✓ D01: con una subida en vuelo, reordenar queda deshabilitado
+  ✓ D01: la segunda subida se rechaza con aviso («Hay una operación de la galería en curso. Esperá a que termine y volvé a intentar.»)
+  ✓ D01: se subió un solo archivo (1)
+  ✓ D01: base y pantalla con 4 fotos (base 4, pantalla 4)
+  ✓ D01: al terminar la subida se puede reordenar de nuevo
+  ✓ la foto subida, mandada al primer lugar, es la principal (f79e4a43-4dbd-4dbe-b64f-4d0556ae5f74.png*:0 cld-sample-2.jpg:1 sample.jpg:2 beach-boat.jpg:3)
+  ✓ pantalla = base tras mover la subida
+  ✓ soltar una miniatura en la zona de subida no sube nada
+  ✓ y el orden sigue igual a la base (f79e4a43-4dbd-4dbe-b64f-4d0556ae5f74.png* cld-sample-2.jpg sample.jpg beach-boat.jpg)
+  ✓ D03: la fila se borró
+  ✓ D03: con el bucket caído, la foto borrada sale de la pantalla (3 miniaturas)
+  ✓ borrar la principal promueve la siguiente (f79e4a43-4dbd-4dbe-b64f-4d0556ae5f74.png*:0 → cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2)
+  ✓ D03: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg)
+  ✓ tras recargar: pantalla = base (cld-sample-2.jpg* sample.jpg beach-boat.jpg)
+  ✓ productos: ▶ → dessert.jpg*:0 cat.jpg:1
+  ✓ táctil: controles visibles sin hover (opacity 1)
+  ✗ teclado: con foco, los controles se ven (opacity 0)
+  ✓ teclado: Enter sobre ▶ reordena (cld-sample-2.jpg*:0 sample.jpg:1 beach-boat.jpg:2 → cld-sample-2.jpg*:0 beach-boat.jpg:1 sample.jpg:2)
+  ✓ sin errores de página ()
+  
+  1 FALLAS
+
+  Nota sobre el ✗ «teclado: opacity 0»: es un error de la prueba, no del producto. Se midió apenas después de .focus()
+  y .fotoAcciones tiene «transition: opacity 0.15s». Remedido con foco real (Tab) y 600 ms de espera:
+    activo: Mandar al primer lugar · opacity: 1 · :focus-within: true
+
+Conclusión del PM: D01 (dos subidas) y D03 (bucket caído) no se reproducen; rollback, vuelo, arrastre, ★, borrar principal, productos, táctil y teclado OK.
